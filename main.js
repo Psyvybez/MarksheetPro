@@ -322,8 +322,7 @@ function setupEventListeners() {
     const authContainer = document.getElementById('auth-container');
 
     if (authContainer) {
-        document.getElementById('auth-submit-btn')?.addEventListener('click', (e) => handleAuthSubmit(e, supabaseClient));
-        
+document.getElementById('auth-submit-btn')?.addEventListener('click', (e) => handleAuthSubmit(e, supabaseClient));
         document.getElementById('auth-toggle-link')?.addEventListener('click', (e) => {
             e.preventDefault();
             const authTitle = document.getElementById('auth-title');
