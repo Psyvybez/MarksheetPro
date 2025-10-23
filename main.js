@@ -441,7 +441,9 @@ function setupEventListeners() {
     });
 
     ['mousemove', 'mousedown', 'keypress', 'click'].forEach(evt => window.addEventListener(evt, resetInactivityTimer));
-   window.addEventListener('visibilitychange', async () => { // Make the handler async
+   // Replace the existing visibilitychange listener in Frontend/main.js
+
+window.addEventListener('visibilitychange', async () => { // Make the handler async
     const currentUser = getCurrentUser();
     const loadingOverlay = document.getElementById('loading-overlay'); // Get the loading overlay element
 
