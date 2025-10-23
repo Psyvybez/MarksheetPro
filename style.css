@@ -1,0 +1,109 @@
+/* Add this to the top of style.css */
+:root {
+    --color-brand-primary: #2b3a67;   /* Dark Navy */
+    --color-brand-secondary: #0d9488;  /* Teal */
+    --color-brand-accent: #c026d3;    /* Fuchsia */
+    --color-brand-text: #2b3a67;
+}
+
+/* New Theme Utility Classes */
+.bg-primary { background-color: var(--color-brand-primary); }
+.hover\:bg-primary-dark:hover { background-color: #222e54; } /* Darker Navy */
+
+.bg-accent { background-color: var(--color-brand-accent); }
+.hover\:bg-accent-dark:hover { background-color: #a21caf; } /* Darker Fuchsia */
+
+.bg-secondary { background-color: var(--color-brand-secondary); }
+.hover\:bg-secondary-dark:hover { background-color: #0f766e; } /* Darker Teal */
+
+.text-primary { color: var(--color-brand-text); }
+.text-accent { color: var(--color-brand-accent); }
+.hover\:text-accent-dark:hover { color: #a21caf; }
+
+.border-primary { border-color: var(--color-brand-primary); }
+.border-accent { border-color: var(--color-brand-accent); }
+
+/* Global styles */
+body { font-family: 'Inter', sans-serif; margin: 0; }
+.hidden { display: none; }
+.fade-in { animation: fadeIn 0.5s ease-in-out; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Content Editable Focus Style */
+[contenteditable="true"]:focus { outline-color: #3b82f6; box-shadow: 0 0 0 2px #bfdbfe; }
+
+/* Table Input Styles */
+table input, table select { border: none; background-color: transparent; width: 100%; height: 100%; text-align: center; padding: 12px 8px; outline: none; }
+table input:focus { background-color: #eff6ff; }
+
+/* Tab Button Styles */
+.tab-button.active, .semester-button.active { border-bottom-color: var(--color-brand-accent); color: var(--color-brand-accent); font-weight: 600; }
+
+/* Delete Button */
+.delete-btn { background: #fee2e2; color: #ef4444; border-radius: 9999px; width: 20px; height: 20px; display: inline-flex; justify-content: center; align-items: center; font-size: 12px; font-weight: bold; cursor: pointer; border: none; line-height: 1; transition: all 0.2s ease; flex-shrink: 0; }
+.delete-btn:hover { background: #ef4444; color: white; transform: scale(1.1); }
+
+/* Dragging Visuals */
+.tab-button.dragging, .unit-item.dragging, .assignment-item.dragging {
+    opacity: 0.5;
+    background: #eef2ff;
+}
+
+/* Modal Styling */
+body.modal-open { overflow: hidden; }
+#custom-modal { max-height: 95vh; }
+.modal-content-area { overflow-y: auto; padding-right: 1rem; margin-right: -1rem; }
+
+/* Table Wrapper */
+#table-wrapper {
+    overflow: auto;
+    position: sticky;
+    top: 0;
+    max-height: 100vh;
+    z-index: 40;
+}
+
+/* Sticky Header Rows */
+#gradebookTable thead tr { position: sticky; z-index: 30; }
+#gradebookTable thead tr:first-child { top: 0; z-index: 32; }
+#gradebookTable thead tr:first-child th { background-color: #f9fafb; }
+#gradebookTable thead tr:nth-child(2) { top: var(--header-row-1-height, 36px); z-index: 31; }
+#gradebookTable thead tr:nth-child(2) th { background-color: #f3f4f6; }
+#gradebookTable thead tr:nth-child(3) { top: var(--header-row-2-height, 72px); z-index: 30; }
+#gradebookTable thead tr:nth-child(3) th { background-color: #e5e7eb; }
+
+/* Sticky Student Info Columns */
+.student-info-header, .student-info-header-blank,
+body.has-final #gradebookTable tbody td:nth-child(-n+6),
+body.has-final #gradebookTable tfoot td:nth-child(-n+6),
+body.no-final #gradebookTable tbody td:nth-child(-n+5),
+body.no-final #gradebookTable tfoot td:nth-child(-n+5) {
+    position: sticky;
+    z-index: 26;
+}
+
+#gradebookTable thead .student-info-header, #gradebookTable thead .student-info-header-blank { z-index: 35 !important; }
+
+/* Table Body Styling */
+#gradebookTable tbody td { background-color: white; }
+#gradebookTable tbody tr.student-row:nth-child(even) td { background-color: #e6eff8; }
+#gradebookTable tbody tr.student-row:hover td { background-color: #e7c2ec !important; }
+#gradebookTable tfoot td { background-color: #f3f4f6; font-weight: 600; }
+
+/* Column-specific stickiness */
+#gradebookTable th:nth-child(1), #gradebookTable td:nth-child(1) { left: 0; width: 15rem; min-width: 15rem; }
+#gradebookTable th:nth-child(2), #gradebookTable td:nth-child(2) { left: 15rem; width: 4rem; min-width: 4rem; }
+#gradebookTable th:nth-child(3), #gradebookTable td:nth-child(3) { left: 19rem; width: 6rem; min-width: 6rem; }
+#gradebookTable th:nth-child(4), #gradebookTable td:nth-child(4) { left: 25rem; width: 6rem; min-width: 6rem; }
+#gradebookTable th:nth-child(5), #gradebookTable td:nth-child(5) { left: 31rem; width: 6rem; min-width: 6rem; }
+/* With Final */
+body.has-final #gradebookTable th:nth-child(6), body.has-final #gradebookTable td:nth-child(6) { left: 37rem; width: 6rem; min-width: 6rem; }
+
+/* Student Name Button */
+.student-name-btn { width: 100%; height: 100%; text-align: left; padding: 12px; background-color: transparent; border: none; color: #3b82f6; font-weight: 500; cursor: pointer; transition: all 0.2s ease-in-out; }
+.student-name-btn:hover { background-color: #eff6ff; text-decoration: underline; }
+
+.assignment-header-cell { min-width: 4.5rem; }
+
+/* Save Status Icon */
+.save-status-icon { display: inline-block; font-weight: bold; transition: color 0.3s ease; }

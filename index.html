@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marksheet Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* Hide number input arrows */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+          -webkit-appearance: none; 
+          margin: 0; 
+        }
+        input[type=number] {
+          -moz-appearance: textfield; /* Firefox */
+        }
+        .grade-input-error {
+            background-color: #fee2e2;
+            border: 1px solid #ef4444;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <div id="loading-overlay" class="fixed inset-0 bg-white bg-opacity-75 flex items-center justify-center z-50">
+        <div class="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500"></div>
+    </div>
+
+    <div id="auth-container" class="hidden min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:p-8">
+        <div class="max-w-md w-full space-y-4">
+            <div>
+                <img class="mx-auto h-13 w-auto" src="Marksheet Pro Logo.png" alt="Marksheet Pro Logo">
+                <p id="auth-title" class=" text-center text-sm text-gray-600">Sign in to your account</p>
+            </div>
+            <div class="mt-8 space-y-6">
+                <div id="auth-error" class="hidden p-3 bg-red-100 text-red-700 rounded-md"></div>
+                <div class="rounded-md shadow-sm -space-y-px">
+                    <input id="email-address" name="email" type="email" autocomplete="email" required class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="Email address">
+                    <input id="password" name="password" type="password" autocomplete="current-password" required class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="Password">
+                </div>
+                <div><button id="auth-submit-btn" class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary-dark">Sign in</button></div>
+                <p class="mt-2 text-center text-sm text-gray-600"><a href="#" id="auth-toggle-link" class="font-medium text-accent hover:text-accent-dark">Or create a new account</a></p>
+            </div>
+        </div>
+    </div>
+
+    <div id="app-container" class="hidden container mx-auto p-4 sm:p-6 lg:p-8">
+        <header class="bg-white shadow-md rounded-lg p-6 mb-6 flex justify-between items-center">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-800">Marksheet Pro</h1>
+                <p id="user-email-display" class="text-gray-600 mt-1"></p>
+            </div>
+            <div class="flex items-center gap-2">
+                <button id="backup-btn" class="bg-secondary hover:bg-secondary-dark text-white font-bold py-2 px-4 rounded-lg shadow-sm">Backup</button>
+                <button id="restore-btn" class="bg-secondary hover:bg-secondary-dark text-white font-bold py-2 px-4 rounded-lg shadow-sm">Restore</button>
+                <button id="account-management-btn" class="bg-primary hover:bg-gray-300 text-white font-bold py-2 px-4 rounded-lg shadow-sm">My Account</button>
+                <button id="sign-out-btn" class="bg-accent hover:bg-accent-dark text-white font-bold py-2 px-4 rounded-lg shadow-sm">Sign Out</button>
+            </div>
+        </header>
+        <div id="content-wrapper"></div>
+    </div>
+    <div id="modal-container"></div>
+
+    <script type="module" src="main.js"></script>
+</body>
+</html>
