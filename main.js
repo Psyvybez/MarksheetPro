@@ -442,16 +442,16 @@ document.getElementById('auth-submit-btn')?.addEventListener('click', (e) => han
     ['mousemove', 'mousedown', 'keypress', 'click'].forEach(evt => window.addEventListener(evt, resetInactivityTimer));
    // Replace the existing visibilitychange listener in Frontend/main.js
 
-window.addEventListener('visibilitychange', async () => { // Make the handler async
+    window.addEventListener('visibilitychange', async () => { // Make the handler async
     const currentUser = getCurrentUser();
     const loadingOverlay = document.getElementById('loading-overlay'); // Get the loading overlay element
 
     // Check if the tab is now visible AND the user is logged in
-    if (document.visibilityState === 'visible' && currentUser && supabaseClient) {
-        console.log("Tab refocused. Checking for data updates...");
-        loadingOverlay?.classList.remove('hidden'); // Show the loading spinner
+            if (document.visibilityState === 'visible' && currentUser && supabaseClient) {
+                console.log("Tab refocused. Checking for data updates...");
+                loadingOverlay?.classList.remove('hidden'); // Show the loading spinner
 
-        try {
+            try {
             // Optional: Refresh session just in case it expired while tab was hidden
             await supabaseClient.auth.getSession();
 
@@ -467,13 +467,12 @@ window.addEventListener('visibilitychange', async () => { // Make the handler as
                 // *** Update the UI with the latest data, passing isInitial = false ***
                 handleDataLoad(data, false);
             }
-        } catch (e) {
+            } catch (e) {
             console.error("Unexpected error during visibility change handling:", e);
             // Optional: Handle unexpected errors
-        } finally {
+            } finally {
             loadingOverlay?.classList.add('hidden'); // Always hide spinner when done
+            }
         }
-    }
-});
-
+    });
 }
