@@ -475,3 +475,5 @@ window.addEventListener('visibilitychange', async () => { // Make the handler as
         }
     }
 });
+
+}
