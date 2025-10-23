@@ -441,10 +441,36 @@ function setupEventListeners() {
     });
 
     ['mousemove', 'mousedown', 'keypress', 'click'].forEach(evt => window.addEventListener(evt, resetInactivityTimer));
-    window.addEventListener('visibilitychange', () => {
-        const currentUser = getCurrentUser();
-        if (document.visibilityState === 'visible' && currentUser && supabaseClient) {
-            supabaseClient.auth.getSession();
+   window.addEventListener('visibilitychange', async () => { // Make the handler async
+    const currentUser = getCurrentUser();
+    const loadingOverlay = document.getElementById('loading-overlay'); // Get the loading overlay element
+
+    // Check if the tab is now visible AND the user is logged in
+    if (document.visibilityState === 'visible' && currentUser && supabaseClient) {
+        console.log("Tab refocused. Checking for data updates...");
+        loadingOverlay?.classList.remove('hidden'); // Show the loading spinner
+
+        try {
+            // Optional: Refresh session just in case it expired while tab was hidden
+            await supabaseClient.auth.getSession();
+
+            // *** Explicitly re-load data from the server ***
+            // Pass wasLocalDataLoaded = false, indicating this isn't the initial page load
+            const { data, error } = await loadDataForUser(currentUser.id, getAppState(), false);
+
+            if (error) {
+                console.error("Error reloading data on tab focus:", error);
+                // Optional: Show a user-friendly error message via showModal if needed
+            } else if (data) {
+                console.log("Data reloaded on tab focus. Updating UI...");
+                // *** Update the UI with the latest data, passing isInitial = false ***
+                handleDataLoad(data, false);
+            }
+        } catch (e) {
+            console.error("Unexpected error during visibility change handling:", e);
+            // Optional: Handle unexpected errors
+        } finally {
+            loadingOverlay?.classList.add('hidden'); // Always hide spinner when done
         }
-    });
-}
+    }
+});
