@@ -408,45 +408,53 @@ document.getElementById('auth-submit-btn')?.addEventListener('click', (e) => han
 
             // Handle grade input changes
             if (target.classList.contains('grade-input')) {
-                const studentId = target.dataset.studentId;
-                const assignmentId = target.dataset.assignmentId;
-                const category = target.dataset.cat; // Will be undefined for final grades
-                const value = target.value.trim();
-                const numericValue = value === '' ? null : parseFloat(value);
+            const studentId = target.dataset.studentId;
+            const assignmentId = target.dataset.assignmentId;
+            const category = target.dataset.cat;
+            const value = target.value.trim();
 
-                if (studentId && assignmentId && classData?.students?.[studentId]) {
-                    // --- 1. Update State Logic (Keep as is) ---
-                    if (!classData.students[studentId].grades) {
-                        classData.students[studentId].grades = {};
-                    }
-                    if (!classData.students[studentId].grades[assignmentId]) {
-                        classData.students[studentId].grades[assignmentId] = {};
-                    }
-                    if (category) { // Term Grade (K/T/C/A)
-                        classData.students[studentId].grades[assignmentId][category] = numericValue;
-                    } else { // Final Grade
-                        classData.students[studentId].grades[assignmentId].grade = numericValue;
-                    }
-                    // --- End State Update Logic ---
-
-                    // --- 2. Validation Logic (Keep as is) ---
-                    const unit = Object.values(classData.units || {}).find(u => u.assignments?.[assignmentId]);
-                    const assignment = unit?.assignments?.[assignmentId];
-                    let maxScore = 0;
-                    if(unit?.isFinal) { maxScore = assignment?.total ?? 0; }
-                    else if (category) { maxScore = assignment?.categoryTotals?.[category] ?? 0; }
-                    const isValid = value === '' || (!isNaN(numericValue) && numericValue >= 0 && numericValue <= maxScore);
-                    target.classList.toggle('grade-input-error', !isValid);
-                    // --- End Validation Logic ---
-
-                    // --- 3. Render UI with Calculations FIRST ---
-                    renderGradebook(); // Re-render the gradebook immediately to show updated averages
-
-                    // --- 4. Trigger Save/Sync AFTER UI update ---
-                    triggerAutoSave();
+            // --- Refined Parsing ---
+            let numericValue;
+            if (value === '') {
+                numericValue = null; // Store empty input as null
+            } else {
+                numericValue = parseFloat(value);
+                // If parsing fails (e.g., user types text), treat as null or keep old value? Let's treat as null for now.
+                if (isNaN(numericValue)) {
+                    numericValue = null;
                 }
-                return; // Stop further processing for grade inputs
             }
+            // --- End Refined Parsing ---
+
+            if (studentId && assignmentId && classData?.students?.[studentId]) {
+                // --- State Update Logic (Use numericValue) ---
+                if (!classData.students[studentId].grades) classData.students[studentId].grades = {};
+                if (!classData.students[studentId].grades[assignmentId]) classData.students[studentId].grades[assignmentId] = {};
+
+                if (category) {
+                    classData.students[studentId].grades[assignmentId][category] = numericValue;
+                } else {
+                    classData.students[studentId].grades[assignmentId].grade = numericValue;
+                }
+                // --- End State Update ---
+
+                // --- Validation (Use numericValue) ---
+                const unit = Object.values(classData.units || {}).find(u => u.assignments?.[assignmentId]);
+                const assignment = unit?.assignments?.[assignmentId];
+                let maxScore = Infinity; // Default to allow any number if max isn't found
+                if (unit?.isFinal) { maxScore = assignment?.total ?? Infinity; }
+                else if (category) { maxScore = assignment?.categoryTotals?.[category] ?? Infinity; }
+
+                // Check validity against parsed numericValue OR if it's null (empty is valid)
+                const isValid = numericValue === null || (!isNaN(numericValue) && numericValue >= 0 && (maxScore === Infinity || numericValue <= maxScore));
+                target.classList.toggle('grade-input-error', !isValid && value !== ''); // Only show error if not empty and invalid
+
+                // --- Render then Save ---
+                renderGradebook();
+                triggerAutoSave();
+            }
+            return;
+        }
 
             // --- Handle other inputs (IEP, Class Name, Category Weights) ---
             // Keep the logic for these as is
