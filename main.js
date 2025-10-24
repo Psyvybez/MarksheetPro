@@ -444,6 +444,7 @@ document.getElementById('auth-submit-btn')?.addEventListener('click', (e) => han
                     // --- 4. Trigger Save/Sync AFTER UI update ---
                     triggerAutoSave();
                 }
+            }
 
             // --- Handle other inputs (IEP, Class Name, Category Weights) ---
             // Keep the logic for these as is
