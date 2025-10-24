@@ -102,7 +102,7 @@ export function calculateStudentAverages(student, classData) {
     return { termMark, finalMark, overallGrade, categories: termPercentages };
 }
 
-function calculateClassAverages(classData) {
+export function calculateClassAverages(classData) {
     const students = Object.values(classData?.students || {});
     if (students.length === 0) return { termMark: null, finalMark: null, overallGrade: null };
 
