@@ -134,13 +134,13 @@ export function renderGradebook() {
     const unitsToDisplay = (activeUnitId && activeUnitId !== 'all') ? { [activeUnitId]: allUnits[activeUnitId] } : allUnits;
 
     const studentInfoHeaders = `
-        <th class="student-info-header">Student Name</th>
-        <th class="student-info-header">IEP</th>
-        <th class="student-info-header">Overall</th>
-        <th class="student-info-header">Midterm</th>
-        <th class="student-info-header">Term Mark</th>
-        ${classData.hasFinal ? `<th class="student-info-header">Final</th>` : ''}
-        <th>K%</th><th>T%</th><th>C%</th><th>A%</th>`;
+        <th class="student-info-header p-3 text-left">Student Name</th>
+        <th class="student-info-header p-3 text-center">IEP</th>
+        <th class="student-info-header p-3 text-center">Overall</th>
+        <th class="student-info-header p-3 text-center">Midterm</th>
+        <th class="student-info-header p-3 text-center">Term Mark</th>
+        ${classData.hasFinal ? `<th class="student-info-header p-3 text-center">Final</th>` : ''}
+        <th class="p-3 text-center">K%</th><th class="p-3 text-center">T%</th><th class="p-3 text-center">C%</th><th class="p-3 text-center">A%</th>`;
     const studentInfoColCount = classData.hasFinal ? 6 : 5;
     const nonStickyColCount = 4;
 
@@ -253,7 +253,7 @@ export function renderGradebook() {
 
     const tfoot = table.querySelector('tfoot');
     let footerCells = [
-        `<td>Class Average</td>`, `<td></td>`,
+        `<td class="p-3 text-left">Class Average</td>`, `<td></td>`,
         `<td class="class-overall text-center">--%</td>`,
         `<td></td>`,
         `<td class="class-term-mark text-center">--%</td>`
@@ -417,7 +417,7 @@ export function renderFullGradebookUI() {
             </div>
         </div>
                 
-            <div id="table-wrapper" class="bg-white rounded-lg shadow-md"><table id="gradebookTable" class="w-full text-sm text-left text-gray-500"><thead></thead><tbody></tbody><tfoot></tfoot></table></div>
+            <div id="table-wrapper" class="bg-white rounded-lg shadow-md"><table id="gradebookTable" class="w-full text-sm text-gray-500"><thead></thead><tbody></tbody><tfoot></tfoot></table></div>
         </div>
     `;
     updateUIFromState();
