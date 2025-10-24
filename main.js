@@ -415,7 +415,7 @@ document.getElementById('auth-submit-btn')?.addEventListener('click', (e) => han
                 const numericValue = value === '' ? null : parseFloat(value);
 
                 if (studentId && assignmentId && classData?.students?.[studentId]) {
-                    // --- State Update Logic (keep as is) ---
+                    // --- 1. Update State Logic (Keep as is) ---
                     if (!classData.students[studentId].grades) {
                         classData.students[studentId].grades = {};
                     }
@@ -429,7 +429,7 @@ document.getElementById('auth-submit-btn')?.addEventListener('click', (e) => han
                     }
                     // --- End State Update Logic ---
 
-                    // --- Validation Logic (keep as is) ---
+                    // --- 2. Validation Logic (Keep as is) ---
                     const unit = Object.values(classData.units || {}).find(u => u.assignments?.[assignmentId]);
                     const assignment = unit?.assignments?.[assignmentId];
                     let maxScore = 0;
@@ -439,26 +439,35 @@ document.getElementById('auth-submit-btn')?.addEventListener('click', (e) => han
                     target.classList.toggle('grade-input-error', !isValid);
                     // --- End Validation Logic ---
 
+                    // --- 3. Render UI with Calculations FIRST ---
+                    renderGradebook(); // Re-render the gradebook immediately to show updated averages
+
+                    // --- 4. Trigger Save/Sync AFTER UI update ---
                     triggerAutoSave();
-                    updateUIFromState(); // *** Use updateUIFromState instead of renderGradebook ***
                 }
                 return; // Stop further processing for grade inputs
             }
 
             // --- Handle other inputs (IEP, Class Name, Category Weights) ---
-            // Keep the logic for these as is, they correctly call triggerAutoSave
-            // and trigger re-renders where necessary (e.g., renderCategoryWeights).
+            // Keep the logic for these as is
             if (target.classList.contains('iep-checkbox')) {
-                // ... IEP logic ...
-                 triggerAutoSave();
+                const studentId = target.dataset.studentId;
+                 if (studentId && classData?.students?.[studentId]) {
+                     classData.students[studentId].iep = target.checked;
+                     triggerAutoSave(); // Save happens after checkbox change
+                 }
             } else if (target.id === 'className' && classData) {
-                // ... Class name logic ...
-                 triggerAutoSave();
+                 classData.name = target.textContent.trim();
+                 triggerAutoSave(); // Save happens after name change
             } else if (target.classList.contains('cat-weight-input') && classData) {
-                // ... Category weight logic ...
-                 renderCategoryWeights(); // This correctly re-renders the weight section
-                 triggerAutoSave();
-                 updateUIFromState(); // *** Add this call to update gradebook averages after weight change ***
+                 const cat = target.dataset.cat;
+                 const value = parseFloat(target.value) || 0;
+                 if (cat && classData.categoryWeights) {
+                     classData.categoryWeights[cat] = value;
+                     renderCategoryWeights(); // Re-render category weights section immediately
+                     renderGradebook(); // *** Re-render gradebook immediately after weight change ***
+                     triggerAutoSave(); // Save happens after UI updates
+                 }
             }
         });
         
