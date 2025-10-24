@@ -2,8 +2,7 @@ import { initializeSupabase, syncToServer, loadDataForUser, deleteCurrentUser } 
 import { setupAuthListener, handleAuthSubmit, signOut } from './auth.js';
 import { showModal, updateSaveStatus } from './ui.js';
 import { setAppState, setCurrentUser, getAppState, getCurrentUser } from './state.js';
-import { renderFullGradebookUI, updateUIFromState, renderGradebook, renderClassTabs, renderAccountPage, renderAttendanceSheet, renderStudentProfileModal } from './render.js';
-import * as actions from './actions.js';
+import { renderFullGradebookUI, updateUIFromState, renderGradebook, renderClassTabs, renderAccountPage, renderAttendanceSheet, renderStudentProfileModal, recalculateAndRenderAverages } from './render.js';import * as actions from './actions.js';
 
 // --- GLOBAL STATE & CONSTANTS ---
 const SUPABASE_URL = 'https://pvwcdesafxxkosdrfjwa.supabase.co';
@@ -406,6 +405,10 @@ document.getElementById('auth-submit-btn')?.addEventListener('click', (e) => han
             }
             if (target.classList.contains('grade-input') || target.classList.contains('iep-checkbox') || target.id === 'className' || target.classList.contains('cat-weight-input')) {
                 triggerAutoSave();
+
+                if (target.classList.contains('grade-input')) {
+                    recalculateAndRenderAverages(); // Recalculate immediately on grade change
+                }
             }
         });
         
