@@ -1,7 +1,7 @@
 import { initializeSupabase, syncToServer, loadDataForUser, deleteCurrentUser } from './api.js';
 import { setupAuthListener, handleAuthSubmit, signOut } from './auth.js';
 import { showModal, updateSaveStatus } from './ui.js';
-import { setAppState, setCurrentUser, getAppState, getCurrentUser } from './state.js';
+import { setAppState, setCurrentUser, getAppState, getCurrentUser, getActiveClassData } from './state.js';
 import { recalculateAndRenderAverages } from './calculations.js';
 import { renderFullGradebookUI, updateUIFromState, renderGradebook, renderClassTabs, renderAccountPage, renderAttendanceSheet, renderStudentProfileModal } from './render.js';import * as actions from './actions.js';
 
@@ -466,7 +466,7 @@ document.getElementById('auth-submit-btn')?.addEventListener('click', (e) => han
                      renderGradebook(); // *** Re-render gradebook immediately after weight change ***
                      triggerAutoSave(); // Save happens after UI updates
                  }
-            }     
+                }     
         });
         
         contentWrapper.addEventListener('change', (e) => {
