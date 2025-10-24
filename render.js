@@ -1,5 +1,5 @@
 import { getAppState, getActiveSemesterData, getActiveClassData } from './state.js';
-import { recalculateAndRenderAverages, calculateStudentAverages } from './calculations.js';
+import { recalculateAndRenderAverages, calculateStudentAverages, calculateClassAverages } from './calculations.js';
 import { getProfilePictureUrl, uploadProfilePicture } from './api.js';
 import { showModal } from './ui.js';
 import { triggerAutoSave } from './main.js';
