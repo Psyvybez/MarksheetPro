@@ -125,13 +125,15 @@ export function calculateClassAverages(classData) {
 }
 
 export function recalculateAndRenderAverages() {
-    const classData = getActiveClassData();
+    const classData = getActiveClassData(); // Use state getter
     if (!classData) return;
-    
+
+    // Update each student row
     Object.values(classData.students || {}).forEach(student => {
-        const avgs = calculateStudentAverages(student, classData);
+        const avgs = calculateStudentAverages(student, classData); // Calculate for this student
         const studentRow = document.querySelector(`.student-row[data-student-id="${student.id}"]`);
         if (studentRow) {
+            // Find and update each average cell within the row
             studentRow.querySelector('.student-overall').textContent = avgs.overallGrade !== null ? `${avgs.overallGrade.toFixed(1)}%` : '--';
             studentRow.querySelector('.student-term-mark').textContent = avgs.termMark !== null ? `${avgs.termMark.toFixed(1)}%` : '--';
             if (classData.hasFinal) {
@@ -139,11 +141,13 @@ export function recalculateAndRenderAverages() {
                  if(finalCell) finalCell.textContent = avgs.finalMark !== null ? `${avgs.finalMark.toFixed(1)}%` : '--';
             }
             for (const cat of ['k', 't', 'c', 'a']) {
-                studentRow.querySelector(`.student-cat-${cat}`).textContent = avgs.categories[cat] !== null ? `${avgs.categories[cat].toFixed(1)}%` : '--';
+                 const catCell = studentRow.querySelector(`.student-cat-${cat}`);
+                 if (catCell) catCell.textContent = avgs.categories[cat] !== null ? `${avgs.categories[cat].toFixed(1)}%` : '--';
             }
         }
     });
 
+    // Update the footer row
     const classAverages = calculateClassAverages(classData);
     const tfoot = document.querySelector('#gradebookTable tfoot');
     if (tfoot) {
@@ -153,5 +157,6 @@ export function recalculateAndRenderAverages() {
             const finalCell = tfoot.querySelector('.class-final');
             if(finalCell) finalCell.textContent = classAverages.finalMark !== null ? `${classAverages.finalMark.toFixed(1)}%` : '--';
         }
+        // Could add class category averages to footer if needed
     }
 }
