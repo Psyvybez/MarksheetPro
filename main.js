@@ -3,7 +3,6 @@ import { setupAuthListener, handleAuthSubmit, signOut } from './auth.js';
 import { showModal, updateSaveStatus } from './ui.js';
 import { setAppState, setCurrentUser, getAppState, getCurrentUser } from './state.js';
 import { renderFullGradebookUI, updateUIFromState, renderGradebook, renderClassTabs, renderAccountPage, renderAttendanceSheet, renderStudentProfileModal } from './render.js';import * as actions from './actions.js';
-import { recalculateAndRenderAverages } from './calculations.js';
 
 // --- GLOBAL STATE & CONSTANTS ---
 const SUPABASE_URL = 'https://pvwcdesafxxkosdrfjwa.supabase.co';
@@ -400,16 +399,66 @@ document.getElementById('auth-submit-btn')?.addEventListener('click', (e) => han
 
         contentWrapper.addEventListener('input', (e) => {
             const target = e.target;
+            const classData = getActiveClassData(); // Get current class data
+
             if (target.id === 'student-search-input') {
-                renderGradebook();
+                renderGradebook(); // Search still needs direct render for filtering
                 return;
             }
-            if (target.classList.contains('grade-input') || target.classList.contains('iep-checkbox') || target.id === 'className' || target.classList.contains('cat-weight-input')) {
-                triggerAutoSave();
 
-                if (target.classList.contains('grade-input')) {
-                    recalculateAndRenderAverages(); // Recalculate immediately on grade change
+            // Handle grade input changes
+            if (target.classList.contains('grade-input')) {
+                const studentId = target.dataset.studentId;
+                const assignmentId = target.dataset.assignmentId;
+                const category = target.dataset.cat; // Will be undefined for final grades
+                const value = target.value.trim();
+                const numericValue = value === '' ? null : parseFloat(value);
+
+                if (studentId && assignmentId && classData?.students?.[studentId]) {
+                    // --- State Update Logic (keep as is) ---
+                    if (!classData.students[studentId].grades) {
+                        classData.students[studentId].grades = {};
+                    }
+                    if (!classData.students[studentId].grades[assignmentId]) {
+                        classData.students[studentId].grades[assignmentId] = {};
+                    }
+                    if (category) { // Term Grade (K/T/C/A)
+                        classData.students[studentId].grades[assignmentId][category] = numericValue;
+                    } else { // Final Grade
+                        classData.students[studentId].grades[assignmentId].grade = numericValue;
+                    }
+                    // --- End State Update Logic ---
+
+                    // --- Validation Logic (keep as is) ---
+                    const unit = Object.values(classData.units || {}).find(u => u.assignments?.[assignmentId]);
+                    const assignment = unit?.assignments?.[assignmentId];
+                    let maxScore = 0;
+                    if(unit?.isFinal) { maxScore = assignment?.total ?? 0; }
+                    else if (category) { maxScore = assignment?.categoryTotals?.[category] ?? 0; }
+                    const isValid = value === '' || (!isNaN(numericValue) && numericValue >= 0 && numericValue <= maxScore);
+                    target.classList.toggle('grade-input-error', !isValid);
+                    // --- End Validation Logic ---
+
+                    triggerAutoSave();
+                    updateUIFromState(); // *** Use updateUIFromState instead of renderGradebook ***
                 }
+                return; // Stop further processing for grade inputs
+            }
+
+            // --- Handle other inputs (IEP, Class Name, Category Weights) ---
+            // Keep the logic for these as is, they correctly call triggerAutoSave
+            // and trigger re-renders where necessary (e.g., renderCategoryWeights).
+            if (target.classList.contains('iep-checkbox')) {
+                // ... IEP logic ...
+                 triggerAutoSave();
+            } else if (target.id === 'className' && classData) {
+                // ... Class name logic ...
+                 triggerAutoSave();
+            } else if (target.classList.contains('cat-weight-input') && classData) {
+                // ... Category weight logic ...
+                 renderCategoryWeights(); // This correctly re-renders the weight section
+                 triggerAutoSave();
+                 updateUIFromState(); // *** Add this call to update gradebook averages after weight change ***
             }
         });
         
