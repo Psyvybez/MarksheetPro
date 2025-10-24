@@ -466,7 +466,6 @@ document.getElementById('auth-submit-btn')?.addEventListener('click', (e) => han
                      renderGradebook(); // *** Re-render gradebook immediately after weight change ***
                      triggerAutoSave(); // Save happens after UI updates
                  }
-            }
         });
         
         contentWrapper.addEventListener('change', (e) => {
