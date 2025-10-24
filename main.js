@@ -54,10 +54,6 @@ function loadLocalStateBeforeAuth(userId) {
     return false;
 }
 
-// In Frontend/main.js
-
-// In Frontend/main.js
-
 export function handleDataLoad(data, isInitial = true) {
     const userEmailDisplay = document.getElementById('user-email-display');
 
@@ -269,8 +265,6 @@ async function saveProfile() {
         feedbackEl.className = 'p-3 rounded-md bg-green-100 text-green-700';
         feedbackEl.classList.remove('hidden');
 
-        // Reload the app state. This will trigger handleDataLoad, which
-        // will now see the user's full_name and render the gradebook.
         setTimeout(() => {
             handleDataLoad(newState, true);
         }, 800); // Delay so user can read the success message
@@ -307,7 +301,7 @@ function promptDeleteAccount() {
                     console.error('Failed to delete account:', error);
                     showModal({ title: 'Error', content: `<p>Could not delete account: ${error.message}</p>`, confirmText: null, cancelText: 'Close' });
                 }
-                closeModal(); // Close the confirmation modal
+                closeModal(); 
             } else {
                 showModal({ title: 'Deletion Canceled', content: '<p>The confirmation text did not match. Your account is safe.</p>', confirmText: null, cancelText: 'Close', modalWidth: 'max-w-xs' });
             }
@@ -315,7 +309,6 @@ function promptDeleteAccount() {
     });
 }
 
-// Replace the setupEventListeners function in Frontend/main.js
 
 function setupEventListeners() {
     const contentWrapper = document.getElementById('content-wrapper');
