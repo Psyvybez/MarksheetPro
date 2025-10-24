@@ -210,12 +210,18 @@ export function renderGradebook() {
                 ? `<img src="${profilePicUrl}" class="w-8 h-8 rounded-full mr-2 object-cover">`
                 : `<div class="w-8 h-8 rounded-full mr-2 bg-gray-300 flex items-center justify-center text-white font-bold">${student.firstName.charAt(0)}${student.lastName.charAt(0)}</div>`;
 
-
-           let rowHtml = `<tr class="student-row" data-student-id="${studentId}">
-                <td class="p-0"> ... </td>
-                <td class="p-3 text-center"> ... </td>
+            let rowHtml = `<tr class="student-row" data-student-id="${studentId}">
+                <td class="p-0">
+                    <button class="student-name-btn flex items-center p-3">
+                        ${profilePicHtml}
+                        <span>${student.lastName}, ${student.firstName}</span>
+                    </button>
+                </td>
+                <td class="p-3 text-center">
+                    <input type="checkbox" class="iep-checkbox h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" data-student-id="${studentId}" ${student.iep ? 'checked' : ''}>
+                </td>
                 <td class="p-3 text-center font-semibold student-overall">--%</td>
-                <td class="p-0"> ... </td>
+                <td class="p-3 text-center font-semibold student-midterm">${midtermDisplayScore}</td>
                 <td class="p-3 text-center font-semibold student-term-mark">--%</td>
                 ${classData.hasFinal ? `<td class="p-3 text-center font-semibold student-final">--%</td>` : ''}
                 <td class="p-3 text-center font-semibold student-cat-k">--%</td>

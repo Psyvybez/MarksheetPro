@@ -441,13 +441,8 @@ document.getElementById('auth-submit-btn')?.addEventListener('click', (e) => han
 
             // --- Handle other inputs (IEP, Class Name, Category Weights) ---
             // Keep the logic for these as is
-            if (target.classList.contains('iep-checkbox')) {
-                const studentId = target.dataset.studentId;
-                 if (studentId && classData?.students?.[studentId]) {
-                     classData.students[studentId].iep = target.checked;
-                     triggerAutoSave(); // Save happens after checkbox change
-                 }
-            } else if (target.id === 'className' && classData) {
+            
+           if (target.id === 'className' && classData) {
                  classData.name = target.textContent.trim();
                  triggerAutoSave(); // Save happens after name change
             } else if (target.classList.contains('cat-weight-input') && classData) {
@@ -471,6 +466,17 @@ document.getElementById('auth-submit-btn')?.addEventListener('click', (e) => han
             if (e.target.id === 'show-archived-checkbox') {
                 renderClassTabs();
             }
+
+            if (e.target.classList.contains('iep-checkbox')) {
+                const studentId = e.target.dataset.studentId;
+                const classData = getActiveClassData(); // Get class data here
+                 if (studentId && classData?.students?.[studentId]) {
+                     classData.students[studentId].iep = e.target.checked;
+                     recalculateAndRenderAverages(); // Also recalculate averages
+                     triggerAutoSave(); 
+                 }
+            }
+            // --- END OF ADDED BLOCK ---
         });
 
         contentWrapper.addEventListener('keydown', (e) => {
