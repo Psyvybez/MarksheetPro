@@ -211,15 +211,18 @@ export function renderGradebook() {
                 : `<div class="w-8 h-8 rounded-full mr-2 bg-gray-300 flex items-center justify-center text-white font-bold">${student.firstName.charAt(0)}${student.lastName.charAt(0)}</div>`;
 
 
-            let rowHtml = `<tr class="student-row" data-student-id="${studentId}">
-                <td class="p-0"><div class="flex items-center h-full"><button class="delete-btn ml-2 mr-2" data-student-id="${studentId}">&times;</button>${profilePicHtml}<button class="student-name-btn" data-student-id="${studentId}">${student.lastName}, ${student.firstName}</button></div></td>
-                <td class="p-3 text-center"><input type="checkbox" class="iep-checkbox h-5 w-5" data-student-id="${studentId}" ${student.iep ? 'checked' : ''}></td>
+           let rowHtml = `<tr class="student-row" data-student-id="${studentId}">
+                <td class="p-0"> ... </td>
+                <td class="p-3 text-center"> ... </td>
                 <td class="p-3 text-center font-semibold student-overall">--%</td>
-                <td class="p-0"><input type="number" step="0.1" class="midterm-grade-input w-full h-full bg-transparent text-center" data-student-id="${studentId}" value="${midtermDisplayValue}" placeholder="${midtermDisplayScore}"</td>
+                <td class="p-0"> ... </td>
                 <td class="p-3 text-center font-semibold student-term-mark">--%</td>
                 ${classData.hasFinal ? `<td class="p-3 text-center font-semibold student-final">--%</td>` : ''}
-                <td class="p-3 text-center font-semibold student-cat-k">--%</td><td class="p-3 text-center font-semibold student-cat-t">--%</td><td class="p-3 text-center font-semibold student-cat-c">--%</td><td class="p-3 text-center font-semibold student-cat-a">--%</td>`;
-
+                <td class="p-3 text-center font-semibold student-cat-k">--%</td>
+                <td class="p-3 text-center font-semibold student-cat-t">--%</td>
+                <td class="p-3 text-center font-semibold student-cat-c">--%</td>
+                <td class="p-3 text-center font-semibold student-cat-a">--%</td>`;
+            
             Object.values(unitsToDisplay).sort((a,b) => a.order - b.order).forEach(unit => {
                 const assignments = Object.values(unit.assignments || {}).sort((a, b) => a.order - b.order);
                 if(assignments.length === 0) {
@@ -244,9 +247,12 @@ export function renderGradebook() {
 
     const tfoot = table.querySelector('tfoot');
     let footerCells = [
-        `<td>Class Average</td>`, `<td></td>`, `<td class="class-overall text-center">--%</td>`, `<td></td>`,
+        `<td>Class Average</td>`, `<td></td>`,
+        `<td class="class-overall text-center">--%</td>`,
+        `<td></td>`,
         `<td class="class-term-mark text-center">--%</td>`
     ];
+    
     if (classData.hasFinal) footerCells.push(`<td class="class-final text-center">--%</td>`);
     footerCells.push(`<td></td>`, `<td></td>`, `<td></td>`, `<td></td>`);
     let footerHtml = `<tr class="bg-gray-50 font-semibold">${footerCells.join('')}`;
