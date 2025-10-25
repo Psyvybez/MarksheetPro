@@ -505,39 +505,25 @@ document.getElementById('auth-submit-btn')?.addEventListener('click', (e) => han
         }
     });
 
-    ['mousemove', 'mousedown', 'keypress', 'click'].forEach(evt => window.addEventListener(evt, resetInactivityTimer));
+    ['mousemove', 'mousedown', 'keypress', 'click'].forEach(event => window.addEventListener(event, resetInactivityTimer));
    // Replace the existing visibilitychange listener in Frontend/main.js
 
-    window.addEventListener('visibilitychange', async () => { // Make the handler async
-    const currentUser = getCurrentUser();
-    const loadingOverlay = document.getElementById('loading-overlay'); // Get the loading overlay element
+    window.addEventListener('visibilitychange', () => {
+        const currentUser = getCurrentUser();
 
-    // Check if the tab is now visible AND the user is logged in
-            if (document.visibilityState === 'visible' && currentUser && supabaseClient) {
-                console.log("Tab refocused. Checking for data updates...");
-                loadingOverlay?.classList.remove('hidden'); // Show the loading spinner
+        // Check if the tab is now visible AND the user is logged in
+        if (document.visibilityState === 'visible' && currentUser && supabaseClient) {
+            console.log("Tab refocused. Re-rendering from local state.");
+            
+            // Get the *current in-memory* app state
+            const currentLocalState = getAppState(); 
 
-            try {
-            // Optional: Refresh session just in case it expired while tab was hidden
-            await supabaseClient.auth.getSession();
-
-            // *** Explicitly re-load data from the server ***
-            // Pass wasLocalDataLoaded = false, indicating this isn't the initial page load
-            const { data, error } = await loadDataForUser(currentUser.id, getAppState(), false);
-
-            if (error) {
-                console.error("Error reloading data on tab focus:", error);
-                // Optional: Show a user-friendly error message via showModal if needed
-            } else if (data) {
-                console.log("Data reloaded on tab focus. Updating UI...");
-                // *** Update the UI with the latest data, passing isInitial = false ***
-                handleDataLoad(data, false);
-            }
-            } catch (e) {
-            console.error("Unexpected error during visibility change handling:", e);
-            // Optional: Handle unexpected errors
-            } finally {
-            loadingOverlay?.classList.add('hidden'); // Always hide spinner when done
+            // Re-render the UI using the local state.
+            // Pass isInitial = false.
+            // handleDataLoad (from our last fix) will figure out 
+            // which page (Account or Gradebook) to re-render.
+            if (currentLocalState) {
+                handleDataLoad(currentLocalState, false);
             }
         }
     });
