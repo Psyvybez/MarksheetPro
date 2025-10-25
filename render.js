@@ -276,8 +276,8 @@ export function renderGradebook() {
         recordMidtermsBtn.disabled = recorded;
         recordMidtermsBtn.classList.toggle('bg-gray-400', recorded);
         recordMidtermsBtn.classList.toggle('cursor-not-allowed', recorded);
-        recordMidtermsBtn.classList.toggle('bg-accent', !recorded);
-        recordMidtermsBtn.classList.toggle('hover:bg-accent-dark', !recorded);
+        recordMidtermsBtn.classList.toggle('bg-primary', !recorded);
+        recordMidtermsBtn.classList.toggle('hover:bg-primary-dark', !recorded);
         recordMidtermsBtn.title = recorded ? 'Midterm marks have already been recorded.' : '';
     }
 
@@ -287,8 +287,8 @@ export function renderGradebook() {
         addAssignmentBtn.disabled = isAllUnitsView;
         addAssignmentBtn.classList.toggle('bg-gray-400', isAllUnitsView);
         addAssignmentBtn.classList.toggle('cursor-not-allowed', isAllUnitsView);
-        addAssignmentBtn.classList.toggle('bg-primary', !isAllUnitsView);
-        addAssignmentBtn.classList.toggle('hover:bg-primary-dark', !isAllUnitsView);
+        addAssignmentBtn.classList.toggle('bg-accent', !isAllUnitsView);
+        addAssignmentBtn.classList.toggle('hover:bg-accent-dark', !isAllUnitsView);
         addAssignmentBtn.title = isAllUnitsView ? 'Please select a specific unit to manage its assignments.' : 'Manage assignments for the selected unit';
     }
 
@@ -385,10 +385,10 @@ export function renderFullGradebookUI() {
                 <div class="mt-2 sm:mt-0 flex flex-wrap items-center justify-end gap-2">
                     <button id="savePresetBtn" class="bg-secondary hover:bg-secondary-dark text-white font-bold py-2 px-4 rounded-lg">Save Class as Preset</button>
                     <button id="importStudentsBtn" class="bg-secondary hover:bg-secondary-dark text-white font-bold py-2 px-4 rounded-lg">Import Students</button>
-                    <button id="recordMidtermsBtn" class="bg-accent hover:bg-accent-dark text-white font-bold py-2 px-4 rounded-lg">Record Midterms</button>
+                    <button id="recordMidtermsBtn" class="bg-primary hover:bg-primary-dark text-white font-bold py-2 px-4 rounded-lg">Record Midterms</button>
                     <button id="archiveClassBtn" class="bg-accent hover:bg-accent-dark text-white font-bold py-2 px-4 rounded-lg">Archive Class</button>
                     <div class="relative">
-                        <button id="exportMenuBtn" class="bg-gray-700 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2">
+                        <button id="exportMenuBtn" class="bg-accent hover:bg-accent-dark text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2">
                             Export <span>&#9662;</span>
                         </button>
                         <div id="exportMenuDropdown" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-20 border border-gray-200">
@@ -405,14 +405,14 @@ export function renderFullGradebookUI() {
         <div class="my-2 flex justify-between items-center">
             <div class="flex items-center gap-2">
                 <div class="relative"><input type="text" id="student-search-input" placeholder="Search students..." class="py-2 px-4 w-full border border-gray-300 rounded-md shadow-sm transition-all focus:outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-200"></div>
-                <button id="addStudentBtn" class="bg-primary hover:bg-primary-dark text-white font-bold py-2 px-4 rounded-lg">+ Add Student</button>
-                <button id="attendanceBtn" class="bg-secondary hover:bg-secondary-dark text-white font-bold py-2 px-4 rounded-lg">Attendance</button>
-                
+                <button id="addStudentBtn" class="bg-accent hover:bg-accent-dark text-white font-bold py-2 px-4 rounded-lg">+ Add Student</button>
+                <button id="attendanceBtn" class="bg-primary hover:bg-primary-dark text-white font-bold py-2 px-4 rounded-lg">Attendance</button>
+
             </div>
 
             <div class="flex page-center gap-2">
-                <div class="relative"><button id="editUnitsBtn" class="bg-accent hover:bg-accent-dark text-white font-bold py-2 px-4 rounded-lg">Edit Units</button></div>
-                <button id="addAssignmentBtn" class="bg-primary hover:bg-primary-dark text-white font-bold py-2 px-4 rounded-lg">Manage Assignments</button>
+                <div class="relative"><button id="editUnitsBtn" class="bg-primary hover:bg-primary-dark text-white font-bold py-2 px-4 rounded-lg">Edit Units</button></div>
+                <button id="addAssignmentBtn" class="bg-accent hover:bg-accent-dark text-white font-bold py-2 px-4 rounded-lg">Manage Assignments</button>
                 <select id="unitFilterDropdown" class="bg-white border border-gray-300 text-gray-700 font-bold py-2 px-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-200 shadow-sm"></select>
             </div>
         </div>
