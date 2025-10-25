@@ -98,11 +98,11 @@ export function signOut(supabaseClient, isForced = false) {
     const appContainer = document.getElementById('app-container');
     const loadingOverlay = document.getElementById('loading-overlay');
 
-    if (isForced) {
+     
         authContainer?.classList.remove('hidden');
         appContainer?.classList.add('hidden');
         loadingOverlay?.classList.add('hidden');
-    }
+    
 
     // Reset the auth form to the default "Sign in" state
     const authTitle = document.getElementById('auth-title');

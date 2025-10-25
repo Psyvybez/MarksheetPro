@@ -323,6 +323,13 @@ function setupEventListeners() {
 
     if (authContainer) {
 document.getElementById('auth-submit-btn')?.addEventListener('click', (e) => handleAuthSubmit(e, supabaseClient));
+
+document.getElementById('password')?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                document.getElementById('auth-submit-btn')?.click();
+            }
+        });
         document.getElementById('auth-toggle-link')?.addEventListener('click', (e) => {
             e.preventDefault();
             const authTitle = document.getElementById('auth-title');
