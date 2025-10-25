@@ -396,8 +396,8 @@ export function renderFullGradebookUI() {
                             <a href="#" id="exportPdfBtn" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Export Student Reports (PDF)</a>
                             <a href="#" id="exportBlankPdfBtn" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Export Blank Marksheet (PDF)</a>
                             <div class="border-t border-gray-100 my-1"></div>
-                            <a href="#" id="exportStudentListBtn" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Export Student List (Names)</a>
-                            <a href="#" id="exportContactListBtn" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Export Student Contact List</a>
+                            <a href="#" id="exportStudentListBtn" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Export Student List (PDF)</a>
+                            <a href="#" id="exportContactListBtn" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Export Student Contact List (PDF)</a>
                         </div>
                     </div>
                 </div>

@@ -1065,78 +1065,83 @@ export function exportBlankMarksheet() {
          showModal({ title: 'Export Failed', content: `<p>An error occurred while generating the blank marksheet PDF. See console for details.</p>`, confirmText: null, cancelText: 'Close' });
     }
 }
-export function exportStudentListCSV() {
+export function exportStudentListPDF() {
     const classData = getActiveClassData();
     if (!classData) {
         alert("No class data to export.");
         return;
     }
 
-    let csvContent = "data:text/csv;charset=utf-8,";
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
     const students = Object.values(classData.students || {}).sort((a,b) => (a.lastName || '').localeCompare(b.lastName || '') || (a.firstName || '').localeCompare(b.firstName || ''));
 
-    const headers = ["LastName", "FirstName"];
-    csvContent += headers.join(",") + "\r\n";
+    const head = [['Last Name', 'First Name']];
+    const body = students.map(student => [
+        student.lastName || '',
+        student.firstName || ''
+    ]);
 
-    students.forEach(student => {
-        const row = [
-            `"${(student.lastName || '').replace(/"/g, '""')}"`,
-            `"${(student.firstName || '').replace(/"/g, '""')}"`
-        ];
-        csvContent += row.join(",") + "\r\n";
+    doc.setFontSize(18);
+    doc.text(`${classData.name} - Student List`, 14, 20);
+    
+    doc.autoTable({
+        head: head,
+        body: body,
+        startY: 25,
+        theme: 'grid',
+        headStyles: { fillColor: [43, 58, 103] } // Match your primary color
     });
 
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `${classData.name}_student_list.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    doc.save(`${classData.name}_student_list.pdf`);
 }
 
-export function exportContactListCSV() {
+export function exportContactListPDF() {
     const classData = getActiveClassData();
     if (!classData) {
         alert("No class data to export.");
         return;
     }
 
-    let csvContent = "data:text/csv;charset=utf-8,";
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
     const students = Object.values(classData.students || {}).sort((a,b) => (a.lastName || '').localeCompare(b.lastName || '') || (a.firstName || '').localeCompare(b.firstName || ''));
 
-    const headers = ["LastName", "FirstName", "ContactName", "ContactInfo", "IsParentGuardian"];
-    csvContent += headers.join(",") + "\r\n";
+    const head = [['Last Name', 'First Name', 'Contact Name', 'Contact Info', 'Parent/Guardian']];
+    const body = [];
 
     students.forEach(student => {
         const contacts = student.contacts || [];
         if (contacts.length > 0) {
             contacts.forEach(contact => {
-                const row = [
-                    `"${(student.lastName || '').replace(/"/g, '""')}"`,
-                    `"${(student.firstName || '').replace(/"/g, '""')}"`,
-                    `"${(contact.name || '').replace(/"/g, '""')}"`,
-                    `"${(contact.info || '').replace(/"/g, '""')}"`,
-                    `"${contact.isParent ? "YES" : "NO"}"`
-                ];
-                csvContent += row.join(",") + "\r\n";
+                body.push([
+                    student.lastName || '',
+                    student.firstName || '',
+                    contact.name || '',
+                    contact.info || '',
+                    contact.isParent ? "YES" : "NO"
+                ]);
             });
         } else {
             // Include student even if they have no contacts
-            const row = [
-                `"${(student.lastName || '').replace(/"/g, '""')}"`,
-                `"${(student.firstName || '').replace(/"/g, '""')}"`,
-                "\"\"", "\"\"", "\"\""
-            ];
-            csvContent += row.join(",") + "\r\n";
+            body.push([
+                student.lastName || '',
+                student.firstName || '',
+                '(No contacts)', '', ''
+            ]);
         }
     });
 
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `${classData.name}_contact_list.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    doc.setFontSize(18);
+    doc.text(`${classData.name} - Student Contact List`, 14, 20);
+
+    doc.autoTable({
+        head: head,
+        body: body,
+        startY: 25,
+        theme: 'grid',
+        headStyles: { fillColor: [43, 58, 103] } // Match your primary color
+    });
+
+    doc.save(`${classData.name}_contact_list.pdf`);
 }
