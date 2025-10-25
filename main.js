@@ -3,7 +3,8 @@ import { setupAuthListener, handleAuthSubmit, signOut } from './auth.js';
 import { showModal, updateSaveStatus } from './ui.js';
 import { setAppState, setCurrentUser, getAppState, getCurrentUser, getActiveClassData } from './state.js';
 import { recalculateAndRenderAverages } from './calculations.js';
-import { renderFullGradebookUI, updateUIFromState, renderGradebook, renderClassTabs, renderAccountPage, renderAttendanceSheet, renderStudentProfileModal, exportStudentList } from './render.js';import * as actions from './actions.js';
+import { renderFullGradebookUI, updateUIFromState, renderGradebook, renderClassTabs, renderAccountPage, renderAttendanceSheet, renderStudentProfileModal, } from './render.js';
+import * as actions from './actions.js';
 
 // --- GLOBAL STATE & CONSTANTS ---
 const SUPABASE_URL = 'https://pvwcdesafxxkosdrfjwa.supabase.co';
