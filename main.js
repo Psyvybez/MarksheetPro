@@ -393,7 +393,9 @@ document.getElementById('password')?.addEventListener('keydown', (e) => {
                 'exportMenuBtn': () => document.getElementById('exportMenuDropdown')?.classList.toggle('hidden'),
                 'exportPdfBtn': () => { actions.showPdfExportOptionsModal(); document.getElementById('exportMenuDropdown')?.classList.add('hidden'); },
                 'exportCsvBtn': () => { actions.exportToCSV(); document.getElementById('exportMenuDropdown')?.classList.add('hidden'); },
-                'exportBlankPdfBtn': () => { actions.exportBlankMarksheet(); document.getElementById('exportMenuDropdown')?.classList.add('hidden'); }
+                'exportBlankPdfBtn': () => { actions.exportBlankMarksheet(); document.getElementById('exportMenuDropdown')?.classList.add('hidden'); },
+                'exportStudentListBtn': () => { actions.exportStudentList(); document.getElementById('exportMenuDropdown')?.classList.add('hidden'); },
+                'exportContactListBtn': () => { actions.exportContactList(); document.getElementById('exportMenuDropdown')?.classList.add('hidden'); },
             };
 
             if (actionMap[id]) {

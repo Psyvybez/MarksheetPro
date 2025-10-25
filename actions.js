@@ -987,8 +987,8 @@ export function exportBlankMarksheet() {
         return Array(totalCols).fill('').map((_, i) => i === 0 ? `${student.lastName}, ${student.firstName}` : ''); // Student name in first cell
     });
 
-    // Add extra blank rows for additional students (e.g., up to 25 total rows)
-    const desiredRowCount = 25;
+    // Add extra blank rows for additional students (e.g., up to 20 total rows)
+    const desiredRowCount = 20; // *** Desired total rows in the marksheet ***
     const blankRowsToAdd = Math.max(0, desiredRowCount - students.length);
     for (let i = 0; i < blankRowsToAdd; i++) {
          body.push(Array(totalCols).fill('')); // Add empty rows
@@ -1064,4 +1064,79 @@ export function exportBlankMarksheet() {
          console.error("Blank PDF Export failed:", error);
          showModal({ title: 'Export Failed', content: `<p>An error occurred while generating the blank marksheet PDF. See console for details.</p>`, confirmText: null, cancelText: 'Close' });
     }
+}
+export function exportStudentListCSV() {
+    const classData = getActiveClassData();
+    if (!classData) {
+        alert("No class data to export.");
+        return;
+    }
+
+    let csvContent = "data:text/csv;charset=utf-8,";
+    const students = Object.values(classData.students || {}).sort((a,b) => (a.lastName || '').localeCompare(b.lastName || '') || (a.firstName || '').localeCompare(b.firstName || ''));
+
+    const headers = ["LastName", "FirstName"];
+    csvContent += headers.join(",") + "\r\n";
+
+    students.forEach(student => {
+        const row = [
+            `"${(student.lastName || '').replace(/"/g, '""')}"`,
+            `"${(student.firstName || '').replace(/"/g, '""')}"`
+        ];
+        csvContent += row.join(",") + "\r\n";
+    });
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `${classData.name}_student_list.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+export function exportContactListCSV() {
+    const classData = getActiveClassData();
+    if (!classData) {
+        alert("No class data to export.");
+        return;
+    }
+
+    let csvContent = "data:text/csv;charset=utf-8,";
+    const students = Object.values(classData.students || {}).sort((a,b) => (a.lastName || '').localeCompare(b.lastName || '') || (a.firstName || '').localeCompare(b.firstName || ''));
+
+    const headers = ["LastName", "FirstName", "ContactName", "ContactInfo", "IsParentGuardian"];
+    csvContent += headers.join(",") + "\r\n";
+
+    students.forEach(student => {
+        const contacts = student.contacts || [];
+        if (contacts.length > 0) {
+            contacts.forEach(contact => {
+                const row = [
+                    `"${(student.lastName || '').replace(/"/g, '""')}"`,
+                    `"${(student.firstName || '').replace(/"/g, '""')}"`,
+                    `"${(contact.name || '').replace(/"/g, '""')}"`,
+                    `"${(contact.info || '').replace(/"/g, '""')}"`,
+                    `"${contact.isParent ? "YES" : "NO"}"`
+                ];
+                csvContent += row.join(",") + "\r\n";
+            });
+        } else {
+            // Include student even if they have no contacts
+            const row = [
+                `"${(student.lastName || '').replace(/"/g, '""')}"`,
+                `"${(student.firstName || '').replace(/"/g, '""')}"`,
+                "\"\"", "\"\"", "\"\""
+            ];
+            csvContent += row.join(",") + "\r\n";
+        }
+    });
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `${classData.name}_contact_list.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 }
