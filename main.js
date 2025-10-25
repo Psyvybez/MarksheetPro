@@ -70,17 +70,24 @@ export function handleDataLoad(data, isInitial = true) {
         userEmailDisplay.textContent = fullName ? `Welcome, ${title} ${fullName}` : `Welcome, ${currentUser?.email}`;
     }
 
-    if (isInitial) { 
-        if (!data.full_name) {
-            // New user: Send them to setup page.
-            renderAccountPage(true); 
+    // This logic now runs whether it's the initial load or a tab-back
+    if (!data.full_name) {
+        // User profile is incomplete, send to setup page.
+        renderAccountPage(true); 
+    } else {
+        // User profile is complete.
+        // Check if the user is currently on the "My Account" page.
+        const isAccountPageVisible = !!document.getElementById('save-profile-btn');
+        
+        if (isAccountPageVisible && !isInitial) {
+             // If they are on the account page AND this is a tab-back (not initial load),
+             // just re-render the account page to refresh its data (e.g., last login).
+            renderAccountPage(false);
         } else {
-            // Existing user: Render the main gradebook.
+            // Otherwise (if it's initial load OR they are on the gradebook/attendance page),
+            // render the full gradebook UI. This ensures we are on the main app screen.
             renderFullGradebookUI();
         }
-    } else {
-        // This is just a data refresh, not an initial load.
-        updateUIFromState();
     }
 }
 
