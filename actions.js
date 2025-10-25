@@ -1076,21 +1076,29 @@ export function exportStudentListPDF() {
     const doc = new jsPDF();
     const students = Object.values(classData.students || {}).sort((a,b) => (a.lastName || '').localeCompare(b.lastName || '') || (a.firstName || '').localeCompare(b.firstName || ''));
 
-    const head = [['Last Name', 'First Name']];
-    const body = students.map(student => [
-        student.lastName || '',
-        student.firstName || ''
-    ]);
+    const margin = 20;
+    const lineHeight = 8;
+    const pageHeight = doc.internal.pageSize.height;
+    let currentY = 30; // Start lower for the title
 
-    doc.setFontSize(18);
-    doc.text(`${classData.name} - Student List`, 14, 20);
-    
-    doc.autoTable({
-        head: head,
-        body: body,
-        startY: 25,
-        theme: 'grid',
-        headStyles: { fillColor: [43, 58, 103] } // Match your primary color
+    // --- Title ---
+    doc.setFontSize(16);
+    doc.setFont(undefined, 'bold');
+    doc.text(`${classData.name} - Student List`, margin, 20);
+    doc.setFontSize(12);
+    doc.setFont(undefined, 'normal');
+
+    // --- Student Loop ---
+    students.forEach((student, index) => {
+        // Check for page break *before* printing
+        if (currentY > pageHeight - margin) {
+            doc.addPage();
+            currentY = margin;
+        }
+
+        const studentName = `${index + 1}. ${student.lastName || ''}, ${student.firstName || ''}`;
+        doc.text(studentName, margin, currentY);
+        currentY += lineHeight;
     });
 
     doc.save(`${classData.name}_student_list.pdf`);
@@ -1107,40 +1115,61 @@ export function exportContactListPDF() {
     const doc = new jsPDF();
     const students = Object.values(classData.students || {}).sort((a,b) => (a.lastName || '').localeCompare(b.lastName || '') || (a.firstName || '').localeCompare(b.firstName || ''));
 
-    const head = [['Last Name', 'First Name', 'Contact Name', 'Contact Info', 'Parent/Guardian']];
-    const body = [];
+    const margin = 20;
+    const lineHeight = 7;
+    const indent = 10;
+    const pageHeight = doc.internal.pageSize.height;
+    const pageBottom = pageHeight - margin;
+    let currentY = 30; // Start lower for title
 
-    students.forEach(student => {
+    // --- Title ---
+    doc.setFontSize(16);
+    doc.setFont(undefined, 'bold');
+    doc.text(`${classData.name} - Student Contact List`, margin, 20);
+    doc.setFontSize(12);
+    doc.setFont(undefined, 'normal');
+
+    // --- Student Loop ---
+    students.forEach((student) => {
         const contacts = student.contacts || [];
+        const studentName = `${student.lastName || ''}, ${student.firstName || ''}`;
+        
+        // --- Calculate block height to prevent splitting a student's info ---
+        let blockHeight = lineHeight; // 1 line for name
+        if (contacts.length > 0) {
+            blockHeight += contacts.length * lineHeight;
+        } else {
+            blockHeight += lineHeight; // 1 line for "no contacts"
+        }
+        blockHeight += 5; // 5 units of spacing after the block
+
+        // Check for page break *before* printing the whole block
+        if (currentY + blockHeight > pageBottom) {
+            doc.addPage();
+            currentY = margin;
+        }
+
+        // --- Print Student Name ---
+        doc.setFont(undefined, 'bold');
+        doc.text(studentName, margin, currentY);
+        currentY += lineHeight;
+        doc.setFont(undefined, 'normal');
+
+        // --- Print Contacts ---
         if (contacts.length > 0) {
             contacts.forEach(contact => {
-                body.push([
-                    student.lastName || '',
-                    student.firstName || '',
-                    contact.name || '',
-                    contact.info || '',
-                    contact.isParent ? "YES" : "NO"
-                ]);
+                const contactType = contact.isParent ? "(Parent/Guardian)" : "";
+                const contactInfo = `${contact.name}: ${contact.info} ${contactType}`;
+                doc.text(contactInfo, margin + indent, currentY);
+                currentY += lineHeight;
             });
         } else {
-            // Include student even if they have no contacts
-            body.push([
-                student.lastName || '',
-                student.firstName || '',
-                '(No contacts)', '', ''
-            ]);
+            doc.text("(No contacts on file)", margin + indent, currentY);
+            currentY += lineHeight;
         }
-    });
-
-    doc.setFontSize(18);
-    doc.text(`${classData.name} - Student Contact List`, 14, 20);
-
-    doc.autoTable({
-        head: head,
-        body: body,
-        startY: 25,
-        theme: 'grid',
-        headStyles: { fillColor: [43, 58, 103] } // Match your primary color
+        
+        // Add spacing after the block
+        currentY += 5; 
     });
 
     doc.save(`${classData.name}_contact_list.pdf`);
