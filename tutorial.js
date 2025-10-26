@@ -57,6 +57,9 @@ function nextStep() {
 /**
  * Renders the current step's spotlight and tooltip.
  */
+/**
+ * Renders the current step's spotlight and tooltip.
+ */
 function renderCurrentStep() {
     if (highlightedElement) {
         highlightedElement.classList.remove('tutorial-highlighted-element');
@@ -77,9 +80,16 @@ function renderCurrentStep() {
         }, 500);
         return;
     }
+    
+    // --- FIX: Check if target is in a modal ---
+    const modalElement = targetElement.closest('#custom-modal');
+    // elementToHighlight is the whole modal, or just the target button
+    const elementToHighlight = modalElement || targetElement; 
+    // --- END FIX ---
 
     // --- 1. Create Spotlight & Tooltip ---
-    const rect = targetElement.getBoundingClientRect();
+    // Use the elementToHighlight for the spotlight rectangle
+    const rect = elementToHighlight.getBoundingClientRect();
     container.innerHTML = `
         <div id="tutorial-backdrop"></div>
         <div id="tutorial-spotlight"></div>
@@ -96,21 +106,22 @@ function renderCurrentStep() {
         </div>
     `;
 
-    // --- 2. Position Spotlight ---
+    // --- 2. Position Spotlight (based on elementToHighlight) ---
     const spotlight = document.getElementById('tutorial-spotlight');
     spotlight.style.width = `${rect.width + 10}px`;
     spotlight.style.height = `${rect.height + 10}px`;
     spotlight.style.top = `${rect.top - 5}px`;
     spotlight.style.left = `${rect.left - 5}px`;
 
-    // --- 3. Position Tooltip ---
+    // --- 3. Position Tooltip (based on original targetElement) ---
     const tooltip = document.getElementById('tutorial-tooltip');
-    let tooltipTop = rect.bottom + 15;
-    let tooltipLeft = rect.left + (rect.width / 2) - 150; // 150 = half of 300px width
+    const targetRect = targetElement.getBoundingClientRect(); // Get rect for the *button*
+    let tooltipTop = targetRect.bottom + 15;
+    let tooltipLeft = targetRect.left + (targetRect.width / 2) - 150; // 150 = half of 300px width
 
     // Adjust if off-screen
     if (tooltipTop + 150 > window.innerHeight) { 
-        tooltipTop = rect.top - 150 - 15; // Place above
+        tooltipTop = targetRect.top - 150 - 15; // Place above
     }
     if (tooltipLeft < 10) tooltipLeft = 10;
     if (tooltipLeft + 300 > window.innerWidth) tooltipLeft = window.innerWidth - 310;
@@ -120,7 +131,7 @@ function renderCurrentStep() {
     setTimeout(() => tooltip.classList.add('visible'), 50); // Fade in
 
     // --- 4. Highlight Target Element ---
-    highlightedElement = targetElement;
+    highlightedElement = elementToHighlight; // Highlight the modal
     highlightedElement.classList.add('tutorial-highlighted-element');
 
     // --- 5. Add Event Listeners ---
