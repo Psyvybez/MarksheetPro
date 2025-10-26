@@ -355,9 +355,9 @@ export function renderFullGradebookUI() {
                     <h3 class="text-lg font-semibold text-primary mb-2">Setting Up Your Gradebook</h3>
                     <ul class="list-disc list-inside space-y-1 text-gray-700">
                         <li><strong>Category Weights:</strong> Set the K/T/C/A weights for your class. Make sure they total 100%.</li>
-                        <li><strong>Units:</strong> Click <strong>"Edit Units"</strong> to set up your units for the term (e.g., "Unit 1: Algebra"). Make sure their weights also total 100%.</li>
-                        <li><strong>Students:</strong> Click <strong>"+ Add Student"</strong> to add students one-by-one, or use <strong>"Import Students"</strong> to upload a CSV file.</li>
-                        <li><strong>Assignments:</strong> To add assignments, you must first select a specific unit from the <strong>"All Units"</strong> dropdown. Then, click the <strong>"Manage Assignments"</strong> button.</li>
+                        <li><strong>Units:</strong> Click <strong>"Edit Units"</strong> to set up your units for the term (e.g., "Unit 1: Algebra"). Make sure their term weights also total 100%.</li>
+                        <li><strong>Students:</strong> Click <strong>"+ Add Student"</strong> to add students one-by-one. Use <strong>"Import Students"</strong> to copy and paste a list of names from a document, spreadsheet, or PDF.</li>
+                        <li><strong>Assignments:</strong> First, select a unit from the <strong>"All Units"</strong> dropdown. Then, click <strong>"Manage Assignments"</strong> to add your assessments for that unit.</li>
                     </ul>
                 </div>
                 <div>
