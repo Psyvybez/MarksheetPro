@@ -2,6 +2,7 @@
 let currentStep = 0;
 let tutorialSteps = [];
 let highlightedElement = null;
+let modalObserver = null;
 
 // --- DOM Elements ---
 const container = document.getElementById('tutorial-container');
@@ -39,6 +40,11 @@ function endTutorial() {
  * Moves to the next step or ends the tutorial.
  */
 function nextStep() {
+    if (modalObserver) {
+        modalObserver.disconnect(); // <-- ADD THIS BLOCK
+        modalObserver = null;
+    }
+
     currentStep++;
     if (currentStep < tutorialSteps.length) {
         // Clear old UI before finding new element
@@ -54,12 +60,6 @@ function nextStep() {
     }
 }
 
-/**
- * Renders the current step's spotlight and tooltip.
- */
-/**
- * Renders the current step's spotlight and tooltip.
- */
 /**
  * Renders the current step's spotlight and tooltip.
  */
@@ -156,16 +156,17 @@ function defineSteps() {
             selector: '#addClassBtn',
             title: 'Welcome!',
             content: 'Let\'s get you started. The first step is to create a class. Click this button.',
-            isWaiting: true // Waits for a click on #addClassBtn
+            isWaiting: true 
         },
         {
-            selector: '#modal-confirm-btn', // The "Add Class" button INSIDE the modal
+            selector: '#modal-confirm-btn', 
             title: 'Create Your Class',
             content: 'Now, give your new class a name (e..g., "Grade 10 Math") and click "Add Class".',
-            isWaiting: true // Waits for a click on the modal's confirm button
+            isWaiting: true,
+            waitForModalClose: true // <-- ADD THIS
         },
         {
-            selector: '.tab-button.active:not([data-tab-id="instructions"])', // The new active class tab
+            selector: '.tab-button.active:not([data-tab-id="instructions"])', 
             title: 'Your Class is Ready',
             content: 'Great! You are now inside your new class. This is the main gradebook view.',
             isWaiting: false
@@ -180,44 +181,47 @@ function defineSteps() {
             selector: '#editUnitsBtn',
             title: 'Create Your Units',
             content: 'Now, let\'s set up the units for your course (e.g., "Unit 1: Algebra"). Click here.',
-            isWaiting: true // Waits for click on #editUnitsBtn
+            isWaiting: true
         },
         {
-            selector: '#modal-confirm-btn', // The "Save Changes" button in the Edit Units modal
+            selector: '#modal-confirm-btn', 
             title: 'Set Up Units',
             content: 'Add your units and their weights (they must total 100%). When you\'re finished, click "Save Changes".',
-            isWaiting: true // Waits for click on modal's confirm button
+            isWaiting: true,
+            waitForModalClose: true // <-- ADD THIS
         },
         {
             selector: '#addStudentBtn',
             title: 'Add Your Students',
             content: 'Click here to add students one-by-one, or use "Import Students" to paste a list.',
-            isWaiting: true // Waits for click on #addStudentBtn
+            isWaiting: true
         },
         {
-            selector: '#modal-cancel-btn', // The "Done" button in the Add Student modal
+            selector: '#modal-cancel-btn', 
             title: 'Add a Student',
             content: 'Enter a student\'s name and click "Add & Next". You can add as many as you want. Click "Done" when you\'re finished.',
-            isWaiting: true // Waits for click on modal's CANCEL button
+            isWaiting: true,
+            waitForModalClose: true // <-- ADD THIS
         },
         {
             selector: '#unitFilterDropdown',
             title: 'Select a Unit',
             content: 'To add assignments, you must first select the unit they belong to from this dropdown.',
             isWaiting: true,
-            listenFor: 'change' // Special case: wait for a 'change' event
+            listenFor: 'change'
         },
         {
             selector: '#addAssignmentBtn',
             title: 'Manage Assignments',
             content: 'Perfect. Now click this button to add assignments (like tests or quizzes) to the unit you selected.',
-            isWaiting: true // Waits for click on #addAssignmentBtn
+            isWaiting: true
         },
         {
-            selector: '#modal-confirm-btn', // The "Save Changes" in the assignments modal
+            selector: '#modal-confirm-btn', 
             title: 'Add Assignments',
             content: 'Click "+ Add Assignment", fill in the details, and then click "Save Changes".',
-            isWaiting: true // Waits for click on modal's confirm button
+            isWaiting: true,
+            waitForModalClose: true // <-- ADD THIS
         },
         {
             selector: '#gradebookTable tbody tr:first-child .grade-input:first-of-type',
@@ -247,13 +251,22 @@ function handleTutorialClick(e) {
 
     const targetElement = document.querySelector(step.selector);
     
-    // Check if the click was *on* or *inside* the highlighted element
     if (targetElement && (targetElement === e.target || targetElement.contains(e.target))) {
         // User clicked the correct thing!
-        // Let the original click event finish...
-        setTimeout(() => {
-            nextStep();
-        }, 100); // Small delay to let the UI react to the click (e.g., modal opening)
+        
+        if (step.waitForModalClose) {
+            // --- NEW LOGIC ---
+            // Don't advance yet. Wait for the modal to be removed.
+            waitForModalClose(() => {
+                setTimeout(nextStep, 100); // Wait for UI to draw
+            });
+        } else {
+            // --- OLD LOGIC ---
+            // This is for clicks that DON'T close a modal
+            setTimeout(() => {
+                nextStep();
+            }, 100); 
+        }
     }
 }
 /**
@@ -274,4 +287,43 @@ function handleTutorialChange(e) {
             nextStep();
         }, 100); 
     }
+}
+/**
+ * Waits for the modal to be removed from the DOM.
+ */
+function waitForModalClose(callback) {
+    const modalContainer = document.getElementById('modal-container');
+    if (!modalContainer) {
+        callback();
+        return;
+    }
+
+    // Disconnect any previous observer
+    if (modalObserver) {
+        modalObserver.disconnect();
+    }
+
+    modalObserver = new MutationObserver((mutations) => {
+        for (let mutation of mutations) {
+            // Check if nodes were removed
+            if (mutation.removedNodes.length > 0) {
+                // Check if one of the removed nodes is the modal
+                let modalWasRemoved = false;
+                mutation.removedNodes.forEach(node => {
+                    if (node.id === 'custom-modal') {
+                        modalWasRemoved = true;
+                    }
+                });
+
+                if (modalWasRemoved) {
+                    modalObserver.disconnect();
+                    modalObserver = null;
+                    callback();
+                    return;
+                }
+            }
+        }
+    });
+
+    modalObserver.observe(modalContainer, { childList: true });
 }
