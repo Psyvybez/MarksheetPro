@@ -60,6 +60,9 @@ function nextStep() {
 /**
  * Renders the current step's spotlight and tooltip.
  */
+/**
+ * Renders the current step's spotlight and tooltip.
+ */
 function renderCurrentStep() {
     if (highlightedElement) {
         highlightedElement.classList.remove('tutorial-highlighted-element');
@@ -81,15 +84,14 @@ function renderCurrentStep() {
         return;
     }
     
-    // --- FIX: Check if target is in a modal ---
+    // Check if target is in a modal
     const modalElement = targetElement.closest('#custom-modal');
-    // elementToHighlight is the whole modal, or just the target button
     const elementToHighlight = modalElement || targetElement; 
-    // --- END FIX ---
 
     // --- 1. Create Spotlight & Tooltip ---
-    // Use the elementToHighlight for the spotlight rectangle
+    // *** FIX: Get RECT for the element to highlight (modal or button) ***
     const rect = elementToHighlight.getBoundingClientRect();
+    
     container.innerHTML = `
         <div id="tutorial-backdrop"></div>
         <div id="tutorial-spotlight"></div>
@@ -115,13 +117,16 @@ function renderCurrentStep() {
 
     // --- 3. Position Tooltip (based on original targetElement) ---
     const tooltip = document.getElementById('tutorial-tooltip');
-    const targetRect = targetElement.getBoundingClientRect(); // Get rect for the *button*
-    let tooltipTop = targetRect.bottom + 15;
-    let tooltipLeft = targetRect.left + (targetRect.width / 2) - 150; // 150 = half of 300px width
+    
+    // *** FIX: Get a NEW rect just for the original target button ***
+    const targetRect = targetElement.getBoundingClientRect(); 
+    
+    let tooltipTop = targetRect.bottom + 15; // Use targetRect
+    let tooltipLeft = targetRect.left + (targetRect.width / 2) - 150; // Use targetRect
 
     // Adjust if off-screen
     if (tooltipTop + 150 > window.innerHeight) { 
-        tooltipTop = targetRect.top - 150 - 15; // Place above
+        tooltipTop = targetRect.top - 150 - 15; // Use targetRect
     }
     if (tooltipLeft < 10) tooltipLeft = 10;
     if (tooltipLeft + 300 > window.innerWidth) tooltipLeft = window.innerWidth - 310;
