@@ -4,7 +4,8 @@ import { showModal, updateSaveStatus } from './ui.js';
 import { setAppState, setCurrentUser, getAppState, getCurrentUser, getActiveClassData } from './state.js';
 import { recalculateAndRenderAverages } from './calculations.js';
 import { renderFullGradebookUI, updateUIFromState, renderGradebook, renderClassTabs, renderAccountPage, renderAttendanceSheet, renderStudentProfileModal, } from './render.js';
-import * as actions from './actions.js';
+import * as actions from './actions.js'
+import { startTutorial } from './tutorial.js';;
 
 // --- GLOBAL STATE & CONSTANTS ---
 const SUPABASE_URL = 'https://pvwcdesafxxkosdrfjwa.supabase.co';
@@ -274,9 +275,13 @@ async function saveProfile() {
         feedbackEl.classList.remove('hidden');
 
         setTimeout(() => {
-            handleDataLoad(newState, true);
+            handleDataLoad(newState, true); // This renders the gradebook
+            // *** ADD THIS CHECK ***
+            if (wasFirstTimeSetup) {
+                startTutorial(); // Launch the tutorial!
+            }
         }, 800); // Delay so user can read the success message
-
+        
     } catch (error) {
         console.error('Error saving profile:', error);
         feedbackEl.textContent = `Error: ${error.message}`;
