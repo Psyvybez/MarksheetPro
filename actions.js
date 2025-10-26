@@ -717,61 +717,78 @@ export function exportToCSV() {
 }
 
 export function importStudentsCSV() {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.csv';
-    input.onchange = e => {
-        const file = e.target.files[0];
-        if (!file) return;
+    // This function will now be called "Import from Text"
+    showModal({
+        title: 'Import Students from List',
+        content: `
+            <p class="text-sm text-gray-600 mb-2">Paste your student list into the box below. Please use one line per student.</p>
+            <p class="text-sm text-gray-500 mb-4">Examples:<br>
+               &nbsp;&nbsp;• LastName, FirstName<br>
+               &nbsp;&nbsp;• FirstName LastName
+            </p>
+            <textarea id="student-import-textarea" class="w-full h-48 p-2 border rounded-md" placeholder="Doe, Jane\nJohn Smith\nBryant, Kobe..."></textarea>
+        `,
+        confirmText: 'Import Students',
+        confirmClasses: 'bg-green-600 hover:bg-green-700',
+        onConfirm: () => {
+            const text = document.getElementById('student-import-textarea').value.trim();
+            if (!text) return;
 
-        const reader = new FileReader();
-        reader.onload = function(event) {
-            try {
-                const csv = event.target.result;
-                const lines = csv.split('\n').filter(line => line);
-                const headers = lines.shift().split(',').map(h => h.trim().toLowerCase());
-                const firstNameIndex = headers.indexOf('firstname');
-                const lastNameIndex = headers.indexOf('lastname');
-
-                if (firstNameIndex === -1 || lastNameIndex === -1) {
-                    throw new Error("CSV must contain 'FirstName' and 'LastName' columns.");
+            const lines = text.split('\n').filter(line => line.trim());
+            const studentsToImport = lines.map(line => {
+                line = line.trim();
+                let firstName, lastName;
+                
+                if (line.includes(',')) {
+                    // Handle "LastName, FirstName"
+                    const parts = line.split(',');
+                    lastName = parts[0]?.trim() || '';
+                    firstName = parts[1]?.trim() || '';
+                } else {
+                    // Handle "FirstName LastName"
+                    const parts = line.split(' ');
+                    firstName = parts[0]?.trim() || '';
+                    lastName = parts.slice(1).join(' ').trim() || ''; // Handle names with middle names/spaces
                 }
+                
+                return { firstName, lastName };
+            }).filter(s => s.firstName && s.lastName); // Only keep valid entries
 
-                const studentsToImport = lines.map(line => {
-                    const data = line.split(',');
-                    return {
-                        firstName: data[firstNameIndex].trim(),
-                        lastName: data[lastNameIndex].trim(),
-                    };
-                });
-
-                showModal({
-                    title: 'Confirm Student Import',
-                    content: `<p>Found ${studentsToImport.length} students. Do you want to add them to the class?</p>
-                              <ul class="mt-2 text-sm text-gray-600">${studentsToImport.map(s => `<li>${s.lastName}, ${s.firstName}</li>`).join('')}</ul>`,
-                    confirmText: 'Import',
-                    confirmClasses: 'bg-green-600 hover:bg-green-700',
-                    onConfirm: () => {
-                        const classData = getActiveClassData();
-                        if (!classData.students) classData.students = {};
-                        studentsToImport.forEach(s => {
-                            if (s.firstName && s.lastName) {
-                                const studentId = `student_${Date.now()}_${Math.random()}`;
-                                classData.students[studentId] = { id: studentId, ...s, grades: {}, iep: false, midtermGrade: null, iepNotes: '', generalNotes: '', profilePicturePath: null, contacts: [] };
-                            }
-                        });
-                        renderGradebook();
-                        triggerAutoSave();
-                    }
-                });
-
-            } catch (error) {
-                showModal({ title: 'Import Failed', content: `<p>${error.message}</p>`, confirmText: null, cancelText: 'Close' });
+            if (studentsToImport.length === 0) {
+                 showModal({ title: 'Import Failed', content: `<p>Could not find any valid names to import. Please check the format.</p>`, confirmText: null, cancelText: 'Close' });
+                 return;
             }
-        };
-        reader.readAsText(file);
-    };
-    input.click();
+
+            showModal({
+                title: 'Confirm Student Import',
+                content: `<p>Found <strong>${studentsToImport.length} students</strong>. Do you want to add them to the class?</p>
+                          <ul classclass="mt-2 text-sm text-gray-600 max-h-40 overflow-y-auto">${studentsToImport.map(s => `<li>${s.lastName}, ${s.firstName}</li>`).join('')}</ul>`,
+                confirmText: 'Confirm Import',
+                confirmClasses: 'bg-green-600 hover:bg-green-700',
+                onConfirm: () => {
+                    const classData = getActiveClassData();
+                    if (!classData.students) classData.students = {};
+                    studentsToImport.forEach(s => {
+                        const studentId = `student_${Date.now()}_${Math.random()}`;
+                        classData.students[studentId] = { 
+                            id: studentId, 
+                            firstName: s.firstName, 
+                            lastName: s.lastName, 
+                            grades: {}, 
+                            iep: false, 
+                            midtermGrade: null, 
+                            iepNotes: '', 
+                            generalNotes: '', 
+                            profilePicturePath: null, 
+                            contacts: [] 
+                        };
+                    });
+                    renderGradebook();
+                    triggerAutoSave();
+                }
+            });
+        }
+    });
 }
 
 export function showPdfExportOptionsModal() {
