@@ -41,19 +41,17 @@ function endTutorial() {
  */
 function nextStep() {
     if (modalObserver) {
-        modalObserver.disconnect(); // <-- ADD THIS BLOCK
+        modalObserver.disconnect(); 
         modalObserver = null;
     }
 
     currentStep++;
     if (currentStep < tutorialSteps.length) {
-        // Clear old UI before finding new element
         if (highlightedElement) {
             highlightedElement.classList.remove('tutorial-highlighted-element');
         }
-        container.innerHTML = '<div id="tutorial-backdrop"></div>'; // Keep backdrop
-
-        // Wait for UI to update (e.g., modal to close, new tab to render)
+        // container.innerHTML = ''; // <-- We removed the backdrop line
+        
         setTimeout(renderCurrentStep, 300); 
     } else {
         endTutorial();
@@ -90,10 +88,9 @@ function renderCurrentStep() {
 
     // --- 1. Create Spotlight & Tooltip ---
     // *** FIX: Get RECT for the element to highlight (modal or button) ***
+// ...
     const rect = elementToHighlight.getBoundingClientRect();
-    
     container.innerHTML = `
-        <div id="tutorial-backdrop"></div>
         <div id="tutorial-spotlight"></div>
         <div id="tutorial-tooltip">
             <h4 class="font-bold mb-2">${step.title}</h4>
