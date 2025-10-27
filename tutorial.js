@@ -392,6 +392,9 @@ function handleTutorialKeydown(e) {
 /**
  * Global blur listener for clicking off an element.
  */
+/**
+ * Global blur listener for clicking off an element.
+ */
 function handleTutorialBlur(e) {
     if (currentStep >= tutorialSteps.length) return;
     const step = tutorialSteps[currentStep];
@@ -401,10 +404,17 @@ function handleTutorialBlur(e) {
         return;
     }
 
+    // Check if the element losing focus *is* the one we're highlighting
     const targetElement = document.querySelector(step.selector);
     if (targetElement && (targetElement === e.target)) {
+        
+        // Only advance if the input has some text
         if (targetElement.value.trim() !== '') {
-            nextStep();
+             // Use a small timeout to ensure blur processing completes
+             // before moving to the next step, which might re-render the UI.
+            setTimeout(() => {
+                nextStep();
+            }, 50); // Small delay
         }
     }
 }
