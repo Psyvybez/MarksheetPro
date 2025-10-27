@@ -32,20 +32,21 @@ export function startTutorial() {
  */
 function endTutorial() {
     if (highlightedElement) {
-        const modalElement = highlightedElement.closest('#custom-modal');
-        if (modalElement) {
-            modalElement.style.zIndex = 50; // Reset to original
-        }  
         highlightedElement.classList.remove('tutorial-highlighted-element');
     }
-    document.body.style.overflow = ''; // <-- UNLOCK SCROLLING
+    const modalConfirmBtn = document.getElementById('modal-confirm-btn');
+    if (modalConfirmBtn) {
+        modalConfirmBtn.disabled = false;
+    }
+    document.body.style.overflow = '';
     container.innerHTML = '';
     document.removeEventListener('click', handleTutorialClick, true);
     document.removeEventListener('change', handleTutorialChange, true);
     document.removeEventListener('input', handleTutorialInput, true); 
+    document.removeEventListener('keydown', handleTutorialKeydown, true);
+    document.removeEventListener('blur', handleTutorialBlur, true);
     console.log("Tutorial ended.");
 }
-
 /**
  * Moves to the next step or ends the tutorial.
  */
@@ -103,9 +104,7 @@ function renderCurrentStep() {
 
     setTimeout(() => {
         const modalElement = targetElement.closest('#custom-modal');
-        
-        // We always highlight the specific target, NOT the whole modal
-        const elementToHighlight = targetElement; 
+        const elementToHighlight = targetElement; // We only highlight the specific element
 
         // Get rect *after* scrolling
         const rect = elementToHighlight.getBoundingClientRect();
@@ -176,9 +175,19 @@ function renderCurrentStep() {
             nextBtn.addEventListener('click', nextStep);
         }
 
-        if (step.selector === '#class-name-input') {
-            targetElement.focus();
+        // --- NEW LOGIC FOR STEP 2 & 3 ---
+        const modalConfirmBtn = document.getElementById('modal-confirm-btn');
+        if (modalConfirmBtn) {
+            if (step.selector === '#class-name-input') {
+                // This is STEP 2: Disable the button and focus the input
+                modalConfirmBtn.disabled = true;
+                targetElement.focus();
+            } else if (step.selector === '#modal-confirm-btn') {
+                // This is STEP 3: Re-enable the button
+                modalConfirmBtn.disabled = false;
+            }
         }
+        // --- END NEW LOGIC ---
 
     }, 300); 
 }
