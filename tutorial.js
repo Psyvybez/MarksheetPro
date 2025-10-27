@@ -33,6 +33,7 @@ function endTutorial() {
         const modalElement = highlightedElement.closest('#custom-modal');
         if (modalElement) {
             modalElement.style.zIndex = 50; // Reset to original
+        }  
         highlightedElement.classList.remove('tutorial-highlighted-element');
     }
     document.body.style.overflow = ''; // <-- UNLOCK SCROLLING
