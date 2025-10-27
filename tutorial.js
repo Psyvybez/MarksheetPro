@@ -173,6 +173,9 @@ function renderCurrentStep() {
         if (nextBtn) {
             nextBtn.addEventListener('click', nextStep);
         }
+        if (step.selector === '#class-name-input') {
+            targetElement.focus();
+        }
     }, 300); // 300ms for smooth scroll
 }
 
