@@ -75,7 +75,89 @@ function nextStep() {
 /**
  * Renders the current step's spotlight and tooltip.
  */
+function renderCurrentStep() {
+    if (highlightedElement) {
+        // Reset z-index of modal if it was the last highlighted element
+        const modalElement = highlightedElement.closest('#custom-modal');
+        if (modalElement) {
+            modalElement.style.zIndex = 50; // Reset to original
+        }
+        highlightedElement.classList.remove('tutorial-highlighted-element');
+    }
 
+    const step = tutorialSteps[currentStep];
+    const targetElement = document.querySelector(step.selector);
+
+    if (!targetElement) {
+        setTimeout(() => {
+            if (document.querySelector(step.selector)) {
+                renderCurrentStep();
+            } else {
+                console.warn(`Tutorial: Element "${step.selector}" not found. Skipping.`);
+                nextStep(); // Skip if still not found
+            }
+        }, 500);
+        return;
+    }
+    
+    // Auto-scroll to the element
+    targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    // Wait for scroll to finish
+    setTimeout(() => {
+        const modalElement = targetElement.closest('#custom-modal');
+        // We always highlight the specific target, NOT the whole modal
+        const elementToHighlight = targetElement; 
+
+        // Get rect *after* scrolling
+        const rect = elementToHighlight.getBoundingClientRect();
+        
+        if (modalElement) {
+            // If we are in a modal, bring the ENTIRE modal forward
+            modalElement.style.zIndex = 92;
+        }
+
+        container.innerHTML = `
+            <div id="tutorial-backdrop"></div>
+            <div id="tutorial-spotlight"></div>
+            <div id="tutorial-tooltip">
+                <h4 class="font-bold mb-2">${step.title}</h4>
+                <p class="text-sm">${step.content}</p>
+                <div class="mt-4 flex justify-between items-center">
+                    <span class="text-xs text-gray-500">Step ${currentStep + 1} of ${tutorialSteps.length}</span>
+                    <div>
+                        ${step.isWaiting ? '' : '<button id="tutorial-next-btn" class="bg-primary hover:bg-primary-dark text-white py-1 px-3 rounded-md text-sm">Next</button>'}
+                        <button id="tutorial-skip-btn" class="ml-2 text-gray-500 hover:text-gray-800 text-sm">Skip</button>
+                    </div>
+                </div>
+            </div>
+        `;
+    
+        // Position Spotlight
+        const spotlight = document.getElementById('tutorial-spotlight');
+        spotlight.style.width = `${rect.width + 10}px`;
+        spotlight.style.height = `${rect.height + 10}px`;
+        spotlight.style.top = `${rect.top - 5}px`;
+        spotlight.style.left = `${rect.left - 5}px`;
+
+        // Position Tooltip
+        const tooltip = document.getElementById('tutorial-tooltip');
+        const targetRect = targetElement.getBoundingClientRect(); 
+        
+        let tooltipTop, tooltipLeft;
+
+        if (step.tooltipPosition === 'left') {
+            tooltipLeft = targetRect.left - 300 - 15; 
+            tooltipTop = targetRect.top;
+        } else {
+            tooltipTop = targetRect.bottom + 15;
+            tooltipLeft = targetRect.left + (targetRect.width / 2) - 150;
+        }
+
+        if (tooltipTop < 10) tooltipTop = 1;
+    }, 400);
+
+}
 
 /**
  * Defines the steps for the tutorial.
@@ -259,9 +341,6 @@ function waitForModalClose(callback) {
 
     modalObserver.observe(modalContainer, { childList: true });
 }
-/**
- * Global input listener to advance "waiting" steps.
- */
 /**
  * Global input listener to advance "waiting" steps.
  */
