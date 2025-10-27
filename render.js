@@ -568,11 +568,11 @@ export async function renderStudentProfileModal(studentId) {
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label for="student-firstname-edit" class="block text-sm font-medium">First Name</label>
-                        <input type="text" id="student-firstname-edit" class="mt-1 block w-full" value="${student.firstName}">
+                        <input type="text" id="student-firstname-edit" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" value="${student.firstName}">
                     </div>
                     <div>
                         <label for="student-lastname-edit" class="block text-sm font-medium">Last Name</label>
-                        <input type="text" id="student-lastname-edit" class="mt-1 block w-full" value="${student.lastName}">
+                        <input type="text" id="student-lastname-edit" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" value="${student.lastName}">
                     </div>
                 </div>
                  <div>
@@ -582,12 +582,12 @@ export async function renderStudentProfileModal(studentId) {
                 </div>
                 <div>
                     <label for="student-iep-notes" class="block text-sm font-medium">IEP Notes</label>
-                    <textarea id="student-iep-notes" class="mt-1 block w-full h-24">${student.iepNotes || ''}</textarea>
+                    <textarea id="student-iep-notes" class="mt-1 block w-full h-24 px-3 py-2 border border-gray-300 rounded-md shadow-sm">${student.iepNotes || ''}</textarea>
                 </div>
                 <div>
                     <label for="student-general-notes" class="block text-sm font-medium">General Notes</label>
-                    <textarea id="student-general-notes" class="mt-1 block w-full h-24">${student.generalNotes || ''}</textarea>
-                </div>
+                    <textarea id="student-general-notes" class="mt-1 block w-full h-24 px-3 py-2 border border-gray-300 rounded-md shadow-sm">${student.generalNotes || ''}</textarea>
+_                </div>
             </div>
         </div>
     `;
@@ -643,11 +643,11 @@ export async function renderStudentProfileModal(studentId) {
                         <div class="grid grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-sm font-medium">Name</label>
-                                <input type="text" id="contact-name-input" class="mt-1 block w-full">
+                                <input type="text" id="contact-name-input" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium">Email / Phone</label>
-                                <input type="text" id="contact-info-input" class="mt-1 block w-full">
+                                <input type="text" id="contact-info-input" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
                             </div>
                         </div>
                         <label class="flex items-center"><input type="checkbox" id="is-parent-checkbox" class="h-4 w-4"> <span class="ml-2">Is Parent/Guardian</span></label>

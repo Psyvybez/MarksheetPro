@@ -224,10 +224,11 @@ function defineSteps() {
         {
             selector: '#modal-confirm-btn', 
             title: 'Set Up Units',
-            content: 'Add your units and their weights (they must total 100%). When you\'re finished, click "Save Changes".',
+            // --- UPDATED STEP 7 ---
+            content: 'Add your units and set their term weights (they must total 100%). You can also enable a "Final Assessment" at the bottom and set its overall weight. Click "Save Changes" when done.',
             isWaiting: true,
             waitForModalClose: true,
-            tooltipPosition: 'left' // <-- HINT FOR TOOLTIP PLACEMENT
+            tooltipPosition: 'left'
         },
         {
             selector: '#addStudentBtn',
@@ -258,7 +259,8 @@ function defineSteps() {
         {
             selector: '#modal-confirm-btn', 
             title: 'Add Assignments',
-            content: 'Click "+ Add Assignment", fill in the details, and then click "Save Changes".',
+            // --- UPDATED STEP 12 ---
+            content: 'Click "+ Add Assignment". Give it a name, weight (how many times it counts), and the total marks for K, T, C, and A. Then, click "Save Changes".',
             isWaiting: true,
             waitForModalClose: true
         },
@@ -314,7 +316,9 @@ function handleTutorialClick(e) {
         if (step.waitForModalClose) {
             // Wait for the modal to close *after* the click
             waitForModalClose(() => {
-                setTimeout(nextStep, 100); 
+                // --- UPDATED STEP 13 FIX ---
+                // Increased delay from 100 to 500ms to allow the gradebook to re-render
+                setTimeout(nextStep, 500); 
             });
         } else {
             // For Step 1 (and others without waitForModalClose):

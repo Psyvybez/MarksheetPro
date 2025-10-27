@@ -43,11 +43,11 @@ export function addClass() {
             <div class="space-y-4">
                 <div>
                     <label for="class-name-input" class="block text-sm font-medium">Class Name</label>
-                    <input type="text" id="class-name-input" class="mt-1 block w-full" placeholder="e.g., Grade 10 Math">
+                    <input type="text" id="class-name-input" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="e.g., Grade 10 Math">
                 </div>
                 <div>
                     <label for="class-preset-select" class="block text-sm font-medium">Use a Preset (Optional)</label>
-                    <select id="class-preset-select" class="mt-1 block w-full">
+                    <select id="class-preset-select" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
                         <option value="">Start from scratch</option>
                         ${presetOptions}
                     </select>
@@ -122,7 +122,7 @@ export function archiveClass() {
 export function addStudent() {
     showModal({
         title: 'Add New Student',
-        content: `<div class="space-y-4"><div><label for="student-firstname-input" class="block text-sm font-medium">First Name</label><input type="text" id="student-firstname-input" class="mt-1 block w-full"></div><div><label for="student-lastname-input" class="block text-sm font-medium">Last Name</label><input type="text" id="student-lastname-input" class="mt-1 block w-full"></div></div>`,
+        content: `<div class="space-y-4"><div><label for="student-firstname-input" class="block text-sm font-medium">First Name</label><input type="text" id="student-firstname-input" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"></div><div><label for="student-lastname-input" class="block text-sm font-medium">Last Name</label><input type="text" id="student-lastname-input" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"></div></div>`,
         confirmText: 'Add & Next', cancelText: 'Done', confirmClasses: 'bg-primary hover:bg-primary-dark',
         onAction: () => {
             const firstNameInput = document.getElementById('student-firstname-input');
@@ -567,43 +567,7 @@ export function manageAssignments() {
 
 // --- General Actions ---
 
-export function saveClassAsPreset() {
-    const classData = getActiveClassData();
-    if (!classData) {
-        alert("No active class to save as a preset.");
-        return;
-    }
-
-    showModal({
-        title: 'Save Class Preset',
-        content: `<label for="preset-name-input" class="block text-sm font-medium">Preset Name</label><input type="text" id="preset-name-input" class="mt-1 block w-full" value="${classData.name} Preset">`,
-        confirmText: 'Save Preset',
-        confirmClasses: 'bg-secondary hover:bg-secondary-dark',
-        onConfirm: () => {
-            const appState = getAppState();
-            const presetName = document.getElementById('preset-name-input').value.trim();
-            if (presetName) {
-                const presetId = `preset_${Date.now()}`;
-                
-                const presetData = JSON.parse(JSON.stringify(classData));
-                delete presetData.students;
-                delete presetData.attendance;
-                delete presetData.id;
-                delete presetData.name;
-                delete presetData.order;
-
-                presetData.name = presetName;
-
-                if (!appState.gradebook_data.presets) {
-                    appState.gradebook_data.presets = {};
-                }
-                appState.gradebook_data.presets[presetId] = presetData;
-                triggerAutoSave();
-                showModal({title: 'Preset Saved!', content: `<p>"${presetName}" has been saved.</p>`, confirmText: null, cancelText: 'Close'});
-            }
-        }
-    });
-}
+saveClassAsPreset
 
 export function recordMidterms() {
     const classData = getActiveClassData();
@@ -726,7 +690,7 @@ export function importStudentsCSV() {
                &nbsp;&nbsp;• LastName, FirstName<br>
                &nbsp;&nbsp;• FirstName LastName
             </p>
-            <textarea id="student-import-textarea" class="w-full h-48 p-2 border rounded-md" placeholder="Doe, Jane\nJohn Smith\nBryant, Kobe..."></textarea>
+            <textarea id="student-import-textarea" class="w-full h-48 p-2 border border-gray-300 rounded-md shadow-sm" placeholder="Doe, Jane\nJohn Smith\nBryant, Kobe..."></textarea>
         `,
         confirmText: 'Import Students',
         confirmClasses: 'bg-green-600 hover:bg-green-700',
