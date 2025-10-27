@@ -75,121 +75,47 @@ function nextStep() {
 /**
  * Renders the current step's spotlight and tooltip.
  */
-function renderCurrentStep() {
-    if (highlightedElement) {
-        // Reset z-index of modal if it was the last highlighted element
-        const modalElement = highlightedElement.closest('#custom-modal');
-        if (modalElement) {
-            modalElement.style.zIndex = 50; // Reset to original
-        }
-        highlightedElement.classList.remove('tutorial-highlighted-element');
-    }
-
+function handleTutorialClick(e) {
+    // Check if tutorial is active and get step data immediately
+    if (currentStep >= tutorialSteps.length) return;
     const step = tutorialSteps[currentStep];
-    const targetElement = document.querySelector(step.selector);
+    if (!step) return; // Safety check
 
-    if (!targetElement) {
-        setTimeout(() => {
-            if (document.querySelector(step.selector)) {
-                renderCurrentStep();
-            } else {
-                console.warn(`Tutorial: Element "${step.selector}" not found. Skipping.`);
-                nextStep(); // Skip if still not found
-            }
-        }, 500);
+    // Ignore clicks if not a waiting step or waiting for a different event type
+    if (!step.isWaiting || step.listenFor === 'change' || step.listenFor === 'input' || step.listenFor === 'enter-or-blur') {
         return;
     }
-    
-    targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-    setTimeout(() => {
-        const modalElement = targetElement.closest('#custom-modal');
-        const elementToHighlight = targetElement; // We only highlight the specific element
+    const targetElement = document.querySelector(step.selector);
 
-        // Get rect *after* scrolling
-        const rect = elementToHighlight.getBoundingClientRect();
+    // Check if the click was on the highlighted element
+    if (targetElement && (targetElement === e.target || targetElement.contains(e.target))) {
         
-        if (modalElement) {
-            // If we are in a modal, bring the ENTIRE modal forward
-            modalElement.style.zIndex = 92;
-        }
+        // --- Prevent the default action (like opening the modal) for NOW ---
+        e.stopPropagation();
+        e.preventDefault();
 
-        container.innerHTML = `
-            <div id="tutorial-backdrop"></div>
-            <div id="tutorial-spotlight"></div>
-            <div id="tutorial-tooltip">
-                <h4 class="font-bold mb-2">${step.title}</h4>
-                <p class="text-sm">${step.content}</p>
-                <div class="mt-4 flex justify-between items-center">
-                    <span class="text-xs text-gray-500">Step ${currentStep + 1} of ${tutorialSteps.length}</span>
-                    <div>
-                        ${step.isWaiting ? '' : '<button id="tutorial-next-btn" class="bg-primary hover:bg-primary-dark text-white py-1 px-3 rounded-md text-sm">Next</button>'}
-                        <button id="tutorial-skip-btn" class="ml-2 text-gray-500 hover:text-gray-800 text-sm">Skip</button>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        // Position Spotlight
-        const spotlight = document.getElementById('tutorial-spotlight');
-        spotlight.style.width = `${rect.width + 10}px`;
-        spotlight.style.height = `${rect.height + 10}px`;
-        spotlight.style.top = `${rect.top - 5}px`;
-        spotlight.style.left = `${rect.left - 5}px`;
-
-        // Position Tooltip
-        const tooltip = document.getElementById('tutorial-tooltip');
-        const targetRect = targetElement.getBoundingClientRect(); 
-        
-        let tooltipTop, tooltipLeft;
-
-        if (step.tooltipPosition === 'left') {
-            tooltipLeft = targetRect.left - 300 - 15; 
-            tooltipTop = targetRect.top;
+        // --- Logic to advance ---
+        if (step.waitForModalClose) {
+            // This case shouldn't happen for Step 1, but keep for robustness
+            waitForModalClose(() => {
+                setTimeout(nextStep, 100); 
+            });
         } else {
-            tooltipTop = targetRect.bottom + 15;
-            tooltipLeft = targetRect.left + (targetRect.width / 2) - 150;
+            // For Step 1 (and others without waitForModalClose):
+            // 1. Advance the tutorial state in the next event cycle
+            setTimeout(() => {
+                nextStep(); 
+                
+                // 2. AFTER advancing, manually trigger the original button's action
+                //    We need to find the element again as it might have been re-rendered
+                const originalTarget = document.querySelector(step.selector);
+                if (originalTarget) {
+                    originalTarget.click(); // Now open the modal
+                }
+            }, 0); // Use 0ms timeout
         }
-
-        if (tooltipTop < 10) tooltipTop = 10;
-        if (tooltipLeft < 10) tooltipLeft = 10;
-        if (tooltipTop + 150 > window.innerHeight) { 
-             tooltipTop = targetRect.top - 150 - 15;
-        }
-        if (tooltipLeft + 300 > window.innerWidth) {
-            tooltipLeft = window.innerWidth - 310;
-        }
-
-        tooltip.style.top = `${tooltipTop}px`;
-        tooltip.style.left = `${tooltipLeft}px`;
-        setTimeout(() => tooltip.classList.add('visible'), 50);
-
-        // Highlight Target Element
-        highlightedElement = elementToHighlight;
-        highlightedElement.classList.add('tutorial-highlighted-element'); // z-index: 94
-
-        // Add Event Listeners
-        document.getElementById('tutorial-skip-btn').addEventListener('click', endTutorial);
-        const nextBtn = document.getElementById('tutorial-next-btn');
-        if (nextBtn) {
-            nextBtn.addEventListener('click', nextStep);
-        }
-
-        // --- NEW LOGIC FOR STEP 2 & 3 ---
-        const modalConfirmBtn = document.getElementById('modal-confirm-btn');
-        if (modalConfirmBtn) {
-            if (step.selector === '#class-name-input') {
-                // This is STEP 2: Disable the button and focus the input
-                modalConfirmBtn.disabled = true;
-                targetElement.focus();
-            } else if (step.selector === '#modal-confirm-btn') {
-                // This is STEP 3: Re-enable the button
-                modalConfirmBtn.disabled = false;
-            }
-        }
-        // --- END NEW LOGIC ---
-
-    }, 300); 
+    }
 }
 
 /**
