@@ -59,10 +59,10 @@ function nextStep() {
     currentStep++;
     if (currentStep < tutorialSteps.length) {
         if (highlightedElement) {
-        const modalElement = highlightedElement.closest('#custom-modal');
-        if (modalElement) {
-            modalElement.style.zIndex = 50; // Reset to original
-        }
+            const modalElement = highlightedElement.closest('#custom-modal');
+            if (modalElement) {
+                modalElement.style.zIndex = 50; // Reset to original
+            }
             highlightedElement.classList.remove('tutorial-highlighted-element');
         }
         
@@ -112,6 +112,13 @@ function renderCurrentStep() {
         // Get rect *after* scrolling
         const rect = elementToHighlight.getBoundingClientRect();
         
+        // --- FIX 1: APPLY HIGHLIGHT ---
+        // Store the element and apply the highlight class
+        // This brings it in front of the overlay (z-index: 94)
+        highlightedElement = elementToHighlight;
+        highlightedElement.classList.add('tutorial-highlighted-element');
+        // --- END FIX 1 ---
+
         if (modalElement) {
             // If we are in a modal, bring the ENTIRE modal forward
             modalElement.style.zIndex = 92;
@@ -155,6 +162,18 @@ function renderCurrentStep() {
         }
 
         if (tooltipTop < 10) tooltipTop = 1;
+
+        // Apply calculated positions
+        tooltip.style.top = `${tooltipTop}px`;
+        tooltip.style.left = `${tooltipLeft}px`;
+
+        // --- FIX 2: MAKE TOOLTIP VISIBLE ---
+        // Add the .visible class (defined in style.css) to fade it in
+        requestAnimationFrame(() => {
+            tooltip.classList.add('visible');
+        });
+        // --- END FIX 2 ---
+
     }, 400);
 
 }
@@ -261,14 +280,25 @@ function defineSteps() {
 /**
  * Global click listener to advance "waiting" steps.
  */
-/**
- * Global click listener to advance "waiting" steps.
- */
 function handleTutorialClick(e) {
     // Check if tutorial is active and get step data
     if (currentStep >= tutorialSteps.length) return;
     const step = tutorialSteps[currentStep];
     if (!step) return; // Safety check
+
+    // Handle "Next" and "Skip" buttons on the tooltip itself
+    if (e.target.id === 'tutorial-next-btn') {
+        e.preventDefault();
+        e.stopPropagation();
+        nextStep();
+        return;
+    }
+    if (e.target.id === 'tutorial-skip-btn') {
+        e.preventDefault();
+        e.stopPropagation();
+        endTutorial();
+        return;
+    }
 
     // Ignore clicks if not a waiting step or waiting for a different event type
     if (!step.isWaiting || step.listenFor === 'change' || step.listenFor === 'input' || step.listenFor === 'enter-or-blur') {
@@ -299,10 +329,12 @@ function handleTutorialClick(e) {
  * Global change listener to advance "waiting" steps.
  */
 function handleTutorialChange(e) {
-    if (step.listenFor === 'enter-or-blur') return;
+    // --- FIX 3: DEFINE STEP ---
     if (currentStep >= tutorialSteps.length) return;
     const step = tutorialSteps[currentStep];
+    // --- END FIX 3 ---
 
+    if (step.listenFor === 'enter-or-blur') return;
     if (!step.isWaiting || step.listenFor !== 'change') return; 
     if (step.listenFor === 'input') return; // <-- ADD THIS
 
@@ -336,7 +368,8 @@ function waitForModalClose(callback) {
                 // Check if one of the removed nodes is the modal
                 let modalWasRemoved = false;
                 mutation.removedNodes.forEach(node => {
-                    if (node.id === 'custom-modal') {
+                    // Check for the modal itself or its backdrop
+                    if (node.id === 'custom-modal' || node.id === 'custom-modal-backdrop') {
                         modalWasRemoved = true;
                     }
                 });
@@ -357,8 +390,10 @@ function waitForModalClose(callback) {
  * Global input listener to advance "waiting" steps.
  */
 function handleTutorialInput(e) {
+    // --- FIX 3: DEFINE STEP ---
     if (currentStep >= tutorialSteps.length) return;
     const step = tutorialSteps[currentStep];
+    // --- END FIX 3 ---
 
     // We no longer advance on 'input', but we still need to
     // stop 'input' from being processed by other listeners.
@@ -372,8 +407,10 @@ function handleTutorialInput(e) {
  * Global keydown listener for 'Enter' key.
  */
 function handleTutorialKeydown(e) {
+    // --- FIX 3: DEFINE STEP ---
     if (currentStep >= tutorialSteps.length) return;
     const step = tutorialSteps[currentStep];
+    // --- END FIX 3 ---
 
     // Only act on the 'enter-or-blur' step and if 'Enter' was pressed
     if (!step.isWaiting || step.listenFor !== 'enter-or-blur' || e.key !== 'Enter') {
@@ -392,12 +429,11 @@ function handleTutorialKeydown(e) {
 /**
  * Global blur listener for clicking off an element.
  */
-/**
- * Global blur listener for clicking off an element.
- */
 function handleTutorialBlur(e) {
+    // --- FIX 3: DEFINE STEP ---
     if (currentStep >= tutorialSteps.length) return;
     const step = tutorialSteps[currentStep];
+    // --- END FIX 3 ---
 
     // Only act on the 'enter-or-blur' step
     if (!step.isWaiting || step.listenFor !== 'enter-or-blur') {
