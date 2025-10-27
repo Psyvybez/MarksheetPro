@@ -261,25 +261,37 @@ function defineSteps() {
 /**
  * Global click listener to advance "waiting" steps.
  */
+/**
+ * Global click listener to advance "waiting" steps.
+ */
 function handleTutorialClick(e) {
-if (step.listenFor === 'enter-or-blur') return;
+    // Check if tutorial is active and get step data
+    if (currentStep >= tutorialSteps.length) return;
     const step = tutorialSteps[currentStep];
-    
-    if (!step.isWaiting) return; 
-    if (step.listenFor === 'change') return;
-    if (step.listenFor === 'input') return; // <-- ADD THIS
+    if (!step) return; // Safety check
+
+    // Ignore clicks if not a waiting step or waiting for a different event type
+    if (!step.isWaiting || step.listenFor === 'change' || step.listenFor === 'input' || step.listenFor === 'enter-or-blur') {
+        return;
+    }
 
     const targetElement = document.querySelector(step.selector);
-    
+
+    // Check if the click was on the highlighted element
     if (targetElement && (targetElement === e.target || targetElement.contains(e.target))) {
+        
+        // --- Logic to advance ---
         if (step.waitForModalClose) {
+            // Wait for the modal to close *after* the click
             waitForModalClose(() => {
                 setTimeout(nextStep, 100); 
             });
         } else {
-            setTimeout(() => {
+            // For Step 1 (and others without waitForModalClose):
+            // Just advance the tutorial shortly *after* the click happens normally
+             setTimeout(() => {
                 nextStep();
-            }, 100); 
+            }, 100); // Small delay to let UI react (like modal opening)
         }
     }
 }
