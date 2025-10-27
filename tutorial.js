@@ -15,12 +15,14 @@ const container = document.getElementById('tutorial-container');
 export function startTutorial() {
     if (!container) return;
     console.log("Starting tutorial...");
+    document.body.style.overflow = 'hidden'; // <-- LOCK SCROLLING
     currentStep = 0;
     defineSteps();
     renderCurrentStep();
     // Use 'true' for capture phase to intercept clicks
     document.addEventListener('click', handleTutorialClick, true);
     document.addEventListener('change', handleTutorialChange, true);
+    document.addEventListener('input', handleTutorialInput, true); // <-- ADD INPUT LISTENER
 }
 
 /**
@@ -30,9 +32,11 @@ function endTutorial() {
     if (highlightedElement) {
         highlightedElement.classList.remove('tutorial-highlighted-element');
     }
+    document.body.style.overflow = ''; // <-- UNLOCK SCROLLING
     container.innerHTML = '';
     document.removeEventListener('click', handleTutorialClick, true);
     document.removeEventListener('change', handleTutorialChange, true);
+    document.removeEventListener('input', handleTutorialInput, true); // <-- REMOVE INPUT LISTENER
     console.log("Tutorial ended.");
 }
 
@@ -69,7 +73,6 @@ function renderCurrentStep() {
     const step = tutorialSteps[currentStep];
     const targetElement = document.querySelector(step.selector);
 
-    // If element isn't on the page yet, wait and try again.
     if (!targetElement) {
         setTimeout(() => {
             if (document.querySelector(step.selector)) {
@@ -82,66 +85,80 @@ function renderCurrentStep() {
         return;
     }
     
-    // Check if target is in a modal
-    const modalElement = targetElement.closest('#custom-modal');
-    const elementToHighlight = modalElement || targetElement; 
+    // --- NEW: SCROLL TO ELEMENT FIRST ---
+    targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-    // --- 1. Create Spotlight & Tooltip ---
-    // *** FIX: Get RECT for the element to highlight (modal or button) ***
-// ...
-    const rect = elementToHighlight.getBoundingClientRect();
-    container.innerHTML = `
-        <div id="tutorial-spotlight"></div>
-        <div id="tutorial-tooltip">
-            <h4 class="font-bold mb-2">${step.title}</h4>
-            <p class="text-sm">${step.content}</p>
-            <div class="mt-4 flex justify-between items-center">
-                <span class="text-xs text-gray-500">Step ${currentStep + 1} of ${tutorialSteps.length}</span>
-                <div>
-                    ${step.isWaiting ? '' : '<button id="tutorial-next-btn" class="bg-primary hover:bg-primary-dark text-white py-1 px-3 rounded-md text-sm">Next</button>'}
-                    <button id="tutorial-skip-btn" class="ml-2 text-gray-500 hover:text-gray-800 text-sm">Skip</button>
+    // Wait for scroll to finish before drawing
+    setTimeout(() => {
+        const modalElement = targetElement.closest('#custom-modal');
+        const elementToHighlight = modalElement || targetElement; 
+
+        // Get rect *after* scrolling
+        const rect = elementToHighlight.getBoundingClientRect();
+        
+        container.innerHTML = `
+            <div id="tutorial-spotlight"></div>
+            <div id="tutorial-tooltip">
+                <h4 class="font-bold mb-2">${step.title}</h4>
+                <p class="text-sm">${step.content}</p>
+                <div class="mt-4 flex justify-between items-center">
+                    <span class="text-xs text-gray-500">Step ${currentStep + 1} of ${tutorialSteps.length}</span>
+                    <div>
+                        ${step.isWaiting ? '' : '<button id="tutorial-next-btn" class="bg-primary hover:bg-primary-dark text-white py-1 px-3 rounded-md text-sm">Next</button>'}
+                        <button id="tutorial-skip-btn" class="ml-2 text-gray-500 hover:text-gray-800 text-sm">Skip</button>
+                    </div>
                 </div>
             </div>
-        </div>
-    `;
+        `;
 
-    // --- 2. Position Spotlight (based on elementToHighlight) ---
-    const spotlight = document.getElementById('tutorial-spotlight');
-    spotlight.style.width = `${rect.width + 10}px`;
-    spotlight.style.height = `${rect.height + 10}px`;
-    spotlight.style.top = `${rect.top - 5}px`;
-    spotlight.style.left = `${rect.left - 5}px`;
+        // Position Spotlight
+        const spotlight = document.getElementById('tutorial-spotlight');
+        spotlight.style.width = `${rect.width + 10}px`;
+        spotlight.style.height = `${rect.height + 10}px`;
+        spotlight.style.top = `${rect.top - 5}px`;
+        spotlight.style.left = `${rect.left - 5}px`;
 
-    // --- 3. Position Tooltip (based on original targetElement) ---
-    const tooltip = document.getElementById('tutorial-tooltip');
-    
-    // *** FIX: Get a NEW rect just for the original target button ***
-    const targetRect = targetElement.getBoundingClientRect(); 
-    
-    let tooltipTop = targetRect.bottom + 15; // Use targetRect
-    let tooltipLeft = targetRect.left + (targetRect.width / 2) - 150; // Use targetRect
+        // Position Tooltip
+        const tooltip = document.getElementById('tutorial-tooltip');
+        const targetRect = targetElement.getBoundingClientRect(); 
+        
+        let tooltipTop, tooltipLeft;
 
-    // Adjust if off-screen
-    if (tooltipTop + 150 > window.innerHeight) { 
-        tooltipTop = targetRect.top - 150 - 15; // Use targetRect
-    }
-    if (tooltipLeft < 10) tooltipLeft = 10;
-    if (tooltipLeft + 300 > window.innerWidth) tooltipLeft = window.innerWidth - 310;
+        // --- NEW: TOOLTIP POSITION LOGIC ---
+        if (step.tooltipPosition === 'left') {
+            tooltipLeft = targetRect.left - 300 - 15; // 300 = tooltip width
+            tooltipTop = targetRect.top;
+        } else {
+            // Default logic
+            tooltipTop = targetRect.bottom + 15;
+            tooltipLeft = targetRect.left + (targetRect.width / 2) - 150;
+        }
 
-    tooltip.style.top = `${tooltipTop}px`;
-    tooltip.style.left = `${tooltipLeft}px`;
-    setTimeout(() => tooltip.classList.add('visible'), 50); // Fade in
+        // Adjust if off-screen (keep this)
+        if (tooltipTop < 10) tooltipTop = 10;
+        if (tooltipLeft < 10) tooltipLeft = 10;
+        if (tooltipTop + 150 > window.innerHeight) { 
+             tooltipTop = targetRect.top - 150 - 15; // Place above
+        }
+        if (tooltipLeft + 300 > window.innerWidth) {
+            tooltipLeft = window.innerWidth - 310;
+        }
 
-    // --- 4. Highlight Target Element ---
-    highlightedElement = elementToHighlight; // Highlight the modal
-    highlightedElement.classList.add('tutorial-highlighted-element');
+        tooltip.style.top = `${tooltipTop}px`;
+        tooltip.style.left = `${tooltipLeft}px`;
+        setTimeout(() => tooltip.classList.add('visible'), 50);
 
-    // --- 5. Add Event Listeners ---
-    document.getElementById('tutorial-skip-btn').addEventListener('click', endTutorial);
-    const nextBtn = document.getElementById('tutorial-next-btn');
-    if (nextBtn) {
-        nextBtn.addEventListener('click', nextStep);
-    }
+        // Highlight Target Element
+        highlightedElement = elementToHighlight;
+        highlightedElement.classList.add('tutorial-highlighted-element');
+
+        // Add Event Listeners
+        document.getElementById('tutorial-skip-btn').addEventListener('click', endTutorial);
+        const nextBtn = document.getElementById('tutorial-next-btn');
+        if (nextBtn) {
+            nextBtn.addEventListener('click', nextStep);
+        }
+    }, 300); // 300ms for smooth scroll
 }
 
 /**
@@ -156,16 +173,23 @@ function defineSteps() {
             isWaiting: true 
         },
         {
-            selector: '#modal-confirm-btn', 
-            title: 'Create Your Class',
-            content: 'Now, give your new class a name (e..g., "Grade 10 Math") and click "Add Class".',
+            selector: '#class-name-input', // Step 2: Highlight the input
+            title: 'Name Your Class',
+            content: 'First, enter a name for your class (e.g., "Grade 10 Math").',
             isWaiting: true,
-            waitForModalClose: true // <-- ADD THIS
+            listenFor: 'input' // Wait for user to type
+        },
+        {
+            selector: '#modal-confirm-btn', // Step 3: Highlight the button
+            title: 'Create Your Class',
+            content: 'Great! Now click "Add Class" to create it.',
+            isWaiting: true,
+            waitForModalClose: true
         },
         {
             selector: '.tab-button.active:not([data-tab-id="instructions"])', 
             title: 'Your Class is Ready',
-            content: 'Great! You are now inside your new class. This is the main gradebook view.',
+            content: 'You are now inside your new class. This is the main gradebook view.',
             isWaiting: false
         },
         {
@@ -185,7 +209,8 @@ function defineSteps() {
             title: 'Set Up Units',
             content: 'Add your units and their weights (they must total 100%). When you\'re finished, click "Save Changes".',
             isWaiting: true,
-            waitForModalClose: true // <-- ADD THIS
+            waitForModalClose: true,
+            tooltipPosition: 'left' // <-- HINT FOR TOOLTIP PLACEMENT
         },
         {
             selector: '#addStudentBtn',
@@ -198,7 +223,7 @@ function defineSteps() {
             title: 'Add a Student',
             content: 'Enter a student\'s name and click "Add & Next". You can add as many as you want. Click "Done" when you\'re finished.',
             isWaiting: true,
-            waitForModalClose: true // <-- ADD THIS
+            waitForModalClose: true
         },
         {
             selector: '#unitFilterDropdown',
@@ -218,7 +243,7 @@ function defineSteps() {
             title: 'Add Assignments',
             content: 'Click "+ Add Assignment", fill in the details, and then click "Save Changes".',
             isWaiting: true,
-            waitForModalClose: true // <-- ADD THIS
+            waitForModalClose: true
         },
         {
             selector: '#gradebookTable tbody tr:first-child .grade-input:first-of-type',
@@ -239,27 +264,21 @@ function defineSteps() {
  * Global click listener to advance "waiting" steps.
  */
 function handleTutorialClick(e) {
-    if (currentStep >= tutorialSteps.length) return; // Tutorial is over
-    
+    if (currentStep >= tutorialSteps.length) return;
     const step = tutorialSteps[currentStep];
     
-    if (!step.isWaiting) return; // Not a waiting step
-    if (step.listenFor === 'change') return; // This step is waiting for a change, not a click
+    if (!step.isWaiting) return; 
+    if (step.listenFor === 'change') return;
+    if (step.listenFor === 'input') return; // <-- ADD THIS
 
     const targetElement = document.querySelector(step.selector);
     
     if (targetElement && (targetElement === e.target || targetElement.contains(e.target))) {
-        // User clicked the correct thing!
-        
         if (step.waitForModalClose) {
-            // --- NEW LOGIC ---
-            // Don't advance yet. Wait for the modal to be removed.
             waitForModalClose(() => {
-                setTimeout(nextStep, 100); // Wait for UI to draw
+                setTimeout(nextStep, 100); 
             });
         } else {
-            // --- OLD LOGIC ---
-            // This is for clicks that DON'T close a modal
             setTimeout(() => {
                 nextStep();
             }, 100); 
@@ -270,16 +289,15 @@ function handleTutorialClick(e) {
  * Global change listener to advance "waiting" steps.
  */
 function handleTutorialChange(e) {
-    if (currentStep >= tutorialSteps.length) return; // Tutorial is over
-    
+    if (currentStep >= tutorialSteps.length) return;
     const step = tutorialSteps[currentStep];
-    if (!step.isWaiting || step.listenFor !== 'change') return; // Not a waiting 'change' step
+
+    if (!step.isWaiting || step.listenFor !== 'change') return; 
+    if (step.listenFor === 'input') return; // <-- ADD THIS
 
     const targetElement = document.querySelector(step.selector);
     
-    // Check if the change was *on* the highlighted element
     if (targetElement && (targetElement === e.target)) {
-        // User changed the correct thing!
         setTimeout(() => {
             nextStep();
         }, 100); 
@@ -323,4 +341,25 @@ function waitForModalClose(callback) {
     });
 
     modalObserver.observe(modalContainer, { childList: true });
+}
+/**
+ * Global input listener to advance "waiting" steps.
+ */
+function handleTutorialInput(e) {
+    if (currentStep >= tutorialSteps.length) return;
+    const step = tutorialSteps[currentStep];
+
+    if (!step.isWaiting || step.listenFor !== 'input') return;
+
+    const targetElement = document.querySelector(step.selector);
+    
+    // Check if the input was *on* the highlighted element
+    if (targetElement && (targetElement === e.target)) {
+        // Advance only if the input is not empty
+        if (targetElement.value.trim() !== '') {
+            setTimeout(() => {
+                nextStep();
+            }, 100);
+        }
+    }
 }

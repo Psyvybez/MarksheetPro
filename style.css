@@ -122,9 +122,8 @@ body.has-final #gradebookTable th:nth-child(6), body.has-final #gradebookTable t
     position: fixed;
     z-index: 91;
     border-radius: 6px;
-    /* This "inverted" shadow creates the spotlight effect */
-    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6);
-    pointer-events: none; /* Allows clicks to go "through" the hole */
+    box-shadow: 0 0 0 2000px rgba(0, 0, 0, 0.6);
+    pointer-events: none;
     transition: all 0.3s ease-in-out;
 }
 
