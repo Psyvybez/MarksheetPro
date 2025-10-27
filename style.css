@@ -123,7 +123,6 @@ body.has-final #gradebookTable th:nth-child(6), body.has-final #gradebookTable t
     z-index: 91;
     border-radius: 6px;
     box-shadow: 0 0 0 2000px rgba(0, 0, 0, 0.6);
-    pointer-events: none;
     transition: all 0.3s ease-in-out;
 }
 

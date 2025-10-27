@@ -90,8 +90,7 @@ function renderCurrentStep() {
 
     // Wait for scroll to finish before drawing
     setTimeout(() => {
-        const modalElement = targetElement.closest('#custom-modal');
-        const elementToHighlight = modalElement || targetElement; 
+        const elementToHighlight = targetElement;
 
         // Get rect *after* scrolling
         const rect = elementToHighlight.getBoundingClientRect();
