@@ -567,7 +567,43 @@ export function manageAssignments() {
 
 // --- General Actions ---
 
-saveClassAsPreset
+export function saveClassAsPreset() {
+    const classData = getActiveClassData();
+    if (!classData) {
+        alert("No active class to save as a preset.");
+        return;
+    }
+
+    showModal({
+        title: 'Save Class Preset',
+        content: `<label for="preset-name-input" class="block text-sm font-medium">Preset Name</label><input type="text" id="preset-name-input" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" value="${classData.name} Preset">`,
+        confirmText: 'Save Preset',
+        confirmClasses: 'bg-secondary hover:bg-secondary-dark',
+        onConfirm: () => {
+            const appState = getAppState();
+            const presetName = document.getElementById('preset-name-input').value.trim();
+            if (presetName) {
+                const presetId = `preset_${Date.now()}`;
+                
+                const presetData = JSON.parse(JSON.stringify(classData));
+                delete presetData.students;
+                delete presetData.attendance;
+                delete presetData.id;
+                delete presetData.name;
+                delete presetData.order;
+
+                presetData.name = presetName;
+
+                if (!appState.gradebook_data.presets) {
+                    appState.gradebook_data.presets = {};
+                }
+                appState.gradebook_data.presets[presetId] = presetData;
+                triggerAutoSave();
+                showModal({title: 'Preset Saved!', content: `<p>"${presetName}" has been saved.</p>`, confirmText: null, cancelText: 'Close'});
+            }
+        }
+    });
+}
 
 export function recordMidterms() {
     const classData = getActiveClassData();
@@ -690,7 +726,7 @@ export function importStudentsCSV() {
                &nbsp;&nbsp;• LastName, FirstName<br>
                &nbsp;&nbsp;• FirstName LastName
             </p>
-            <textarea id="student-import-textarea" class="w-full h-48 p-2 border border-gray-300 rounded-md shadow-sm" placeholder="Doe, Jane\nJohn Smith\nBryant, Kobe..."></textarea>
+            <textarea id="student-import-textarea" class="w-full h-48 p-2 border rounded-md" placeholder="Doe, Jane\nJohn Smith\nBryant, Kobe..."></textarea>
         `,
         confirmText: 'Import Students',
         confirmClasses: 'bg-green-600 hover:bg-green-700',
