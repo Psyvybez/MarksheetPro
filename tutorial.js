@@ -75,48 +75,7 @@ function nextStep() {
 /**
  * Renders the current step's spotlight and tooltip.
  */
-function handleTutorialClick(e) {
-    // Check if tutorial is active and get step data immediately
-    if (currentStep >= tutorialSteps.length) return;
-    const step = tutorialSteps[currentStep];
-    if (!step) return; // Safety check
 
-    // Ignore clicks if not a waiting step or waiting for a different event type
-    if (!step.isWaiting || step.listenFor === 'change' || step.listenFor === 'input' || step.listenFor === 'enter-or-blur') {
-        return;
-    }
-
-    const targetElement = document.querySelector(step.selector);
-
-    // Check if the click was on the highlighted element
-    if (targetElement && (targetElement === e.target || targetElement.contains(e.target))) {
-        
-        // --- Prevent the default action (like opening the modal) for NOW ---
-        e.stopPropagation();
-        e.preventDefault();
-
-        // --- Logic to advance ---
-        if (step.waitForModalClose) {
-            // This case shouldn't happen for Step 1, but keep for robustness
-            waitForModalClose(() => {
-                setTimeout(nextStep, 100); 
-            });
-        } else {
-            // For Step 1 (and others without waitForModalClose):
-            // 1. Advance the tutorial state in the next event cycle
-            setTimeout(() => {
-                nextStep(); 
-                
-                // 2. AFTER advancing, manually trigger the original button's action
-                //    We need to find the element again as it might have been re-rendered
-                const originalTarget = document.querySelector(step.selector);
-                if (originalTarget) {
-                    originalTarget.click(); // Now open the modal
-                }
-            }, 0); // Use 0ms timeout
-        }
-    }
-}
 
 /**
  * Defines the steps for the tutorial.
