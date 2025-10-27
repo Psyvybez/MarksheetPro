@@ -523,23 +523,4 @@ document.getElementById('password')?.addEventListener('keydown', (e) => {
     ['mousemove', 'mousedown', 'keypress', 'click'].forEach(event => window.addEventListener(event, resetInactivityTimer));
    // Replace the existing visibilitychange listener in Frontend/main.js
 
-    window.addEventListener('visibilitychange', () => {
-        const currentUser = getCurrentUser();
-
-        // Check if the tab is now visible AND the user is logged in
-        if (document.visibilityState === 'visible' && currentUser && supabaseClient) {
-            console.log("Tab refocused. Re-rendering from local state.");
-            
-            // Get the *current in-memory* app state
-            const currentLocalState = getAppState(); 
-
-            // Re-render the UI using the local state.
-            // Pass isInitial = false.
-            // handleDataLoad (from our last fix) will figure out 
-            // which page (Account or Gradebook) to re-render.
-            if (currentLocalState) {
-                handleDataLoad(currentLocalState, false);
-            }
-        }
-    });
 }
