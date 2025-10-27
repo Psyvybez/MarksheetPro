@@ -22,7 +22,9 @@ export function startTutorial() {
     // Use 'true' for capture phase to intercept clicks
     document.addEventListener('click', handleTutorialClick, true);
     document.addEventListener('change', handleTutorialChange, true);
-    document.addEventListener('input', handleTutorialInput, true); // <-- ADD INPUT LISTENER
+    document.addEventListener('input', handleTutorialInput, true);
+    document.addEventListener('keydown', handleTutorialKeydown, true); 
+    document.addEventListener('blur', handleTutorialBlur, true);     
 }
 
 /**
@@ -40,7 +42,7 @@ function endTutorial() {
     container.innerHTML = '';
     document.removeEventListener('click', handleTutorialClick, true);
     document.removeEventListener('change', handleTutorialChange, true);
-    document.removeEventListener('input', handleTutorialInput, true); // <-- REMOVE INPUT LISTENER
+    document.removeEventListener('input', handleTutorialInput, true); 
     console.log("Tutorial ended.");
 }
 
@@ -74,6 +76,11 @@ function nextStep() {
  */
 function renderCurrentStep() {
     if (highlightedElement) {
+        // Reset z-index of modal if it was the last highlighted element
+        const modalElement = highlightedElement.closest('#custom-modal');
+        if (modalElement) {
+            modalElement.style.zIndex = 50; // Reset to original
+        }
         highlightedElement.classList.remove('tutorial-highlighted-element');
     }
 
@@ -92,28 +99,24 @@ function renderCurrentStep() {
         return;
     }
     
-    // Auto-scroll to the element
     targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-    // Wait for scroll to finish
     setTimeout(() => {
         const modalElement = targetElement.closest('#custom-modal');
-        const elementToHighlight = targetElement; // We only highlight the specific element
+        
+        // We always highlight the specific target, NOT the whole modal
+        const elementToHighlight = targetElement; 
 
         // Get rect *after* scrolling
         const rect = elementToHighlight.getBoundingClientRect();
         
-        let modalOverlayHtml = '';
         if (modalElement) {
-            // If we are in a modal, bring the modal up...
+            // If we are in a modal, bring the ENTIRE modal forward
             modalElement.style.zIndex = 92;
-            // ...and add the second overlay to block its other buttons
-            modalOverlayHtml = `<div id="tutorial-modal-overlay"></div>`;
         }
 
         container.innerHTML = `
             <div id="tutorial-backdrop"></div>
-            ${modalOverlayHtml} 
             <div id="tutorial-spotlight"></div>
             <div id="tutorial-tooltip">
                 <h4 class="font-bold mb-2">${step.title}</h4>
@@ -164,8 +167,7 @@ function renderCurrentStep() {
 
         // Highlight Target Element
         highlightedElement = elementToHighlight;
-        // This class (z-index 94) punches the target through all overlays
-        highlightedElement.classList.add('tutorial-highlighted-element');
+        highlightedElement.classList.add('tutorial-highlighted-element'); // z-index: 94
 
         // Add Event Listeners
         document.getElementById('tutorial-skip-btn').addEventListener('click', endTutorial);
@@ -173,10 +175,12 @@ function renderCurrentStep() {
         if (nextBtn) {
             nextBtn.addEventListener('click', nextStep);
         }
+
         if (step.selector === '#class-name-input') {
             targetElement.focus();
         }
-    }, 300); // 300ms for smooth scroll
+
+    }, 300); 
 }
 
 /**
@@ -195,7 +199,7 @@ function defineSteps() {
             title: 'Name Your Class',
             content: 'First, enter a name for your class (e.g., "Grade 10 Math").',
             isWaiting: true,
-            listenFor: 'input' // Wait for user to type
+            listenFor: 'enter-or-blur'
         },
         {
             selector: '#modal-confirm-btn', // Step 3: Highlight the button
@@ -282,7 +286,7 @@ function defineSteps() {
  * Global click listener to advance "waiting" steps.
  */
 function handleTutorialClick(e) {
-    if (currentStep >= tutorialSteps.length) return;
+if (step.listenFor === 'enter-or-blur') return;
     const step = tutorialSteps[currentStep];
     
     if (!step.isWaiting) return; 
@@ -307,6 +311,7 @@ function handleTutorialClick(e) {
  * Global change listener to advance "waiting" steps.
  */
 function handleTutorialChange(e) {
+    if (step.listenFor === 'enter-or-blur') return;
     if (currentStep >= tutorialSteps.length) return;
     const step = tutorialSteps[currentStep];
 
@@ -363,21 +368,58 @@ function waitForModalClose(callback) {
 /**
  * Global input listener to advance "waiting" steps.
  */
+/**
+ * Global input listener to advance "waiting" steps.
+ */
 function handleTutorialInput(e) {
     if (currentStep >= tutorialSteps.length) return;
     const step = tutorialSteps[currentStep];
 
-    if (!step.isWaiting || step.listenFor !== 'input') return;
+    // We no longer advance on 'input', but we still need to
+    // stop 'input' from being processed by other listeners.
+    if (!step.isWaiting) return;
+    if (step.listenFor === 'input') {
+        // This block is now just a placeholder in case you
+        // want to add 'input' listeners back later.
+    }
+}
+/**
+ * Global keydown listener for 'Enter' key.
+ */
+function handleTutorialKeydown(e) {
+    if (currentStep >= tutorialSteps.length) return;
+    const step = tutorialSteps[currentStep];
+
+    // Only act on the 'enter-or-blur' step and if 'Enter' was pressed
+    if (!step.isWaiting || step.listenFor !== 'enter-or-blur' || e.key !== 'Enter') {
+        return;
+    }
 
     const targetElement = document.querySelector(step.selector);
-    
-    // Check if the input was *on* the highlighted element
     if (targetElement && (targetElement === e.target)) {
-        // Advance only if the input is not empty
         if (targetElement.value.trim() !== '') {
-            setTimeout(() => {
-                nextStep();
-            }, 100);
+            e.preventDefault(); // Stop 'Enter' from submitting a form
+            nextStep();
+        }
+    }
+}
+
+/**
+ * Global blur listener for clicking off an element.
+ */
+function handleTutorialBlur(e) {
+    if (currentStep >= tutorialSteps.length) return;
+    const step = tutorialSteps[currentStep];
+
+    // Only act on the 'enter-or-blur' step
+    if (!step.isWaiting || step.listenFor !== 'enter-or-blur') {
+        return;
+    }
+
+    const targetElement = document.querySelector(step.selector);
+    if (targetElement && (targetElement === e.target)) {
+        if (targetElement.value.trim() !== '') {
+            nextStep();
         }
     }
 }
