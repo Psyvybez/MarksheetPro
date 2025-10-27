@@ -123,12 +123,19 @@ body.has-final #gradebookTable th:nth-child(6), body.has-final #gradebookTable t
     z-index: 91;
     border-radius: 6px;
     box-shadow: 0 0 0 2000px rgba(0, 0, 0, 0.6);
+    pointer-events: none;
     transition: all 0.3s ease-in-out;
+}
+#tutorial-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 93; /* Sits *above* the modal (92) but *below* the target (94) */
+    background: transparent; /* This transparent div will block clicks */
 }
 
 #tutorial-tooltip {
     position: fixed;
-    z-index: 92;
+    z-index: 95;
     background-color: white;
     padding: 1rem;
     border-radius: 8px;
@@ -147,6 +154,6 @@ body.has-final #gradebookTable th:nth-child(6), body.has-final #gradebookTable t
 .tutorial-highlighted-element {
     /* This brings the *actual* button above the shadow */
     position: relative;
-    z-index: 92;
+    z-index: 94;
     pointer-events: auto !important;
 }

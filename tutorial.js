@@ -30,6 +30,9 @@ export function startTutorial() {
  */
 function endTutorial() {
     if (highlightedElement) {
+        const modalElement = highlightedElement.closest('#custom-modal');
+        if (modalElement) {
+            modalElement.style.zIndex = 50; // Reset to original
         highlightedElement.classList.remove('tutorial-highlighted-element');
     }
     document.body.style.overflow = ''; // <-- UNLOCK SCROLLING
@@ -52,9 +55,12 @@ function nextStep() {
     currentStep++;
     if (currentStep < tutorialSteps.length) {
         if (highlightedElement) {
+        const modalElement = highlightedElement.closest('#custom-modal');
+        if (modalElement) {
+            modalElement.style.zIndex = 50; // Reset to original
+        }
             highlightedElement.classList.remove('tutorial-highlighted-element');
         }
-        // container.innerHTML = ''; // <-- We removed the backdrop line
         
         setTimeout(renderCurrentStep, 300); 
     } else {
@@ -85,17 +91,28 @@ function renderCurrentStep() {
         return;
     }
     
-    // --- NEW: SCROLL TO ELEMENT FIRST ---
+    // Auto-scroll to the element
     targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-    // Wait for scroll to finish before drawing
+    // Wait for scroll to finish
     setTimeout(() => {
-        const elementToHighlight = targetElement;
+        const modalElement = targetElement.closest('#custom-modal');
+        const elementToHighlight = targetElement; // We only highlight the specific element
 
         // Get rect *after* scrolling
         const rect = elementToHighlight.getBoundingClientRect();
         
+        let modalOverlayHtml = '';
+        if (modalElement) {
+            // If we are in a modal, bring the modal up...
+            modalElement.style.zIndex = 92;
+            // ...and add the second overlay to block its other buttons
+            modalOverlayHtml = `<div id="tutorial-modal-overlay"></div>`;
+        }
+
         container.innerHTML = `
+            <div id="tutorial-backdrop"></div>
+            ${modalOverlayHtml} 
             <div id="tutorial-spotlight"></div>
             <div id="tutorial-tooltip">
                 <h4 class="font-bold mb-2">${step.title}</h4>
@@ -123,21 +140,18 @@ function renderCurrentStep() {
         
         let tooltipTop, tooltipLeft;
 
-        // --- NEW: TOOLTIP POSITION LOGIC ---
         if (step.tooltipPosition === 'left') {
-            tooltipLeft = targetRect.left - 300 - 15; // 300 = tooltip width
+            tooltipLeft = targetRect.left - 300 - 15; 
             tooltipTop = targetRect.top;
         } else {
-            // Default logic
             tooltipTop = targetRect.bottom + 15;
             tooltipLeft = targetRect.left + (targetRect.width / 2) - 150;
         }
 
-        // Adjust if off-screen (keep this)
         if (tooltipTop < 10) tooltipTop = 10;
         if (tooltipLeft < 10) tooltipLeft = 10;
         if (tooltipTop + 150 > window.innerHeight) { 
-             tooltipTop = targetRect.top - 150 - 15; // Place above
+             tooltipTop = targetRect.top - 150 - 15;
         }
         if (tooltipLeft + 300 > window.innerWidth) {
             tooltipLeft = window.innerWidth - 310;
@@ -149,6 +163,7 @@ function renderCurrentStep() {
 
         // Highlight Target Element
         highlightedElement = elementToHighlight;
+        // This class (z-index 94) punches the target through all overlays
         highlightedElement.classList.add('tutorial-highlighted-element');
 
         // Add Event Listeners
