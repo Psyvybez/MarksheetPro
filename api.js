@@ -1,6 +1,6 @@
 import { showModal } from './ui.js';
-import { getCurrentUser } from './state.js'; // 1. Add this import
 import { getCurrentUser } from './state.js';
+
 
 let supabaseClient;
 
