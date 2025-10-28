@@ -1,4 +1,4 @@
-import { initializeSupabase, syncToServer, loadDataForUser, deleteCurrentUser } from './api.js';
+import { initializeSupabase, syncToServer, loadDataForUser, deleteCurrentUser, submitFeedback } from './api.js';
 import { setupAuthListener, handleAuthSubmit, signOut } from './auth.js';
 import { showModal, updateSaveStatus } from './ui.js';
 import { setAppState, setCurrentUser, getAppState, getCurrentUser, getActiveClassData } from './state.js';
@@ -322,6 +322,73 @@ function promptDeleteAccount() {
     });
 }
 
+function showFeedbackModal() {
+    const appState = getAppState();
+    const contextJson = {
+        activeClassId: appState.gradebook_data?.activeClassId,
+        activeUnitId: appState.gradebook_data?.activeUnitId,
+        userAgent: navigator.userAgent
+    };
+
+    showModal({
+        title: 'Report a Bug or Suggestion',
+        content: `
+            <div class="space-y-4">
+                <div>
+                    <label for="feedback-type" class="block text-sm font-medium">Report Type</label>
+                    <select id="feedback-type" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                        <option value="Bug Report">Bug Report</option>
+                        <option value="Suggestion">Suggestion</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="feedback-content" class="block text-sm font-medium">Details</label>
+                    <textarea id="feedback-content" class="mt-1 block w-full h-32 px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="Please be as detailed as possible. What did you expect to happen? What actually happened?"></textarea>
+                    <p id="feedback-error" class="text-red-600 text-sm mt-1 hidden"></p>
+                </div>
+            </div>
+        `,
+        confirmText: 'Submit Feedback',
+        confirmClasses: 'bg-green-600 hover:bg-green-700',
+        onAction: async (closeModal) => {
+            const feedbackType = document.getElementById('feedback-type').value;
+            const content = document.getElementById('feedback-content').value.trim();
+            const errorEl = document.getElementById('feedback-error');
+            const confirmBtn = document.getElementById('modal-confirm-btn');
+
+            if (content.length <= 10) {
+                errorEl.textContent = 'Please provide more detail (at least 10 characters).';
+                errorEl.classList.remove('hidden');
+                return; // Don't close the modal
+            }
+            
+            errorEl.classList.add('hidden');
+            confirmBtn.disabled = true;
+            confirmBtn.textContent = 'Submitting...';
+
+            try {
+                await submitFeedback(feedbackType, content, contextJson);
+                closeModal();
+                // Show a success message
+                showModal({
+                    title: 'Feedback Submitted!',
+                    content: '<p>Thank you for your help in making this app better.</p>',
+                    confirmText: null,
+                    cancelText: 'Close',
+                    modalWidth: 'max-w-xs'
+                });
+            } catch (error) {
+                console.error('Failed to submit feedback:', error);
+                errorEl.textContent = `Error: ${error.message}`;
+                errorEl.classList.remove('hidden');
+                confirmBtn.disabled = false;
+                confirmBtn.textContent = 'Submit Feedback';
+            }
+        }
+    });
+}
+
 
 function setupEventListeners() {
     const contentWrapper = document.getElementById('content-wrapper');
@@ -563,6 +630,8 @@ document.getElementById('password')?.addEventListener('keydown', (e) => {
     document.getElementById('account-management-btn')?.addEventListener('click', () => renderAccountPage(false));
     document.getElementById('backup-btn')?.addEventListener('click', backupData);
     document.getElementById('restore-btn')?.addEventListener('click', restoreData);
+
+    document.getElementById('feedback-btn')?.addEventListener('click', showFeedbackModal);
     
     document.addEventListener('click', (e) => {
         if (!e.target.closest('#exportMenuBtn') && !e.target.closest('#exportMenuDropdown')) {

@@ -1,5 +1,6 @@
 import { showModal } from './ui.js';
 import { getCurrentUser } from './state.js'; // 1. Add this import
+import { getCurrentUser } from './state.js';
 
 let supabaseClient;
 
@@ -132,4 +133,21 @@ export async function deleteCurrentUser() {
 
     const { error } = await supabaseClient.rpc('delete_user_account');
     if (error) throw error;
+}
+
+export async function submitFeedback(feedbackType, content, contextJson) {
+    const currentUser = getCurrentUser();
+    if (!supabaseClient || !currentUser) throw new Error("Not authenticated.");
+
+    const { error } = await supabaseClient
+        .from('feedback')
+        .insert({
+            user_id: currentUser.id,
+            feedback_type: feedbackType,
+            content: content,
+            context_json: contextJson
+        });
+
+    if (error) throw error;
+    return true;
 }
