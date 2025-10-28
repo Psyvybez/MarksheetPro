@@ -491,28 +491,50 @@ export function renderAccountPage(isSetupMode = false) {
     `;
 }
 
-export function renderAttendanceSheet() {
+export function renderAttendanceSheet(dateString) {
     const classData = getActiveClassData();
     if (!classData) return;
 
-    const today = new Date().toISOString().slice(0, 10);
+    const selectedDate = dateString || new Date().toISOString().slice(0, 10);
     const students = Object.values(classData.students || {}).sort((a,b) => (a.lastName || '').localeCompare(b.lastName || ''));
 
     if (!classData.attendance) classData.attendance = {};
-    if (!classData.attendance[today]) classData.attendance[today] = {};
-    const todayAttendance = classData.attendance[today];
+    if (!classData.attendance[selectedDate]) classData.attendance[selectedDate] = {};
+    const attendanceForDate = classData.attendance[selectedDate];
 
     const studentRows = students.map(student => {
-        const status = todayAttendance[student.id] || 'present';
+        const studentAttendance = attendanceForDate[student.id] || { status: 'present', notes: '' };
+        const status = studentAttendance.status;
+        const notes = studentAttendance.notes || '';
+
+        // Calculate Term Summary
+        let lateCount = 0;
+        let absentCount = 0;
+        Object.values(classData.attendance || {}).forEach(dateData => {
+            const record = dateData[student.id];
+            if (record) {
+                if (record.status === 'late') lateCount++;
+                if (record.status === 'absent') absentCount++;
+            }
+        });
+        const summaryHtml = `
+            <span class="text-xs text-red-600">Abs: ${absentCount}</span>
+            <span class="text-xs text-yellow-600 ml-2">Late: ${lateCount}</span>
+        `;
+
         return `
             <tr class="student-attendance-row border-b" data-student-id="${student.id}">
                 <td class="p-3">${student.lastName}, ${student.firstName}</td>
+                <td class="p-3 whitespace-nowrap">${summaryHtml}</td>
                 <td class="p-3">
                     <div class="flex items-center gap-4">
                         <label><input type="radio" name="status-${student.id}" value="present" ${status === 'present' ? 'checked' : ''}> Present</label>
                         <label><input type="radio" name="status-${student.id}" value="absent" ${status === 'absent' ? 'checked' : ''}> Absent</label>
                         <label><input type="radio" name="status-${student.id}" value="late" ${status === 'late' ? 'checked' : ''}> Late</label>
                     </div>
+                </td>
+                <td class="p-3">
+                    <input type="text" class="attendance-note-input w-full p-1 border rounded" value="${notes}" placeholder="Add note...">
                 </td>
             </tr>
         `;
@@ -521,11 +543,21 @@ export function renderAttendanceSheet() {
     contentWrapper.innerHTML = `
         <div class="bg-white rounded-lg shadow-md p-6">
             <div class="flex justify-between items-center mb-4">
-                <h2 class="text-2xl font-bold">Attendance for ${today}</h2>
+                <div class="flex items-center gap-4">
+                    <h2 class="text-2xl font-bold">Attendance</h2>
+                    <input type="date" id="attendance-date-picker" value="${selectedDate}" class="p-2 border rounded-md">
+                </div>
                 <button id="back-to-gradebook-btn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg">&larr; Back to Gradebook</button>
             </div>
             <table class="w-full">
-                <thead><tr class="border-b"><th class="text-left p-3">Student</th><th class="text-left p-3">Status</th></tr></thead>
+                <thead>
+                    <tr class="border-b">
+                        <th class="text-left p-3">Student</th>
+                        <th class="text-left p-3">Term Summary</th>
+                        <th class="text-left p-3">Status</th>
+                        <th class="text-left p-3">Notes</th>
+                    </tr>
+                </thead>
                 <tbody>${studentRows}</tbody>
             </table>
         </div>

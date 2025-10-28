@@ -394,7 +394,7 @@ document.getElementById('password')?.addEventListener('keydown', (e) => {
                 'addAssignmentBtn': actions.manageAssignments,
                 'editUnitsBtn': actions.editUnits,
                 'recordMidtermsBtn': actions.recordMidterms,
-                'attendanceBtn': renderAttendanceSheet,
+                'attendanceBtn': () => renderAttendanceSheet(new Date().toISOString().slice(0, 10)),
                 'savePresetBtn': actions.saveClassAsPreset,
                 'exportMenuBtn': () => document.getElementById('exportMenuDropdown')?.classList.toggle('hidden'),
                 'exportPdfBtn': () => { actions.showPdfExportOptionsModal(); document.getElementById('exportMenuDropdown')?.classList.add('hidden'); },
@@ -420,6 +420,28 @@ document.getElementById('password')?.addEventListener('keydown', (e) => {
             if (target.id === 'student-search-input') {
                 renderGradebook(); // Search still needs direct render for filtering
                 return;
+            }
+            
+            if (target.classList.contains('attendance-note-input')) {
+                const studentRow = target.closest('.student-attendance-row');
+                const datePicker = document.getElementById('attendance-date-picker');
+                if (studentRow && datePicker && classData) {
+                    const studentId = studentRow.dataset.studentId;
+                    const selectedDate = datePicker.value;
+                    const notes = target.value;
+                    
+                    if (!classData.attendance[selectedDate]) classData.attendance[selectedDate] = {};
+                    if (!classData.attendance[selectedDate][studentId]) {
+                        // Get current status from the radio button
+                        const statusRadio = document.querySelector(`input[name="status-${studentId}"]:checked`);
+                        const status = statusRadio ? statusRadio.value : 'present';
+                        classData.attendance[selectedDate][studentId] = { status: status, notes: '' };
+                    }
+                    
+                    classData.attendance[selectedDate][studentId].notes = notes;
+                    triggerAutoSave();
+                }
+                return; // Don't run other input logic
             }
 
             // Handle grade input changes
@@ -485,10 +507,16 @@ document.getElementById('password')?.addEventListener('keydown', (e) => {
                 if(appState.gradebook_data) appState.gradebook_data.activeUnitId = e.target.value;
                 renderGradebook();
             }
+
+            // --- ADDED BLOCK FOR ATTENDANCE & IEP ---
+            if (e.target.id === 'attendance-date-picker') {
+                renderAttendanceSheet(e.target.value);
+            }
+
             if (e.target.id === 'show-archived-checkbox') {
                 renderClassTabs();
             }
-
+        
             if (e.target.classList.contains('iep-checkbox')) {
                 const studentId = e.target.dataset.studentId;
                 const classData = getActiveClassData(); // Get class data here
@@ -498,7 +526,29 @@ document.getElementById('password')?.addEventListener('keydown', (e) => {
                      triggerAutoSave(); 
                  }
             }
-            // --- END OF ADDED BLOCK ---
+        
+           if (e.target.name.startsWith('status-')) {
+                const classData = getActiveClassData();
+                const studentRow = e.target.closest('.student-attendance-row');
+                const datePicker = document.getElementById('attendance-date-picker');
+                if (studentRow && datePicker && classData) {
+                    const studentId = studentRow.dataset.studentId;
+                    const status = e.target.value;
+                    const selectedDate = datePicker.value;
+                    
+                    if (!classData.attendance) classData.attendance = {};
+                    if (!classData.attendance[selectedDate]) classData.attendance[selectedDate] = {};
+
+                    // Preserve existing notes when changing status
+                    const existingNotes = classData.attendance[selectedDate][studentId]?.notes || '';
+                    
+                    classData.attendance[selectedDate][studentId] = { status: status, notes: existingNotes };
+                    triggerAutoSave();
+                    
+                    // Re-render to update summary (this is optional but good for consistency)
+                    // renderAttendanceSheet(selectedDate); 
+                }
+            }
         });
 
         contentWrapper.addEventListener('keydown', (e) => {
