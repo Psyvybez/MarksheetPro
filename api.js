@@ -12,7 +12,7 @@ export function initializeSupabase(url, key) {
             storage: localStorage,
             autoRefreshToken: true,
             persistSession: true,
-            detectSessionInUrl: false,
+            detectSessionInUrl: true,
         },
     });
     return supabaseClient;
