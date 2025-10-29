@@ -23,36 +23,64 @@ export function setupAuthListener(supabaseClient, wasLocalDataLoaded) {
             return;
         }
 
-        if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
-            setCurrentUser(user);
+        // --- MODIFIED LOGIC ---
 
-            if (!wasLocalDataLoaded) loadingOverlay?.classList.remove('hidden');
+        // Handle a page refresh (INITIAL_SESSION)
+        if (event === 'INITIAL_SESSION') {
+            setCurrentUser(user);
+            authContainer?.classList.add('hidden');
+            appContainer?.classList.remove('hidden');
+            resetInactivityTimer();
+
+            // The data was already loaded from local storage in main.js
+            // We just need to render the UI with the state we already have.
+            if (wasLocalDataLoaded) {
+                console.log("AUTH: Resuming session from local state.");
+                handleDataLoad(getAppState(), true); // Render from local data
+            } else {
+                // Fallback: local data failed to load, so we must fetch from server
+                console.log("AUTH: No local data, fetching initial session from server.");
+                loadingOverlay?.classList.remove('hidden');
+                try {
+                    const { data, error } = await loadDataForUser(user.id, getAppState(), false);
+                    if (error) throw error;
+                    handleDataLoad(data, true);
+                } catch (e) {
+                    console.error("AUTH LISTENER FATAL (INITIAL_SESSION):", e);
+                    signOut(supabaseClient, true);
+                } finally {
+                    loadingOverlay?.classList.add('hidden');
+                }
+            }
+        }
+
+        // Handle a fresh login (SIGNED_IN)
+        if (event === 'SIGNED_IN') {
+            setCurrentUser(user);
+            loadingOverlay?.classList.remove('hidden'); // Show loading overlay
             
             try {
-                if (event === 'SIGNED_IN') updateLastLogin(user.id);
+                updateLastLogin(user.id);
                 
                 authContainer?.classList.add('hidden');
                 appContainer?.classList.remove('hidden');
                 resetInactivityTimer();
                 
-                // ... (inside setupAuthListener)
-                
-                // loadDataForUser will get the latest data.
-                const { data, error } = await loadDataForUser(user.id, getAppState(), wasLocalDataLoaded);
+                // This is a new sign-in, so we MUST fetch from the server
+                // to get the freshest data.
+                console.log("AUTH: New sign-in, fetching from server.");
+                const { data, error } = await loadDataForUser(user.id, getAppState(), false); // 'false' forces server check
                 if (error) throw error;
 
-                // handleDataLoad will now correctly decide what to render:
-                // - If data.full_name is missing -> renderAccountPage(true)
-                // - If data.full_name exists -> renderFullGradebookUI()
                 handleDataLoad(data, true);
-// ...
             } catch (e) {
-                console.error("AUTH LISTENER FATAL:", e);
+                console.error("AUTH LISTENER FATAL (SIGNED_IN):", e);
                 signOut(supabaseClient, true);
             } finally {
                 loadingOverlay?.classList.add('hidden');
             }
         }
+        // --- END MODIFIED LOGIC ---
     });
 }
 
