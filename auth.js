@@ -23,7 +23,7 @@ export function setupAuthListener(supabaseClient, wasLocalDataLoaded) {
             return;
         }
 
-        // --- MODIFIED LOGIC ---
+        // --- NEW, OPTIMIZED LOGIC ---
 
         // Handle a page refresh (INITIAL_SESSION)
         if (event === 'INITIAL_SESSION') {
@@ -80,7 +80,7 @@ export function setupAuthListener(supabaseClient, wasLocalDataLoaded) {
                 loadingOverlay?.classList.add('hidden');
             }
         }
-        // --- END MODIFIED LOGIC ---
+        // --- END NEW LOGIC ---
     });
 }
 
