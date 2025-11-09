@@ -418,21 +418,25 @@ document.getElementById('password')?.addEventListener('keydown', (e) => {
 
     if (contentWrapper) {
         contentWrapper.addEventListener('click', (e) => {
-            const target = e.target.closest('[id], [data-tab-id], [data-student-id]');
+            const clickedElement = e.target;
+
+            // --- FIXED BUG: Check for student name button click ---
+            const studentNameBtn = clickedElement.closest('.student-name-btn');
+            if (studentNameBtn) {
+                const studentId = studentNameBtn.closest('[data-student-id]')?.dataset.studentId;
+                if (studentId) {
+                    renderStudentProfileModal(studentId);
+                    return;
+                }
+            }
+            
+            // --- Original Logic for all other buttons ---
+            const target = clickedElement.closest('[id], [data-tab-id]');
             if (!target) return;
 
             const id = target.id;
             const tabId = target.dataset.tabId;
-            const studentId = target.dataset.studentId;
 
-            if (target.classList.contains('delete-btn')) {
-                actions.deleteStudent(studentId);
-                return;
-            }
-            if (target.classList.contains('student-name-btn')) {
-                renderStudentProfileModal(studentId);
-                return;
-            }
              if (id === 'back-to-gradebook-btn') {
                 renderFullGradebookUI();
                 return;
