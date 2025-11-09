@@ -23,7 +23,7 @@ export function setupAuthListener(supabaseClient, wasLocalDataLoaded) {
             return;
         }
 
-        // --- NEW, OPTIMIZED LOGIC ---
+        // --- THIS IS THE NEW, OPTIMIZED LOGIC ---
 
         // Handle a page refresh (INITIAL_SESSION)
         if (event === 'INITIAL_SESSION') {
@@ -37,6 +37,7 @@ export function setupAuthListener(supabaseClient, wasLocalDataLoaded) {
             if (wasLocalDataLoaded) {
                 console.log("AUTH: Resuming session from local state.");
                 handleDataLoad(getAppState(), true); // Render from local data
+                loadingOverlay?.classList.add('hidden'); // Hide loading
             } else {
                 // Fallback: local data failed to load, so we must fetch from server
                 console.log("AUTH: No local data, fetching initial session from server.");
