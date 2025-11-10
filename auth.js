@@ -2,8 +2,11 @@
 
 import { updateLastLogin, loadDataForUser } from './api.js';
 import { handleDataLoad, resetInactivityTimer } from './main.js';
-import { renderFullGradebookUI } from './render.js';
+// We can remove renderFullGradebookUI as you correctly pointed out.
 import { setCurrentUser, setAppState, getAppState, getCurrentUser } from './state.js';
+
+// This flag will prevent the listener from firing twice on a page load
+let hasHandledInitialLoad = false;
 
 export function setupAuthListener(supabaseClient, wasLocalDataLoaded) {
     supabaseClient.auth.onAuthStateChange(async (event, session) => {
@@ -13,6 +16,7 @@ export function setupAuthListener(supabaseClient, wasLocalDataLoaded) {
         const loadingOverlay = document.getElementById('loading-overlay');
 
         if (event === 'SIGNED_OUT' || !session) {
+            hasHandledInitialLoad = false; // Reset flag on sign out
             const currentUser = getCurrentUser();
             if (currentUser) localStorage.removeItem(`marksheetProData-${currentUser.id}`);
             setCurrentUser(null);
@@ -23,54 +27,50 @@ export function setupAuthListener(supabaseClient, wasLocalDataLoaded) {
             return;
         }
 
-        // --- THIS IS THE NEW, OPTIMIZED LOGIC ---
+        // --- NEW LOGIC TO PREVENT DOUBLE-LOAD ---
 
         // Handle a page refresh (INITIAL_SESSION)
         if (event === 'INITIAL_SESSION') {
+            hasHandledInitialLoad = true; // Set the flag
             setCurrentUser(user);
             authContainer?.classList.add('hidden');
             appContainer?.classList.remove('hidden');
             resetInactivityTimer();
 
-            // The data was already loaded from local storage in main.js
-            // We just need to render the UI with the state we already have.
+            // This is your new logic:
             if (wasLocalDataLoaded) {
+                // We have local data, so just render it. NO server fetch.
                 console.log("AUTH: Resuming session from local state.");
-                handleDataLoad(getAppState(), true); // Render from local data
-                loadingOverlay?.classList.add('hidden'); // Hide loading
+                handleDataLoad(getAppState(), true);
+                loadingOverlay?.classList.add('hidden');
             } else {
-                // Fallback: local data failed to load, so we must fetch from server
-                console.log("AUTH: No local data, fetching initial session from server.");
-                loadingOverlay?.classList.remove('hidden');
-                try {
-                    const { data, error } = await loadDataForUser(user.id, getAppState(), false);
-                    if (error) throw error;
-                    handleDataLoad(data, true);
-                } catch (e) {
-                    console.error("AUTH LISTENER FATAL (INITIAL_SESSION):", e);
-                    signOut(supabaseClient, true);
-                } finally {
-                    loadingOverlay?.classList.add('hidden');
-                }
+                // No local data. Force sign out as requested.
+                console.log("AUTH: No local data found. Forcing sign out.");
+                signOut(supabaseClient, true);
             }
         }
 
         // Handle a fresh login (SIGNED_IN)
         if (event === 'SIGNED_IN') {
+            // Check the flag. If INITIAL_SESSION already ran, stop.
+            if (hasHandledInitialLoad) {
+                console.log("AUTH: Ignoring duplicate SIGNED_IN event.");
+                return; 
+            }
+            
+            // If we are here, it's a REAL login from the form.
+            // We MUST fetch from the server.
             setCurrentUser(user);
-            loadingOverlay?.classList.remove('hidden'); // Show loading overlay
+            loadingOverlay?.classList.remove('hidden');
             
             try {
                 updateLastLogin(user.id);
-                
                 authContainer?.classList.add('hidden');
                 appContainer?.classList.remove('hidden');
                 resetInactivityTimer();
                 
-                // This is a new sign-in, so we MUST fetch from the server
-                // to get the freshest data.
                 console.log("AUTH: New sign-in, fetching from server.");
-                const { data, error } = await loadDataForUser(user.id, getAppState(), false); // 'false' forces server check
+                const { data, error } = await loadDataForUser(user.id, getAppState(), false);
                 if (error) throw error;
 
                 handleDataLoad(data, true);
@@ -88,6 +88,9 @@ export function setupAuthListener(supabaseClient, wasLocalDataLoaded) {
 export async function handleAuthSubmit(e, supabaseClient) {
     e.preventDefault();
     if (!supabaseClient) return;
+
+    // Reset the flag on a manual login attempt
+    hasHandledInitialLoad = false; 
 
     const email = document.getElementById('email-address').value;
     const password = document.getElementById('password').value;
@@ -115,6 +118,7 @@ export async function handleAuthSubmit(e, supabaseClient) {
 }
 
 export function signOut(supabaseClient, isForced = false) {
+    hasHandledInitialLoad = false; // Reset flag on sign out
     const currentUser = getCurrentUser();
     if (currentUser) {
         console.log("SIGN OUT: Clearing local browser storage.");
