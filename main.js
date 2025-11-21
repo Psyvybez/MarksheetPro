@@ -15,6 +15,7 @@ const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000;
 let supabaseClient;
 let autoSaveTimer = null;
 let inactivityTimer = null;
+let draggedTab = null;
 
 // --- INITIALIZATION ---
 document.addEventListener('DOMContentLoaded', () => {
@@ -390,12 +391,84 @@ function showFeedbackModal() {
 }
 
 
+
 function setupEventListeners() {
     const contentWrapper = document.getElementById('content-wrapper');
     const authContainer = document.getElementById('auth-container');
 
     if (authContainer) {
 document.getElementById('auth-submit-btn')?.addEventListener('click', (e) => handleAuthSubmit(e, supabaseClient));
+
+// --- ADDED FOR CLASS TAB DRAG-AND-DROP ---
+
+        contentWrapper.addEventListener('dragstart', (e) => {
+            const target = e.target.closest('.tab-button');
+            if (target) {
+                draggedTab = target;
+                // Add a slight delay so the browser can register the drag
+                setTimeout(() => {
+                    target.classList.add('dragging');
+                }, 0);
+            }
+        });
+
+        contentWrapper.addEventListener('dragend', (e) => {
+            if (draggedTab) {
+                draggedTab.classList.remove('dragging');
+                draggedTab = null;
+
+                // --- SAVE THE NEW ORDER ---
+                const appState = getAppState();
+                const semesterData = getActiveSemesterData();
+                if (!semesterData.classes) return;
+
+                const classTabsContainer = document.getElementById('class-tabs-container');
+                if (!classTabsContainer) return;
+
+                const tabs = classTabsContainer.querySelectorAll('.tab-button');
+                tabs.forEach((tab, index) => {
+                    const classId = tab.dataset.classId;
+                    if (semesterData.classes[classId]) {
+                        semesterData.classes[classId].order = index;
+                    }
+                });
+
+                triggerAutoSave();
+            }
+        });
+
+        contentWrapper.addEventListener('dragover', (e) => {
+            if (!draggedTab) return;
+
+            e.preventDefault(); // This is necessary to allow dropping
+
+            const classTabsContainer = e.target.closest('#class-tabs-container');
+            if (!classTabsContainer) return;
+
+            const afterElement = getDragAfterElement(classTabsContainer, e.clientX);
+            if (afterElement == null) {
+                classTabsContainer.appendChild(draggedTab);
+            } else {
+                classTabsContainer.insertBefore(draggedTab, afterElement);
+            }
+        });
+
+        // Helper function to find where to drop the tab
+        function getDragAfterElement(container, x) {
+            const draggableElements = [...container.querySelectorAll('.tab-button:not(.dragging)')];
+
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = x - box.left - box.width / 2;
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest;
+                }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
+
+        // --- END OF DRAG-AND-DROP CODE ---
 
 document.getElementById('password')?.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
