@@ -139,6 +139,7 @@ export async function submitFeedback(feedbackType, content, contextJson) {
     const currentUser = getCurrentUser();
     if (!supabaseClient || !currentUser) throw new Error("Not authenticated.");
 
+    // 1. Save to Supabase (Backup)
     const { error } = await supabaseClient
         .from('feedback')
         .insert({
@@ -149,5 +150,28 @@ export async function submitFeedback(feedbackType, content, contextJson) {
         });
 
     if (error) throw error;
+
+    // 2. Send to Your Gmail (via Formspree)
+    // REPLACE THE URL BELOW with your actual Formspree URL
+    const FORMSPREE_ENDPOINT = "https://formspree.io/f/xyzrjwjk"; 
+    
+    try {
+        await fetch(FORMSPREE_ENDPOINT, {
+            method: "POST",
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                _subject: `New ${feedbackType} from Beta Tester`, // Email Subject
+                user_email: currentUser.email,
+                type: feedbackType,
+                message: content,
+                technical_context: contextJson
+            })
+        });
+    } catch (emailError) {
+        console.warn("Feedback saved to DB, but email alert failed:", emailError);
+        // We don't throw the error here because the DB save succeeded, 
+        // so we still consider it a "success" for the user.
+    }
+
     return true;
 }
