@@ -135,7 +135,7 @@ export function addStudent() {
                 if (classData) {
                     const studentId = `student_${Date.now()}`;
                     if (!classData.students) classData.students = {};
-                    classData.students[studentId] = { id: studentId, firstName, lastName, grades: {}, iep: false, midtermGrade: null, iepNotes: '', generalNotes: '', profilePicturePath: null, contacts: [] };
+                    classData.students[studentId] = { id: studentId, firstName, lastName, grades: {}, iep: false, midtermGrade: null, startingOverallMark: null, iepNotes: '', generalNotes: '', profilePicturePath: null, contacts: [] };
                     renderGradebook();
                     triggerAutoSave();
                     if(firstNameInput) firstNameInput.value = '';
@@ -777,6 +777,7 @@ export function importStudentsCSV() {
                             grades: {}, 
                             iep: false, 
                             midtermGrade: null, 
+                            startingOverallMark: null, 
                             iepNotes: '', 
                             generalNotes: '', 
                             profilePicturePath: null, 

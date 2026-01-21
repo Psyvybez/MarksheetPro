@@ -607,6 +607,11 @@ export async function renderStudentProfileModal(studentId) {
                         <input type="text" id="student-lastname-edit" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" value="${student.lastName}">
                     </div>
                 </div>
+                <div>
+                    <label for="student-starting-mark-edit" class="block text-sm font-medium">Starting Overall Mark (Optional)</label>
+                    <p class="text-xs text-gray-500 mb-1">Enter the student's current overall grade if they joined mid-semester. Leave blank to calculate from scratch.</p>
+                    <input type="number" id="student-starting-mark-edit" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" min="0" max="100" step="0.1" placeholder="e.g., 85" value="${student.startingOverallMark !== null && student.startingOverallMark !== undefined ? student.startingOverallMark : ''}">
+                </div>
                  <div>
                     <h4 class="text-md font-semibold mb-2">Contact Info</h4>
                     <div id="contact-list" class="space-y-2">${renderContacts()}</div>
@@ -635,6 +640,9 @@ _                </div>
             student.lastName = document.getElementById('student-lastname-edit').value.trim();
             student.iepNotes = document.getElementById('student-iep-notes').value.trim();
             student.generalNotes = document.getElementById('student-general-notes').value.trim();
+            
+            const startingMarkInput = document.getElementById('student-starting-mark-edit').value.trim();
+            student.startingOverallMark = startingMarkInput ? parseFloat(startingMarkInput) : null;
             
             const fileInput = document.getElementById('student-picture-upload');
             const file = fileInput.files[0];
