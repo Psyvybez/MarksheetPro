@@ -487,7 +487,6 @@ function setupEventListeners() {
                 'addClassBtn': actions.addClass,
                 'archiveClassBtn': actions.archiveClass,
                 'addStudentBtn': actions.addStudent,
-                'bulkImportBtn': openBulkImportModal,
                 'importStudentsBtn': actions.importStudentsCSV,
                 'addAssignmentBtn': actions.manageAssignments,
                 'editUnitsBtn': actions.editUnits,
