@@ -5,7 +5,8 @@ import { setAppState, setCurrentUser, getAppState, getCurrentUser, getActiveClas
 import { recalculateAndRenderAverages } from './calculations.js';
 import { renderFullGradebookUI, updateUIFromState, renderGradebook, renderClassTabs, renderAccountPage, renderAttendanceSheet, renderStudentProfileModal, } from './render.js';
 import * as actions from './actions.js'
-import { startTutorial } from './tutorial.js';;
+import { startTutorial } from './tutorial.js';
+import { openBulkImportModal } from './bulkImport.js';
 
 // --- GLOBAL STATE & CONSTANTS ---
 const SUPABASE_URL = 'https://txpgjzplqumkayoybfoj.supabase.co';
@@ -487,6 +488,7 @@ function setupEventListeners() {
                 'addClassBtn': actions.addClass,
                 'archiveClassBtn': actions.archiveClass,
                 'addStudentBtn': actions.addStudent,
+                'bulkImportBtn': openBulkImportModal,
                 'importStudentsBtn': actions.importStudentsCSV,
                 'addAssignmentBtn': actions.manageAssignments,
                 'editUnitsBtn': actions.editUnits,
