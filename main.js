@@ -6,7 +6,6 @@ import { recalculateAndRenderAverages } from './calculations.js';
 import { renderFullGradebookUI, updateUIFromState, renderGradebook, renderClassTabs, renderAccountPage, renderAttendanceSheet, renderStudentProfileModal, } from './render.js';
 import * as actions from './actions.js'
 import { startTutorial } from './tutorial.js';
-import { openBulkImportModal } from './bulkImport.js';
 
 // --- GLOBAL STATE & CONSTANTS ---
 const SUPABASE_URL = 'https://txpgjzplqumkayoybfoj.supabase.co';
