@@ -753,80 +753,199 @@ export function exportToCSV() {
     document.body.removeChild(link);
 }
 
-export function importStudentsCSV() {
-    // This function will now be called "Import from Text"
-    showModal({
-        title: 'Import Students from List',
-        content: `
-            <p class="text-sm text-gray-600 mb-2">Paste your student list into the box below. Please use one line per student.</p>
-            <p class="text-sm text-gray-500 mb-4">Examples:<br>
-               &nbsp;&nbsp;• LastName, FirstName<br>
-               &nbsp;&nbsp;• FirstName LastName
-            </p>
-            <textarea id="student-import-textarea" class="w-full h-48 p-2 border rounded-md" placeholder="Doe, Jane\nJohn Smith\nBryant, Kobe..."></textarea>
-        `,
-        confirmText: 'Import Students',
-        confirmClasses: 'bg-green-600 hover:bg-green-700',
-        onConfirm: () => {
-            const text = document.getElementById('student-import-textarea').value.trim();
-            if (!text) return;
+//
 
-            const lines = text.split('\n').filter(line => line.trim());
-            const studentsToImport = lines.map(line => {
-                line = line.trim();
+export function importStudentsCSV() { 
+    const classData = getActiveClassData();
+    if (!classData) return;
+
+    // 1. The Content for the Modal (Now with File Upload)
+    const modalContent = `
+        <div class="space-y-4">
+            <div class="bg-blue-50 p-4 rounded-lg border border-blue-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div class="text-sm text-blue-800">
+                    <strong>Option 1: Scan a Photo</strong><br>
+                    Upload a picture of a class list (paper or screen).
+                </div>
+                <label class="cursor-pointer bg-white text-blue-600 font-bold py-2 px-4 rounded border border-blue-300 hover:bg-blue-50 transition-colors shadow-sm flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                    <span>Upload Photo</span>
+                    <input type="file" id="student-list-photo" accept="image/*" class="hidden">
+                </label>
+            </div>
+
+            <div id="ocr-progress-container" class="hidden">
+                <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+                    <div id="ocr-progress-bar" class="bg-blue-600 h-2.5 rounded-full" style="width: 0%"></div>
+                </div>
+                <p id="ocr-status-text" class="text-xs text-center text-gray-500 mt-1">Processing image...</p>
+            </div>
+
+            <div>
+                 <p class="text-gray-600 text-sm mb-1"><strong>Option 2: Paste List</strong></p>
+                 <textarea id="import-student-textarea" class="w-full h-48 p-3 border border-gray-300 rounded-md font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Paste names here...&#10;John Smith&#10;Jane Doe&#10;..."></textarea>
+            </div>
+            
+            <div class="flex items-center gap-2">
+                <input type="checkbox" id="reverse-names-check" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                <label for="reverse-names-check" class="text-sm text-gray-700">Force "Last, First" format (if no commas)</label>
+            </div>
+
+            <div id="import-preview-area" class="hidden bg-gray-50 p-3 rounded border border-gray-200 text-sm max-h-40 overflow-y-auto">
+                <p class="font-bold text-gray-500 mb-2">Preview:</p>
+                <ul id="import-preview-list" class="list-disc list-inside text-gray-700"></ul>
+            </div>
+            <p id="import-count" class="text-right text-xs text-gray-400 font-medium"></p>
+        </div>
+    `;
+
+    // 2. Helper to Parse the Text
+    const parseStudents = (text, forceReverse) => {
+        if (!text) return [];
+        return text.split('\n')
+            .map(line => line.trim())
+            .filter(line => line.length > 0)
+            .map(line => {
                 let firstName, lastName;
                 
+                // Detect "Last, First" (Comma is the strongest signal)
                 if (line.includes(',')) {
-                    // Handle "LastName, FirstName"
                     const parts = line.split(',');
-                    lastName = parts[0]?.trim() || '';
-                    firstName = parts[1]?.trim() || '';
-                } else {
-                    // Handle "FirstName LastName"
-                    const parts = line.split(' ');
-                    firstName = parts[0]?.trim() || '';
-                    lastName = parts.slice(1).join(' ').trim() || ''; // Handle names with middle names/spaces
+                    lastName = parts[0].trim();
+                    firstName = parts.slice(1).join(' ').trim();
+                } 
+                // Detect "First Last" (Space separated)
+                else {
+                    const parts = line.split(/\s+/);
+                    if (parts.length === 1) {
+                        firstName = parts[0];
+                        lastName = ''; // Mononym?
+                    } else if (forceReverse) {
+                         // User checked "Force Last, First" but there were no commas
+                        lastName = parts[0];
+                        firstName = parts.slice(1).join(' ');
+                    } else {
+                        // Standard "John Smith"
+                        firstName = parts[0];
+                        lastName = parts.slice(1).join(' ');
+                    }
                 }
-                
-                return { firstName, lastName };
-            }).filter(s => s.firstName && s.lastName); // Only keep valid entries
-
-            if (studentsToImport.length === 0) {
-                 showModal({ title: 'Import Failed', content: `<p>Could not find any valid names to import. Please check the format.</p>`, confirmText: null, cancelText: 'Close' });
-                 return;
-            }
-
-            showModal({
-                title: 'Confirm Student Import',
-                content: `<p>Found <strong>${studentsToImport.length} students</strong>. Do you want to add them to the class?</p>
-                          <ul classclass="mt-2 text-sm text-gray-600 max-h-40 overflow-y-auto">${studentsToImport.map(s => `<li>${s.lastName}, ${s.firstName}</li>`).join('')}</ul>`,
-                confirmText: 'Confirm Import',
-                confirmClasses: 'bg-green-600 hover:bg-green-700',
-                onConfirm: () => {
-                    const classData = getActiveClassData();
-                    if (!classData.students) classData.students = {};
-                    studentsToImport.forEach(s => {
-                        const studentId = `student_${Date.now()}_${Math.random()}`;
-                        classData.students[studentId] = { 
-                            id: studentId, 
-                            firstName: s.firstName, 
-                            lastName: s.lastName, 
-                            grades: {}, 
-                            iep: false, 
-                            midtermGrade: null, 
-                            startingOverallMark: null, 
-                            iepNotes: '', 
-                            generalNotes: '', 
-                            profilePicturePath: null, 
-                            contacts: [] 
-                        };
-                    });
-                    renderGradebook();
-                    triggerAutoSave();
-                }
+                // Capitalize nicely
+                const capitalize = (s) => (s && s.length > 0) ? s.charAt(0).toUpperCase() + s.slice(1) : '';
+                return { 
+                    firstName: capitalize(firstName), 
+                    lastName: capitalize(lastName) 
+                };
             });
+    };
+
+    // 3. Show the Modal
+    showModal({
+        title: 'Import Students',
+        content: modalContent,
+        confirmText: 'Import Students',
+        confirmClasses: 'bg-green-600 hover:bg-green-700 text-white',
+        onConfirm: () => {
+            const text = document.getElementById('import-student-textarea').value;
+            const forceReverse = document.getElementById('reverse-names-check').checked;
+            const studentsToAdd = parseStudents(text, forceReverse); // Changed function name call
+
+            if (studentsToAdd.length === 0) return;
+
+            // Add them to the class data
+            studentsToAdd.forEach(s => {
+                const newId = `student_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                if (!classData.students) classData.students = {};
+                classData.students[newId] = {
+                    id: newId,
+                    firstName: s.firstName,
+                    lastName: s.lastName,
+                    iep: false,
+                    grades: {} // Init empty grades
+                };
+            });
+
+            renderGradebook();
+            triggerAutoSave();
         }
     });
+
+    // 4. Attach Live Preview & OCR Listeners
+    setTimeout(() => {
+        const textarea = document.getElementById('import-student-textarea');
+        const checkbox = document.getElementById('reverse-names-check');
+        const previewArea = document.getElementById('import-preview-area');
+        const previewList = document.getElementById('import-preview-list');
+        const countLabel = document.getElementById('import-count');
+        const fileInput = document.getElementById('student-list-photo');
+        const progressBar = document.getElementById('ocr-progress-bar');
+        const progressContainer = document.getElementById('ocr-progress-container');
+        const statusText = document.getElementById('ocr-status-text');
+
+        const updatePreview = () => {
+            const text = textarea.value;
+            const forceReverse = checkbox.checked;
+            const parsed = parseStudents(text, forceReverse); // Changed function name call
+
+            if (parsed.length > 0) {
+                previewArea.classList.remove('hidden');
+                previewList.innerHTML = parsed.slice(0, 5).map(s => `<li>${s.firstName} <strong>${s.lastName}</strong></li>`).join('');
+                if (parsed.length > 5) previewList.innerHTML += `<li class="text-gray-400 italic">...and ${parsed.length - 5} more</li>`;
+                countLabel.textContent = `Found ${parsed.length} student${parsed.length === 1 ? '' : 's'}`;
+            } else {
+                previewArea.classList.add('hidden');
+                countLabel.textContent = '';
+            }
+        };
+
+        // --- OCR LOGIC ---
+        fileInput.addEventListener('change', async (e) => {
+            if (!e.target.files || e.target.files.length === 0) return;
+            
+            const file = e.target.files[0];
+            progressContainer.classList.remove('hidden');
+            textarea.disabled = true;
+
+            try {
+                // Tesseract.js is loaded from CDN in index.html
+                const worker = await Tesseract.createWorker({
+                    logger: m => {
+                        if (m.status === 'recognizing text') {
+                            const pct = Math.round(m.progress * 100);
+                            progressBar.style.width = `${pct}%`;
+                            statusText.textContent = `Reading text... ${pct}%`;
+                        } else {
+                            statusText.textContent = m.status;
+                        }
+                    }
+                });
+
+                await worker.loadLanguage('eng');
+                await worker.initialize('eng');
+                
+                const { data: { text } } = await worker.recognize(file);
+                
+                await worker.terminate();
+
+                // Populate textarea with result
+                textarea.value = text;
+                textarea.disabled = false;
+                progressContainer.classList.add('hidden');
+                
+                // Trigger preview update
+                updatePreview();
+
+            } catch (err) {
+                console.error("OCR Error:", err);
+                statusText.textContent = "Error reading image. Please try again or type manually.";
+                statusText.classList.add('text-red-500');
+                textarea.disabled = false;
+            }
+        });
+
+        textarea.addEventListener('input', updatePreview);
+        checkbox.addEventListener('change', updatePreview);
+    }, 50); 
 }
 
 export function showPdfExportOptionsModal() {
