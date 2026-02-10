@@ -1,7 +1,7 @@
 import { initializeSupabase, syncToServer, loadDataForUser, deleteCurrentUser, submitFeedback } from './api.js';
 import { setupAuthListener, handleAuthSubmit, signOut } from './auth.js';
 import { showModal, updateSaveStatus } from './ui.js';
-import { setAppState, setCurrentUser, getAppState, getCurrentUser, getActiveClassData } from './state.js';
+import { setAppState, setCurrentUser, getAppState, getCurrentUser, getActiveClassData, getActiveSemesterData } from './state.js';
 import { recalculateAndRenderAverages } from './calculations.js';
 import { renderFullGradebookUI, updateUIFromState, renderGradebook, renderClassTabs, renderAccountPage, renderAttendanceSheet, renderStudentProfileModal, } from './render.js';
 import * as actions from './actions.js'

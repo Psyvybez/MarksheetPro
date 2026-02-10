@@ -1,4 +1,4 @@
-import { getAppState } from './state.js';
+import { getAppState, getActiveClassData } from './state.js';
 
 export function calculateStudentAverages(student, classData) {
     const units = classData.units || {};
@@ -120,14 +120,11 @@ export function calculateStudentAverages(student, classData) {
 
 export function calculateClassAverages(classData) {
     if (!classData) return {};
-    // ... existing logic if needed, or rely on recalculateAndRenderAverages in main loop
-    // For simplicity, we usually calculate this on the fly in the render loop or helper
     return {}; 
 }
 
 export function recalculateAndRenderAverages() {
-    // This function is called after rendering to fill in the footer and student summary columns
-    const { getActiveClassData } = require('./state.js'); // Dynamic import to avoid cycles
+    // FIX: Using imported getActiveClassData instead of require()
     const classData = getActiveClassData();
     if (!classData) return;
 
