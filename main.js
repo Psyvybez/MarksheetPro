@@ -3,7 +3,7 @@ import { setupAuthListener, handleAuthSubmit, signOut } from './auth.js';
 import { showModal, updateSaveStatus } from './ui.js';
 import { setAppState, setCurrentUser, getAppState, getCurrentUser, getActiveClassData, getActiveSemesterData } from './state.js';
 import { recalculateAndRenderAverages } from './calculations.js';
-import { renderFullGradebookUI, updateUIFromState, renderGradebook, renderClassTabs, renderAccountPage, renderAttendanceSheet, renderStudentProfileModal, } from './render.js';
+import { renderFullGradebookUI, updateUIFromState, renderGradebook, renderClassTabs, renderAccountPage, renderAttendanceSheet, renderStudentProfileModal,updateClassStats } from './render.js';
 import * as actions from './actions.js'
 import { startTutorial } from './tutorial.js';
 
@@ -393,10 +393,12 @@ function showFeedbackModal() {
 
 
 //
+//
 function setupEventListeners() {
     const contentWrapper = document.getElementById('content-wrapper');
     const authContainer = document.getElementById('auth-container');
 
+    // --- Auth Listeners ---
     if (authContainer) {
         document.getElementById('auth-submit-btn')?.addEventListener('click', (e) => handleAuthSubmit(e, supabaseClient));
 
@@ -432,6 +434,7 @@ function setupEventListeners() {
         });
     }
 
+    // --- Global Modal Enter Key ---
     document.addEventListener('keydown', (e) => {
         const modal = document.getElementById('custom-modal');
         if (modal && document.body.classList.contains('modal-open') && e.key === 'Enter') {
@@ -554,7 +557,7 @@ function setupEventListeners() {
                 const val = target.value.trim();
                 
                 if (classData && cat) {
-                    if (!classData.categoryNames) classData.categoryNames = { k: 'K', t: 'T', c: 'C', a: 'A' };
+                    if (!classData.categoryNames) classData.categoryNames = { k: 'Knowledge', t: 'Thinking', c: 'Communication', a: 'Application' };
                     classData.categoryNames[cat] = val || cat.toUpperCase();
                     renderGradebook(); 
                     triggerAutoSave();
@@ -695,6 +698,7 @@ function setupEventListeners() {
                 const classData = getActiveClassData(); 
                  if (studentId && classData?.students?.[studentId]) {
                      classData.students[studentId].iep = e.target.checked;
+                     updateClassStats(); // <--- UPDATED: Instantly update IEP count
                      recalculateAndRenderAverages(); 
                      triggerAutoSave(); 
                  }
