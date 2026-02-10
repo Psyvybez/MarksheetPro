@@ -391,10 +391,12 @@ export function updateUIFromState() {
     }
 }
 
+//
+
 export function renderFullGradebookUI() {
     if (!contentWrapper) return;
 
-    // Calculate initial target for the button
+    // Calculate initial target semester for the Move button
     const appState = getAppState();
     const currentSem = appState.gradebook_data?.activeSemester || '1';
     const targetSem = currentSem === '1' ? '2' : '1';
@@ -406,29 +408,67 @@ export function renderFullGradebookUI() {
         </div>
         <div id="no-class-content" class="hidden text-center p-8 bg-white rounded-lg shadow-md"><h2 class="text-2xl font-semibold mb-4 text-gray-700">No classes yet for this semester.</h2><p class="text-gray-500">Click the "+ Add Class" button to create your first class.</p></div>
         
-        <div id="content-instructions" class="tab-content hidden fade-in bg-white p-6 rounded-lg shadow-md">
-            <h2 class="text-2xl font-semibold mb-6 text-gray-800">Welcome to Marksheet Pro!</h2>
-            <div class="space-y-6">
-                 <div>
-                    <h3 class="text-lg font-semibold text-primary mb-2">Getting Started: Your First Class</h3>
-                    <ol class="list-decimal list-inside space-y-1 text-gray-700">
-                        <li>Use the <strong>Semester 1 / Semester 2</strong> tabs to select a semester.</li>
-                        <li>Click the <strong>"+ Add Class"</strong> button to create your first class (e.g., "Grade 10 Math").</li>
-                        <li>The new class tab will appear. Click on it to open your gradebook.</li>
-                    </ol>
+        <div id="content-instructions" class="tab-content hidden fade-in bg-white p-8 rounded-lg shadow-md max-w-4xl mx-auto">
+            <div class="text-center mb-8">
+                <h2 class="text-3xl font-extrabold text-gray-800">Welcome to Marksheet Pro</h2>
+                <p class="text-gray-500 mt-2">Your professional grade management solution.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div class="space-y-4">
+                    <h3 class="text-xl font-bold text-blue-600 flex items-center gap-2">
+                        <span class="bg-blue-100 text-blue-600 rounded-full w-8 h-8 flex items-center justify-center text-sm">1</span>
+                        Class Setup
+                    </h3>
+                    <ul class="space-y-2 text-gray-600 text-sm list-disc list-inside ml-2">
+                        <li><strong>Create a Class:</strong> Click the <span class="bg-gray-200 px-1 rounded font-bold text-xs">+ Add Class</span> button above.</li>
+                        <li><strong>Semesters:</strong> Switch between Semester 1 and 2 tabs to organize your year.</li>
+                        <li><strong>Move Classes:</strong> Created a class in the wrong semester? Open the class and click <span class="bg-gray-500 text-white px-1 rounded font-bold text-xs">Move to Sem X</span> to instantly transfer it.</li>
+                    </ul>
                 </div>
-                <div>
-                    <h3 class="text-lg font-semibold text-primary mb-2">Setting Up Your Gradebook</h3>
-                    <ul class="list-disc list-inside space-y-1 text-gray-700">
-                        <li><strong>Category Weights:</strong> Set the K/T/C/A weights for your class. Make sure they total 100%.</li>
-                        <li><strong>Units:</strong> Click <strong>"Edit Units"</strong> to set up your units for the term (e.g., "Unit 1: Algebra"). Make sure their term weights also total 100%.</li>
-                        <li><strong>Students:</strong> Click <strong>"+ Add Student"</strong> to add students one-by-one. Use <strong>"Import Students"</strong> to copy and paste a list of names from a document, spreadsheet, or PDF.</li>
-                        <li><strong>Assignments:</strong> First, select a unit from the <strong>"All Units"</strong> dropdown. Then, click <strong>"Manage Assignments"</strong> to add your assessments for that unit.</li>
+
+                <div class="space-y-4">
+                    <h3 class="text-xl font-bold text-green-600 flex items-center gap-2">
+                        <span class="bg-green-100 text-green-600 rounded-full w-8 h-8 flex items-center justify-center text-sm">2</span>
+                        Manage Students
+                    </h3>
+                    <ul class="space-y-2 text-gray-600 text-sm list-disc list-inside ml-2">
+                        <li><strong>Quick Add:</strong> Click <span class="bg-accent text-white px-1 rounded font-bold text-xs">+ Add Student</span> to add one by one.</li>
+                        <li><strong>Smart Import:</strong> Click <strong>Import Students</strong> to paste a list of names. We auto-detect "First Last" or "Last, First" formats.</li>
+                        <li><strong>Photo Scan:</strong> In the Import menu, upload a photo of a paper class list to automatically extract student names!</li>
+                    </ul>
+                </div>
+
+                <div class="space-y-4">
+                    <h3 class="text-xl font-bold text-purple-600 flex items-center gap-2">
+                        <span class="bg-purple-100 text-purple-600 rounded-full w-8 h-8 flex items-center justify-center text-sm">3</span>
+                        Grading & Weights
+                    </h3>
+                    <ul class="space-y-2 text-gray-600 text-sm list-disc list-inside ml-2">
+                        <li><strong>Weights:</strong> Adjust the K/T/C/A category percentages at the top of the gradebook. Ensure they total 100%.</li>
+                        <li><strong>Add Work:</strong> Use <span class="bg-accent text-white px-1 rounded font-bold text-xs">Manage Assignments</span> to create tasks.</li>
+                        <li><strong>Edit Totals:</strong> <em>Pro Tip:</em> You can edit an assignment's total score directly by clicking the number in the table header!</li>
+                        <li><strong>Missing Work:</strong> Type <strong>'M'</strong> in any grade cell to mark it as missing (calculates as 0).</li>
+                    </ul>
+                </div>
+
+                <div class="space-y-4">
+                    <h3 class="text-xl font-bold text-orange-600 flex items-center gap-2">
+                        <span class="bg-orange-100 text-orange-600 rounded-full w-8 h-8 flex items-center justify-center text-sm">4</span>
+                        Tools & Exports
+                    </h3>
+                    <ul class="space-y-2 text-gray-600 text-sm list-disc list-inside ml-2">
+                        <li><strong>Exporting:</strong> Use the <strong>Export</strong> menu to download professional PDFs for report cards, student lists, or CSV backups.</li>
+                        <li><strong>Zoom:</strong> Use the <span class="font-bold border px-1 rounded">- / +</span> controls to adjust the view size.</li>
+                        <li><strong>Auto-Save:</strong> All changes are saved automatically to the cloud.</li>
                     </ul>
                 </div>
             </div>
+            
+            <div class="mt-8 text-center pt-6 border-t border-gray-100">
+                <p class="text-sm text-gray-400">Need help? Click the "Report Bug" button at the top if you encounter any issues.</p>
+            </div>
         </div>
-
         <div id="main-content-area" class="tab-content hidden fade-in">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-4">
                 <div class="flex items-center gap-4"><div contenteditable="true" id="className" class="text-2xl font-bold text-gray-700 p-2 rounded-md transition-shadow"></div><div class="flex items-center gap-2"><span id="save-status-icon"></span><span id="saveStatus" class="text-sm"></span></div></div>
@@ -464,7 +504,7 @@ export function renderFullGradebookUI() {
                 
                 <div class="flex items-center gap-1 bg-white rounded-lg border border-gray-300 px-2 py-1 shadow-sm mr-2 select-none">
                     <button id="zoomOutBtn" class="text-gray-500 hover:text-gray-700 font-bold px-2 text-lg leading-none" title="Zoom Out">&minus;</button>
-                    <span id="zoom-level-text" class="text-xs text-gray-600 font-medium w-10 text-center">100%</span>
+                    <span id="zoom-level-text" class="text-xs text-gray-600 font-medium w-10 text-center">80%</span>
                     <button id="zoomInBtn" class="text-gray-500 hover:text-gray-700 font-bold px-2 text-lg leading-none" title="Zoom In">&plus;</button>
                 </div>
 
