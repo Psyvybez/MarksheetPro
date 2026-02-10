@@ -131,8 +131,17 @@ export function renderGradebook() {
     const allUnits = classData.units || {};
     const activeUnitId = appState.gradebook_data?.activeUnitId;
 
-    const unitsToDisplay = (activeUnitId && activeUnitId !== 'all') ? { [activeUnitId]: allUnits[activeUnitId] } : allUnits;
-
+// FIX: Ensure the active unit actually exists before trying to filter by it
+    let unitsToDisplay = allUnits;
+    if (activeUnitId && activeUnitId !== 'all') {
+        if (allUnits[activeUnitId]) {
+            unitsToDisplay = { [activeUnitId]: allUnits[activeUnitId] };
+        } else {
+            // If the unit ID is invalid/missing, reset to 'all' and show everything
+            activeUnitId = 'all';
+            if (appState.gradebook_data) appState.gradebook_data.activeUnitId = 'all';
+        }
+    }
     const studentInfoHeaders = `
         <th class="student-info-header p-3 text-left">Student Name</th>
         <th class="student-info-header p-3 text-center">IEP</th>
