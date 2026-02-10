@@ -92,29 +92,29 @@ export function updateClassStats() {
 }
 
 //
+//
 export function renderCategoryWeights() {
     const classData = getActiveClassData();
     const container = document.getElementById('category-weights-container');
     if (!classData || !container) return;
 
     classData.categoryWeights = classData.categoryWeights || {};
-    // 1. Default Names: Set these defaults if no names exist yet
+    // Default Names
     classData.categoryNames = classData.categoryNames || { k: 'Knowledge', t: 'Thinking', c: 'Communication', a: 'Application' };
     
     const defaults = { k: 25, t: 25, c: 25, a: 25 };
     const weights = { ...defaults, ...classData.categoryWeights };
     const names = classData.categoryNames;
     
-    // Ensure data is synced back to state object
     classData.categoryWeights = weights;
 
-    // 2. Helper to generate the Input Block (Name + Weight)
+    // Helper: Smaller inputs (text-xs) and padding (p-1.5)
     const makeInput = (key, defaultLabel) => `
-        <div class="flex flex-col gap-1 min-w-[120px]">
-            <label class="block text-xs font-medium text-gray-500 uppercase">Title & %</label>
+        <div class="flex flex-col gap-1 min-w-[100px]">
+            <label class="block text-[10px] font-medium text-gray-500 uppercase">Title & %</label>
             <div class="flex gap-2">
-                <input type="text" data-cat="${key}" class="cat-name-input p-2 border border-gray-300 rounded-md w-full text-sm font-bold text-gray-700" value="${names[key]}" placeholder="${defaultLabel}">
-                <input type="number" step="0.1" data-cat="${key}" class="cat-weight-input p-2 border border-gray-300 rounded-md w-20 text-center font-mono text-sm" value="${weights[key]}">
+                <input type="text" data-cat="${key}" class="cat-name-input p-1.5 border border-gray-300 rounded-md w-full text-xs font-bold text-gray-700" value="${names[key]}" placeholder="${defaultLabel}">
+                <input type="number" step="0.1" data-cat="${key}" class="cat-weight-input p-1.5 border border-gray-300 rounded-md w-14 text-center font-mono text-xs" value="${weights[key]}">
             </div>
         </div>
     `;
@@ -127,8 +127,8 @@ export function renderCategoryWeights() {
                 ${makeInput('c', 'Comm.')}
                 ${makeInput('a', 'Application')}
             </div>
-            <div class="p-2 rounded-lg whitespace-nowrap self-center xl:self-end" id="cat-weight-total-container">
-                <span class="text-xl font-bold" id="cat-weight-total"></span>
+            <div class="p-1.5 rounded-lg whitespace-nowrap self-center xl:self-end" id="cat-weight-total-container">
+                <span class="text-sm font-bold" id="cat-weight-total"></span>
             </div>
         </div>
     `;
@@ -144,11 +144,12 @@ export function renderCategoryWeights() {
 
         totalEl.textContent = `Total: ${total}%`;
         const isTotal100 = Math.round(total) === 100;
-        totalContainer.className = `p-2 rounded-lg whitespace-nowrap ${isTotal100 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`;
+        totalContainer.className = `p-1.5 rounded-lg whitespace-nowrap ${isTotal100 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`;
     };
     updateTotal();
 }
 
+//
 //
 //
 export function renderGradebook() {
@@ -159,14 +160,14 @@ export function renderGradebook() {
 
     if (!classData || !table || !classNameEl) return;
 
-    // 1. APPLY ZOOM
+    // 1. Apply Zoom
     const savedZoom = appState.gradebook_data.zoomLevel || 1;
     table.style.zoom = savedZoom;
     const zoomText = document.getElementById('zoom-level-text');
     if(zoomText) zoomText.textContent = `${Math.round(savedZoom * 100)}%`;
 
-    // 2. Setup Basic UI
-    updateClassStats(); // Ensure this helper exists or paste the code here
+    // 2. Stats & Basic UI
+    updateClassStats(); 
     document.body.classList.toggle('has-final', classData.hasFinal);
     document.body.classList.toggle('no-final', !classData.hasFinal);
     classNameEl.textContent = classData.name;
@@ -174,14 +175,12 @@ export function renderGradebook() {
     const students = classData.students || {};
     const allUnits = classData.units || {};
     
-    // 3. CATEGORY NAME LOGIC
-    // Get stored names or default to Knowledge, Thinking, etc.
+    // 3. Category Names & First Letter Logic
     const catNames = classData.categoryNames || { k: 'Knowledge', t: 'Thinking', c: 'Communication', a: 'Application' };
     
-    // Helper: Get First Letter (e.g. "Exams" -> "E")
+    // Helper: Gets "K" from "Knowledge", "E" from "Exams"
     const getLet = (key) => {
         const name = catNames[key];
-        // Return first char if exists, otherwise default key
         return (name && name.length > 0) ? name.trim().charAt(0).toUpperCase() : key.toUpperCase();
     };
 
@@ -196,7 +195,7 @@ export function renderGradebook() {
         }
     }
 
-    // 4. Build HEADERS using getLet()
+    // 4. Build Headers (Using getLet for Short Names)
     const studentInfoHeaders = `
         <th class="student-info-header p-3 text-left">Student Name</th>
         <th class="student-info-header p-3 text-center">IEP</th>
@@ -249,7 +248,7 @@ export function renderGradebook() {
                     ['k','t','c','a'].forEach(cat => {
                         const borderClass = cat === 'k' ? 'border-l-2 border-gray-400' : 'border-l';
                         // USING getLet(cat) HERE
-                        headerHtml3 += `<th class="p-2 text-xs font-medium text-gray-500 uppercase tracking-wider text-center ${borderClass} assignment-header-cell ${submittedClass}">${getLet(cat)}<br><span class="font-normal">${asg.categoryTotals?.[cat] || 0}</span></th>`;
+                        headerHtml3 += `<th class="p-2 text-xs font-medium text-gray-500 uppercase tracking-wider text-center ${borderClass} assignment-header-cell ${submittedClass}" title="${catNames[cat]}">${getLet(cat)}<br><span class="font-normal">${asg.categoryTotals?.[cat] || 0}</span></th>`;
                     });
                 }
             });
