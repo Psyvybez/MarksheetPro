@@ -91,57 +91,65 @@ export function updateClassStats() {
     `;
 }
 
+//
 export function renderCategoryWeights() {
     const classData = getActiveClassData();
     const container = document.getElementById('category-weights-container');
     if (!classData || !container) return;
 
     classData.categoryWeights = classData.categoryWeights || {};
-    // Ensure category names object exists
-    classData.categoryNames = classData.categoryNames || { k: 'K', t: 'T', c: 'C', a: 'A' };
+    // 1. Default Names: Set these defaults if no names exist yet
+    classData.categoryNames = classData.categoryNames || { k: 'Knowledge', t: 'Thinking', c: 'Communication', a: 'Application' };
     
     const defaults = { k: 25, t: 25, c: 25, a: 25 };
     const weights = { ...defaults, ...classData.categoryWeights };
     const names = classData.categoryNames;
+    
+    // Ensure data is synced back to state object
     classData.categoryWeights = weights;
 
-    // Helper to generate input block
-    const makeInput = (key, label) => `
-        <div class="flex flex-col gap-1">
-            <label class="block text-xs font-medium text-gray-500 uppercase">${label} Name & %</label>
+    // 2. Helper to generate the Input Block (Name + Weight)
+    const makeInput = (key, defaultLabel) => `
+        <div class="flex flex-col gap-1 min-w-[120px]">
+            <label class="block text-xs font-medium text-gray-500 uppercase">Title & %</label>
             <div class="flex gap-2">
-                <input type="text" data-cat="${key}" class="cat-name-input p-2 border rounded-md w-full text-sm font-bold text-center" value="${names[key]}" placeholder="${key.toUpperCase()}">
-                <input type="number" step="0.1" data-cat="${key}" class="cat-weight-input p-2 border rounded-md w-20 text-center" value="${weights[key]}">
+                <input type="text" data-cat="${key}" class="cat-name-input p-2 border border-gray-300 rounded-md w-full text-sm font-bold text-gray-700" value="${names[key]}" placeholder="${defaultLabel}">
+                <input type="number" step="0.1" data-cat="${key}" class="cat-weight-input p-2 border border-gray-300 rounded-md w-20 text-center font-mono text-sm" value="${weights[key]}">
             </div>
         </div>
     `;
 
     container.innerHTML = `
-        <div class="flex flex-col md:flex-row justify-between items-end gap-4">
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 flex-grow">
+        <div class="flex flex-col xl:flex-row justify-between items-end gap-4">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 flex-grow w-full">
                 ${makeInput('k', 'Knowledge')}
                 ${makeInput('t', 'Thinking')}
                 ${makeInput('c', 'Comm.')}
-                ${makeInput('a', 'App.')}
+                ${makeInput('a', 'Application')}
             </div>
-            <div class="p-2 rounded-lg whitespace-nowrap" id="cat-weight-total-container">
+            <div class="p-2 rounded-lg whitespace-nowrap self-center xl:self-end" id="cat-weight-total-container">
                 <span class="text-xl font-bold" id="cat-weight-total"></span>
             </div>
         </div>
     `;
 
-    // Recalculate total immediately for display
-    const inputs = container.querySelectorAll('.cat-weight-input');
-    let total = 0;
-    inputs.forEach(i => total += parseFloat(i.value) || 0);
-    const totalEl = document.getElementById('cat-weight-total');
-    const totalContainer = document.getElementById('cat-weight-total-container');
-    
-    totalEl.textContent = `Total: ${total}%`;
-    const isTotal100 = Math.round(total) === 100;
-    totalContainer.className = `p-2 rounded-lg whitespace-nowrap ${isTotal100 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`;
+    const updateTotal = () => {
+        let total = 0;
+        container.querySelectorAll('.cat-weight-input').forEach(input => {
+            total += parseFloat(input.value) || 0;
+        });
+        const totalEl = document.getElementById('cat-weight-total');
+        const totalContainer = document.getElementById('cat-weight-total-container');
+        if(!totalEl || !totalContainer) return;
+
+        totalEl.textContent = `Total: ${total}%`;
+        const isTotal100 = Math.round(total) === 100;
+        totalContainer.className = `p-2 rounded-lg whitespace-nowrap ${isTotal100 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`;
+    };
+    updateTotal();
 }
 
+//
 //
 export function renderGradebook() {
     const classData = getActiveClassData();
@@ -151,30 +159,33 @@ export function renderGradebook() {
 
     if (!classData || !table || !classNameEl) return;
 
-    // --- APPLY ZOOM HERE ---
+    // 1. APPLY ZOOM
     const savedZoom = appState.gradebook_data.zoomLevel || 1;
     table.style.zoom = savedZoom;
     const zoomText = document.getElementById('zoom-level-text');
     if(zoomText) zoomText.textContent = `${Math.round(savedZoom * 100)}%`;
-    // -----------------------
 
-    // Update Stats Instantly
-    const students = classData.students || {};
-    const totalStudents = Object.keys(students).length;
-    const iepCount = Object.values(students).filter(s => s.iep).length;
-    const statsContainer = document.getElementById('class-stats-container');
-    if (statsContainer) {
-        statsContainer.innerHTML = `<span class="text-gray-600">Students: <strong class="text-gray-800">${totalStudents}</strong></span><span class="text-gray-300">|</span><span class="text-gray-600">IEP: <strong class="text-indigo-600">${iepCount}</strong></span>`;
-    }
-
+    // 2. Setup Basic UI
+    updateClassStats(); // Ensure this helper exists or paste the code here
     document.body.classList.toggle('has-final', classData.hasFinal);
     document.body.classList.toggle('no-final', !classData.hasFinal);
-
     classNameEl.textContent = classData.name;
-    const allUnits = classData.units || {};
-    let activeUnitId = appState.gradebook_data?.activeUnitId;
-    const catNames = classData.categoryNames || { k: 'K', t: 'T', c: 'C', a: 'A' };
 
+    const students = classData.students || {};
+    const allUnits = classData.units || {};
+    
+    // 3. CATEGORY NAME LOGIC
+    // Get stored names or default to Knowledge, Thinking, etc.
+    const catNames = classData.categoryNames || { k: 'Knowledge', t: 'Thinking', c: 'Communication', a: 'Application' };
+    
+    // Helper: Get First Letter (e.g. "Exams" -> "E")
+    const getLet = (key) => {
+        const name = catNames[key];
+        // Return first char if exists, otherwise default key
+        return (name && name.length > 0) ? name.trim().charAt(0).toUpperCase() : key.toUpperCase();
+    };
+
+    let activeUnitId = appState.gradebook_data?.activeUnitId;
     let unitsToDisplay = allUnits;
     if (activeUnitId && activeUnitId !== 'all') {
         if (allUnits[activeUnitId]) {
@@ -185,6 +196,7 @@ export function renderGradebook() {
         }
     }
 
+    // 4. Build HEADERS using getLet()
     const studentInfoHeaders = `
         <th class="student-info-header p-3 text-left">Student Name</th>
         <th class="student-info-header p-3 text-center">IEP</th>
@@ -192,10 +204,10 @@ export function renderGradebook() {
         <th class="student-info-header p-3 text-center">Term</th>
         <th class="student-info-header p-3 text-center">Midterm</th>
         ${classData.hasFinal ? `<th class="student-info-header p-3 text-center">Final</th>` : ''}
-        <th class="p-3 text-center">${catNames.k}%</th>
-        <th class="p-3 text-center">${catNames.t}%</th>
-        <th class="p-3 text-center">${catNames.c}%</th>
-        <th class="p-3 text-center">${catNames.a}%</th>`;
+        <th class="p-3 text-center" title="${catNames.k}">${getLet('k')}%</th>
+        <th class="p-3 text-center" title="${catNames.t}">${getLet('t')}%</th>
+        <th class="p-3 text-center" title="${catNames.c}">${getLet('c')}%</th>
+        <th class="p-3 text-center" title="${catNames.a}">${getLet('a')}%</th>`;
         
     const studentInfoColCount = classData.hasFinal ? 6 : 5;
     const nonStickyColCount = 4;
@@ -232,9 +244,12 @@ export function renderGradebook() {
                     headerHtml3 += `<th class="p-2 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border-l-2 border-gray-400 assignment-header-cell ${submittedClass}">Score<br><span class="font-normal">${asg.total || 0}</span></th>`;
                 } else {
                     headerHtml2 += `<th colspan="4" class="p-3 text-xs font-medium text-gray-500 tracking-wider text-center border-l-2 border-gray-400 ${submittedClass}">${asg.name}<br>${weightText}${toggleHtml}</th>`;
+                    
+                    // Loop K/T/C/A using dynamic letters
                     ['k','t','c','a'].forEach(cat => {
                         const borderClass = cat === 'k' ? 'border-l-2 border-gray-400' : 'border-l';
-                        headerHtml3 += `<th class="p-2 text-xs font-medium text-gray-500 uppercase tracking-wider text-center ${borderClass} assignment-header-cell ${submittedClass}">${catNames[cat]}<br><span class="font-normal">${asg.categoryTotals?.[cat] || 0}</span></th>`;
+                        // USING getLet(cat) HERE
+                        headerHtml3 += `<th class="p-2 text-xs font-medium text-gray-500 uppercase tracking-wider text-center ${borderClass} assignment-header-cell ${submittedClass}">${getLet(cat)}<br><span class="font-normal">${asg.categoryTotals?.[cat] || 0}</span></th>`;
                     });
                 }
             });
@@ -334,22 +349,6 @@ export function renderGradebook() {
     });
     tfoot.innerHTML = footerHtml + `</tr>`;
 
-    // Re-enable/Update buttons
-    const recordMidtermsBtn = document.getElementById('recordMidtermsBtn');
-    if (recordMidtermsBtn) {
-        const recorded = !!classData.midtermsRecorded;
-        recordMidtermsBtn.disabled = recorded;
-        recordMidtermsBtn.classList.toggle('bg-gray-400', recorded);
-        recordMidtermsBtn.classList.toggle('bg-primary', !recorded);
-    }
-    const addAssignmentBtn = document.getElementById('addAssignmentBtn');
-    if (addAssignmentBtn) {
-        const isAllUnitsView = !activeUnitId || activeUnitId === 'all';
-        addAssignmentBtn.disabled = isAllUnitsView;
-        addAssignmentBtn.classList.toggle('bg-gray-400', isAllUnitsView);
-        addAssignmentBtn.classList.toggle('bg-accent', !isAllUnitsView);
-    }
-
     adjustStickyHeaders();
     recalculateAndRenderAverages();
 }
@@ -390,6 +389,7 @@ export function updateUIFromState() {
 }
 
 //
+//
 export function renderFullGradebookUI() {
     if (!contentWrapper) return;
     contentWrapper.innerHTML = `
@@ -401,25 +401,7 @@ export function renderFullGradebookUI() {
         
         <div id="content-instructions" class="tab-content hidden fade-in bg-white p-6 rounded-lg shadow-md">
             <h2 class="text-2xl font-semibold mb-6 text-gray-800">Welcome to Marksheet Pro!</h2>
-            <div class="space-y-6">
-                 <div>
-                    <h3 class="text-lg font-semibold text-primary mb-2">Getting Started: Your First Class</h3>
-                    <ol class="list-decimal list-inside space-y-1 text-gray-700">
-                        <li>Use the <strong>Semester 1 / Semester 2</strong> tabs to select a semester.</li>
-                        <li>Click the <strong>"+ Add Class"</strong> button to create your first class (e.g., "Grade 10 Math").</li>
-                        <li>The new class tab will appear. Click on it to open your gradebook.</li>
-                    </ol>
-                </div>
-                <div>
-                    <h3 class="text-lg font-semibold text-primary mb-2">Setting Up Your Gradebook</h3>
-                    <ul class="list-disc list-inside space-y-1 text-gray-700">
-                        <li><strong>Category Weights:</strong> Set the K/T/C/A weights for your class. Make sure they total 100%.</li>
-                        <li><strong>Units:</strong> Click <strong>"Edit Units"</strong> to set up your units for the term (e.g., "Unit 1: Algebra"). Make sure their term weights also total 100%.</li>
-                        <li><strong>Students:</strong> Click <strong>"+ Add Student"</strong> to add students one-by-one. Use <strong>"Import Students"</strong> to copy and paste a list of names from a document, spreadsheet, or PDF.</li>
-                        <li><strong>Assignments:</strong> First, select a unit from the <strong>"All Units"</strong> dropdown. Then, click <strong>"Manage Assignments"</strong> to add your assessments for that unit.</li>
-                    </ul>
-                </div>
-            </div>
+            <div class="space-y-6"><div><h3 class="text-lg font-semibold text-primary mb-2">Getting Started</h3><p>Select a semester and add a class to begin.</p></div></div>
         </div>
 
         <div id="main-content-area" class="tab-content hidden fade-in">
@@ -431,9 +413,7 @@ export function renderFullGradebookUI() {
                     <button id="recordMidtermsBtn" class="bg-primary hover:bg-primary-dark text-white font-bold py-2 px-4 rounded-lg">Record Midterms</button>
                     <button id="archiveClassBtn" class="bg-accent hover:bg-accent-dark text-white font-bold py-2 px-4 rounded-lg">Archive Class</button>
                     <div class="relative">
-                        <button id="exportMenuBtn" class="bg-accent hover:bg-accent-dark text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2">
-                            Export <span>&#9662;</span>
-                        </button>
+                        <button id="exportMenuBtn" class="bg-accent hover:bg-accent-dark text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2">Export <span>&#9662;</span></button>
                         <div id="exportMenuDropdown" class="hidden absolute right-0 mt-2 w-60 bg-white rounded-md shadow-lg z-20 border border-gray-200">
                             <a href="#" id="exportCsvBtn" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Export Full Gradebook (CSV)</a>
                             <a href="#" id="exportPdfBtn" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Export Student Reports (PDF)</a>
@@ -448,28 +428,27 @@ export function renderFullGradebookUI() {
             
             <div id="category-weights-container" class="bg-white p-4 rounded-lg shadow-md"></div>
 
-        <div class="my-2 flex flex-col sm:flex-row justify-between items-center gap-4">
-            <div class="flex items-center gap-2 w-full sm:w-auto">
-                <div class="relative flex-grow sm:flex-grow-0"><input type="text" id="student-search-input" placeholder="Search students..." class="py-2 px-4 w-full border border-gray-300 rounded-md shadow-sm transition-all focus:outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-200"></div>
-                
-                <div class="flex items-center gap-1 bg-white rounded-lg border border-gray-300 px-2 py-1 shadow-sm mr-2">
-                    <button id="zoomOutBtn" class="text-gray-500 hover:text-gray-700 font-bold px-2 text-lg leading-none" title="Zoom Out">-</button>
-                    <span id="zoom-level-text" class="text-xs text-gray-600 font-medium w-10 text-center">100%</span>
-                    <button id="zoomInBtn" class="text-gray-500 hover:text-gray-700 font-bold px-2 text-lg leading-none" title="Zoom In">+</button>
+            <div class="my-2 flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div class="flex items-center gap-2 w-full sm:w-auto">
+                    <div class="relative flex-grow sm:flex-grow-0"><input type="text" id="student-search-input" placeholder="Search students..." class="py-2 px-4 w-full border border-gray-300 rounded-md shadow-sm transition-all focus:outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-200"></div>
+                    
+                    <div class="flex items-center gap-1 bg-white rounded-lg border border-gray-300 px-2 py-1 shadow-sm mr-2 select-none">
+                        <button id="zoomOutBtn" class="text-gray-500 hover:text-gray-700 font-bold px-2 text-lg leading-none" title="Zoom Out">&minus;</button>
+                        <span id="zoom-level-text" class="text-xs text-gray-600 font-medium w-10 text-center">100%</span>
+                        <button id="zoomInBtn" class="text-gray-500 hover:text-gray-700 font-bold px-2 text-lg leading-none" title="Zoom In">&plus;</button>
+                    </div>
+
+                    <div id="class-stats-container" class="text-sm text-gray-500 font-medium flex items-center gap-3 px-2"></div>
+                    <button id="addStudentBtn" class="bg-accent hover:bg-accent-dark text-white font-bold py-2 px-4 rounded-lg whitespace-nowrap">+ Add Student</button>
+                    <button id="attendanceBtn" class="bg-primary hover:bg-primary-dark text-white font-bold py-2 px-4 rounded-lg">Attendance</button>
                 </div>
 
-                <div id="class-stats-container" class="text-sm text-gray-500 font-medium flex items-center gap-3 px-2"></div>
-
-                <button id="addStudentBtn" class="bg-accent hover:bg-accent-dark text-white font-bold py-2 px-4 rounded-lg whitespace-nowrap">+ Add Student</button>
-                <button id="attendanceBtn" class="bg-primary hover:bg-primary-dark text-white font-bold py-2 px-4 rounded-lg">Attendance</button>
+                <div class="flex page-center gap-2">
+                    <div class="relative"><button id="editUnitsBtn" class="bg-primary hover:bg-primary-dark text-white font-bold py-2 px-4 rounded-lg">Edit Units</button></div>
+                    <button id="addAssignmentBtn" class="bg-accent hover:bg-accent-dark text-white font-bold py-2 px-4 rounded-lg">Manage Assignments</button>
+                    <select id="unitFilterDropdown" class="bg-white border border-gray-300 text-gray-700 font-bold py-2 px-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-200 shadow-sm"></select>
+                </div>
             </div>
-
-            <div class="flex page-center gap-2">
-                <div class="relative"><button id="editUnitsBtn" class="bg-primary hover:bg-primary-dark text-white font-bold py-2 px-4 rounded-lg">Edit Units</button></div>
-                <button id="addAssignmentBtn" class="bg-accent hover:bg-accent-dark text-white font-bold py-2 px-4 rounded-lg">Manage Assignments</button>
-                <select id="unitFilterDropdown" class="bg-white border border-gray-300 text-gray-700 font-bold py-2 px-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-200 shadow-sm"></select>
-            </div>
-        </div>
                 
             <div id="table-wrapper" class="bg-white rounded-lg shadow-md"><table id="gradebookTable" class="w-full text-sm text-gray-500"><thead></thead><tbody></tbody><tfoot></tfoot></table></div>
         </div>
