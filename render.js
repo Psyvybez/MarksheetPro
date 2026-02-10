@@ -95,51 +95,37 @@ export function updateClassStats() {
 //
 //
 //
+//
 export function renderCategoryWeights() {
     const classData = getActiveClassData();
     const container = document.getElementById('category-weights-container');
     if (!classData || !container) return;
 
     classData.categoryWeights = classData.categoryWeights || {};
-    // Ensure default names are full words
-    classData.categoryNames = classData.categoryNames || { k: 'Knowledge', t: 'Thinking', c: 'Communication', a: 'Application' };
-    
     const defaults = { k: 25, t: 25, c: 25, a: 25 };
     const weights = { ...defaults, ...classData.categoryWeights };
-    const names = classData.categoryNames;
-    
     classData.categoryWeights = weights;
 
-    // Helper: Card Layout (Name on top, Weight on bottom)
-    const makeInput = (key, defaultPlaceholder) => `
-        <div class="flex flex-col items-center justify-center p-3 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow">
-            <input type="text" 
-                   data-cat="${key}" 
-                   class="cat-name-input w-full text-center font-bold text-gray-600 text-sm mb-2 border-b-2 border-transparent hover:border-gray-200 focus:border-indigo-500 focus:outline-none transition-colors bg-transparent px-1" 
-                   value="${names[key]}" 
-                   placeholder="${defaultPlaceholder}">
-            
-            <div class="flex items-center justify-center bg-gray-50 rounded px-3 py-1 border border-gray-200">
-                <input type="number" 
-                       step="0.1" 
-                       data-cat="${key}" 
-                       class="cat-weight-input w-12 text-center font-bold text-gray-900 text-lg bg-transparent focus:outline-none" 
-                       value="${weights[key]}">
-                <span class="text-gray-500 font-bold ml-1">%</span>
-            </div>
-        </div>
-    `;
-
     container.innerHTML = `
-        <div class="flex flex-col xl:flex-row items-stretch gap-4">
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 flex-grow w-full">
-                ${makeInput('k', 'Knowledge')}
-                ${makeInput('t', 'Thinking')}
-                ${makeInput('c', 'Communication')}
-                ${makeInput('a', 'Application')}
+        <h3 class="text-lg font-semibold text-gray-700 mb-3">Category Weights</h3>
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-4 items-center">
+            <div>
+                <label class="block text-sm font-medium text-gray-500">Knowledge %</label>
+                <input type="number" step="0.1" data-cat="k" class="cat-weight-input mt-1 p-2 border rounded-md w-full" value="${weights.k}">
             </div>
-            
-            <div class="flex items-center justify-center p-4 rounded-lg shadow-sm border min-w-[140px]" id="cat-weight-total-container">
+            <div>
+                <label class="block text-sm font-medium text-gray-500">Thinking/Inquiry %</label>
+                <input type="number" step="0.1" data-cat="t" class="cat-weight-input mt-1 p-2 border rounded-md w-full" value="${weights.t}">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-500">Communication %</label>
+                <input type="number" step="0.1" data-cat="c" class="cat-weight-input mt-1 p-2 border rounded-md w-full" value="${weights.c}">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-500">Application %</label>
+                <input type="number" step="0.1" data-cat="a" class="cat-weight-input mt-1 p-2 border rounded-md w-full" value="${weights.a}">
+            </div>
+            <div class="mt-5 text-center p-2 rounded-lg" id="cat-weight-total-container">
                 <span class="text-xl font-bold" id="cat-weight-total"></span>
             </div>
         </div>
@@ -154,19 +140,14 @@ export function renderCategoryWeights() {
         const totalContainer = document.getElementById('cat-weight-total-container');
         if(!totalEl || !totalContainer) return;
 
-        totalEl.textContent = `Total: ${Number(total.toFixed(1))}%`;
-        
-        // Green if 100%, Red otherwise
-        const isTotal100 = Math.abs(total - 100) < 0.1; 
-        totalContainer.className = `flex items-center justify-center p-4 rounded-lg shadow-sm border min-w-[140px] transition-colors ${
-            isTotal100 
-            ? 'bg-green-50 text-green-700 border-green-200' 
-            : 'bg-red-50 text-red-700 border-red-200'
-        }`;
+        totalEl.textContent = `Total: ${total}%`;
+        const isTotal100 = Math.round(total) === 100;
+        totalContainer.className = `mt-5 text-center p-2 rounded-lg ${isTotal100 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`;
     };
     updateTotal();
 }
 
+//
 //
 export function renderGradebook() {
     const classData = getActiveClassData();
@@ -177,10 +158,9 @@ export function renderGradebook() {
     if (!classData || !table || !classNameEl) return;
 
     // --- 1. APPLY ZOOM (Default 80%) ---
-    // Change default from 1 to 0.8
     const savedZoom = appState.gradebook_data.zoomLevel || 0.8; 
     
-    // Apply to the MAIN CONTAINER, not just the table
+    // Apply to the MAIN CONTAINER
     const contentArea = document.getElementById('main-content-area');
     if (contentArea) contentArea.style.zoom = savedZoom;
 
@@ -189,24 +169,15 @@ export function renderGradebook() {
     // -------------------------------------
 
     // 2. Stats & Basic UI
-    updateClassStats(); // Ensure this helper function exists in your file
+    updateClassStats(); 
     document.body.classList.toggle('has-final', classData.hasFinal);
     document.body.classList.toggle('no-final', !classData.hasFinal);
     classNameEl.textContent = classData.name;
 
     const students = classData.students || {};
     const allUnits = classData.units || {};
-    
-    // 3. Category Names
-    const catNames = classData.categoryNames || { k: 'Knowledge', t: 'Thinking', c: 'Communication', a: 'Application' };
-    
-    // Helper: Gets "K" from "Knowledge"
-    const getLet = (key) => {
-        const name = catNames[key];
-        return (name && name.length > 0) ? name.trim().charAt(0).toUpperCase() : key.toUpperCase();
-    };
-
     let activeUnitId = appState.gradebook_data?.activeUnitId;
+
     let unitsToDisplay = allUnits;
     if (activeUnitId && activeUnitId !== 'all') {
         if (allUnits[activeUnitId]) {
@@ -217,7 +188,7 @@ export function renderGradebook() {
         }
     }
 
-    // 4. Build Headers
+    // 3. Standard Headers (K, T, C, A)
     const studentInfoHeaders = `
         <th class="student-info-header p-3 text-left">Student Name</th>
         <th class="student-info-header p-3 text-center">IEP</th>
@@ -225,10 +196,10 @@ export function renderGradebook() {
         <th class="student-info-header p-3 text-center">Term</th>
         <th class="student-info-header p-3 text-center">Midterm</th>
         ${classData.hasFinal ? `<th class="student-info-header p-3 text-center">Final</th>` : ''}
-        <th class="p-3 text-center" title="${catNames.k}">${getLet('k')}%</th>
-        <th class="p-3 text-center" title="${catNames.t}">${getLet('t')}%</th>
-        <th class="p-3 text-center" title="${catNames.c}">${getLet('c')}%</th>
-        <th class="p-3 text-center" title="${catNames.a}">${getLet('a')}%</th>`;
+        <th class="p-3 text-center">K%</th>
+        <th class="p-3 text-center">T%</th>
+        <th class="p-3 text-center">C%</th>
+        <th class="p-3 text-center">A%</th>`;
         
     const studentInfoColCount = classData.hasFinal ? 6 : 5;
     const nonStickyColCount = 4;
@@ -265,9 +236,11 @@ export function renderGradebook() {
                     headerHtml3 += `<th class="p-2 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border-l-2 border-gray-400 assignment-header-cell ${submittedClass}">Score<br><span class="font-normal">${asg.total || 0}</span></th>`;
                 } else {
                     headerHtml2 += `<th colspan="4" class="p-3 text-xs font-medium text-gray-500 tracking-wider text-center border-l-2 border-gray-400 ${submittedClass}">${asg.name}<br>${weightText}${toggleHtml}</th>`;
+                    
+                    // Standard K, T, C, A headers
                     ['k','t','c','a'].forEach(cat => {
                         const borderClass = cat === 'k' ? 'border-l-2 border-gray-400' : 'border-l';
-                        headerHtml3 += `<th class="p-2 text-xs font-medium text-gray-500 uppercase tracking-wider text-center ${borderClass} assignment-header-cell ${submittedClass}" title="${catNames[cat]}">${getLet(cat)}<br><span class="font-normal">${asg.categoryTotals?.[cat] || 0}</span></th>`;
+                        headerHtml3 += `<th class="p-2 text-xs font-medium text-gray-500 uppercase tracking-wider text-center ${borderClass} assignment-header-cell ${submittedClass}">${cat.toUpperCase()}<br><span class="font-normal">${asg.categoryTotals?.[cat] || 0}</span></th>`;
                     });
                 }
             });
