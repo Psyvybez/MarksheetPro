@@ -37,48 +37,31 @@ export function setupAuthListener(supabaseClient, wasLocalDataLoaded) {
             appContainer?.classList.remove('hidden');
             resetInactivityTimer();
 
-            // This is your new logic:
             if (wasLocalDataLoaded) {
                 // We have local data, so just render it. NO server fetch.
                 console.log("AUTH: Resuming session from local state.");
                 handleDataLoad(getAppState(), true);
                 loadingOverlay?.classList.add('hidden');
             } else {
-                // No local data. Force sign out as requested.
-                console.log("AUTH: No local data found. Forcing sign out.");
-                signOut(supabaseClient, true);
-            }
-        }
+                // FIX: Do NOT sign out. Fetch from server instead.
+                // This handles new users (Email Verification) or new devices.
+                console.log("AUTH: No local data (New User/Device). Fetching from server...");
+                loadingOverlay?.classList.remove('hidden');
 
-        // Handle a fresh login (SIGNED_IN)
-        if (event === 'SIGNED_IN') {
-            // Check the flag. If INITIAL_SESSION already ran, stop.
-            if (hasHandledInitialLoad) {
-                console.log("AUTH: Ignoring duplicate SIGNED_IN event.");
-                return; 
-            }
-            
-            // If we are here, it's a REAL login from the form.
-            // We MUST fetch from the server.
-            setCurrentUser(user);
-            loadingOverlay?.classList.remove('hidden');
-            
-            try {
-                updateLastLogin(user.id);
-                authContainer?.classList.add('hidden');
-                appContainer?.classList.remove('hidden');
-                resetInactivityTimer();
-                
-                console.log("AUTH: New sign-in, fetching from server.");
-                const { data, error } = await loadDataForUser(user.id, getAppState(), false);
-                if (error) throw error;
-
-                handleDataLoad(data, true);
-            } catch (e) {
-                console.error("AUTH LISTENER FATAL (SIGNED_IN):", e);
-                signOut(supabaseClient, true);
-            } finally {
-                loadingOverlay?.classList.add('hidden');
+                try {
+                    updateLastLogin(user.id);
+                    // Fetch profile from Supabase (creates one if it doesn't exist)
+                    const { data, error } = await loadDataForUser(user.id, getAppState(), false);
+                    if (error) throw error;
+                    
+                    handleDataLoad(data, true);
+                } catch (e) {
+                    console.error("AUTH ERROR (INITIAL_SESSION):", e);
+                    // Only sign out if the server fetch actually FAILS
+                    signOut(supabaseClient, true);
+                } finally {
+                    loadingOverlay?.classList.add('hidden');
+                }
             }
         }
         // --- END NEW LOGIC ---
