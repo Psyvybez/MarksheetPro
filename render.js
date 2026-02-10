@@ -190,7 +190,7 @@ export function renderGradebook() {
                 const toggleHtml = `
                     <div class="mt-1 flex items-center justify-center gap-1">
                         <input type="checkbox" class="assignment-status-toggle" data-unit-id="${unit.id}" data-assignment-id="${asg.id}" ${checked}>
-                        <label class="text-[9px] text-blue-600 font-bold uppercase cursor-pointer">Submitted</label>
+                        <label class="text-[9px] text-blue-600 font-bold uppercase cursor-pointer">Collected</label>
                     </div>`;
 
                 if(unit.isFinal) {

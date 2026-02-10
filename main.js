@@ -565,13 +565,16 @@ function setupEventListeners() {
             }
 
             //
+            //
             if (target.classList.contains('grade-input')) {
                 const studentId = target.dataset.studentId;
                 const assignmentId = target.dataset.assignmentId;
                 const category = target.dataset.cat;
-                const rawValue = target.value.trim().toUpperCase(); // Normalize input
+                
+                // 1. Normalize Input (Force Uppercase for logic)
+                const rawValue = target.value.trim().toUpperCase(); 
 
-                // 1. Logic to handle "M" or Numbers
+                // 2. Determine Storage Value (M, Number, or Null)
                 let storageValue;
                 if (rawValue === '') { 
                     storageValue = null; 
@@ -583,47 +586,67 @@ function setupEventListeners() {
                 }
 
                 if (studentId && assignmentId && classData?.students?.[studentId]) {
+                    // Ensure data structure exists
                     if (!classData.students[studentId].grades) classData.students[studentId].grades = {};
                     if (!classData.students[studentId].grades[assignmentId]) classData.students[studentId].grades[assignmentId] = {};
 
-                    // 2. Helper to update UI and State for a single cell
+                    // 3. Capture Previous Value (Needed for "Clear Row" logic)
+                    let previousValue = null;
+                    if (category) {
+                        previousValue = classData.students[studentId].grades[assignmentId][category];
+                    }
+
+                    // 4. Helper: Update UI and State for a single cell
                     const updateCell = (cat, val) => {
                         // Update State
                         if (cat) { classData.students[studentId].grades[assignmentId][cat] = val; }
                         else { classData.students[studentId].grades[assignmentId].grade = val; }
 
-                        // Update UI (Find input by selector to handle "fill row" logic)
+                        // Update UI
                         const selector = cat 
                             ? `.grade-input[data-student-id="${studentId}"][data-assignment-id="${assignmentId}"][data-cat="${cat}"]`
                             : `.grade-input[data-student-id="${studentId}"][data-assignment-id="${assignmentId}"]`;
                         
                         const inputEl = document.querySelector(selector);
                         if (inputEl) {
-                            if (inputEl.value.toUpperCase() !== (val === null ? '' : String(val))) {
+                            // FORCE Uppercase 'M' in UI
+                            if (val === 'M' && inputEl.value !== 'M') {
+                                inputEl.value = 'M';
+                            }
+                            // Update other cells (e.g. row fill/clear), but don't interrupt typing numbers in current cell
+                            else if (inputEl !== target) {
                                 inputEl.value = val === null ? '' : val;
                             }
                             
-                            // 3. INSTANTLY toggle red class on parent TD
+                            // Color Logic: Instant Red Toggle
                             const parentTd = inputEl.closest('td');
                             if (parentTd) {
-                                if (val === 0 || val === 'M') {
-                                    parentTd.classList.add('missing-cell');
-                                } else {
-                                    parentTd.classList.remove('missing-cell');
-                                }
+                                if (val === 0 || val === 'M') parentTd.classList.add('missing-cell');
+                                else parentTd.classList.remove('missing-cell');
                             }
                         }
                     };
 
-                    // 4. "Fill Whole Row" Logic: If M is entered, apply to all categories
-                    if (storageValue === 'M' && category) {
-                        ['k', 't', 'c', 'a'].forEach(c => updateCell(c, 'M'));
+                    // 5. Logic Branching
+                    if (category) {
+                        // CASE A: User entered 'M' -> Fill Row
+                        if (storageValue === 'M') {
+                            ['k', 't', 'c', 'a'].forEach(c => updateCell(c, 'M'));
+                        } 
+                        // CASE B: User DELETED 'M' -> Clear Row (Only if it was M before)
+                        else if (storageValue === null && previousValue === 'M') {
+                            ['k', 't', 'c', 'a'].forEach(c => updateCell(c, null));
+                        }
+                        // CASE C: Normal Single Cell Update
+                        else {
+                            updateCell(category, storageValue);
+                        }
                     } else {
-                        // Otherwise just update this single cell
-                        updateCell(category, storageValue);
+                        // Final Mark (No categories)
+                        updateCell(null, storageValue);
                     }
 
-                    // Validation Styling (Red border for invalid numbers)
+                    // 6. Validation Styling (Red border for invalid numbers)
                     const unit = Object.values(classData.units || {}).find(u => u.assignments?.[assignmentId]);
                     const assignment = unit?.assignments?.[assignmentId];
                     let maxScore = Infinity;
