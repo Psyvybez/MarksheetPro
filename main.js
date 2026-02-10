@@ -5,16 +5,17 @@ import { setAppState, setCurrentUser, getAppState, getCurrentUser, getActiveClas
 import { recalculateAndRenderAverages } from './calculations.js';
 import { renderFullGradebookUI, updateUIFromState, renderGradebook, renderClassTabs, renderAccountPage, renderAttendanceSheet, renderStudentProfileModal, } from './render.js';
 import * as actions from './actions.js'
-import { startTutorial } from './tutorial.js';;
+import { startTutorial } from './tutorial.js';
 
 // --- GLOBAL STATE & CONSTANTS ---
-const SUPABASE_URL = 'https://pvwcdesafxxkosdrfjwa.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB2d2NkZXNhZnh4a29zZHJmandhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg0NzY3NDIsImV4cCI6MjA3NDA1Mjc0Mn0.qaSGzdLMCbYNO1KQPCZJrCrk0AEtesKvt2kHXJ_IVH8';
+const SUPABASE_URL = 'https://txpgjzplqumkayoybfoj.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR4cGdqenBscXVta2F5b3liZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE2NzI3OTIsImV4cCI6MjA3NzI0ODc5Mn0.uZ4n54tFsr1zoJqkHPQ4hRo20yoCyVA7qZunkl5IWO8';
 const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000;
 
 let supabaseClient;
 let autoSaveTimer = null;
 let inactivityTimer = null;
+let draggedTab = null;
 
 // --- INITIALIZATION ---
 document.addEventListener('DOMContentLoaded', () => {
@@ -390,14 +391,15 @@ function showFeedbackModal() {
 }
 
 
+
 function setupEventListeners() {
     const contentWrapper = document.getElementById('content-wrapper');
     const authContainer = document.getElementById('auth-container');
 
     if (authContainer) {
-document.getElementById('auth-submit-btn')?.addEventListener('click', (e) => handleAuthSubmit(e, supabaseClient));
+        document.getElementById('auth-submit-btn')?.addEventListener('click', (e) => handleAuthSubmit(e, supabaseClient));
 
-document.getElementById('password')?.addEventListener('keydown', (e) => {
+        document.getElementById('password')?.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
                 document.getElementById('auth-submit-btn')?.click();
@@ -416,23 +418,51 @@ document.getElementById('password')?.addEventListener('keydown', (e) => {
         });
     }
 
+    // --- GLOBAL LISTENER FOR POPUP NAVIGATION (Feature 1) ---
+    document.addEventListener('keydown', (e) => {
+        const modal = document.getElementById('custom-modal');
+        // Only run if the modal is actually open
+        if (modal && document.body.classList.contains('modal-open') && e.key === 'Enter') {
+            const target = e.target;
+            // Only hijack Enter if we are inside a text input or select box
+            if ((target.tagName === 'INPUT' || target.tagName === 'SELECT') && modal.contains(target)) {
+                e.preventDefault();
+                handleModalEnter(modal, target);
+            }
+        }
+    });
+
     if (contentWrapper) {
         contentWrapper.addEventListener('click', (e) => {
-            const target = e.target.closest('[id], [data-tab-id], [data-student-id]');
+            const clickedElement = e.target;
+
+            // --- Check for student name button click ---
+            const studentNameBtn = clickedElement.closest('.student-name-btn');
+            if (studentNameBtn) {
+                const studentId = studentNameBtn.closest('[data-student-id]')?.dataset.studentId;
+                if (studentId) {
+                    renderStudentProfileModal(studentId);
+                    return;
+                }
+            }
+
+            // --- Check for Delete button click ---
+            const deleteBtn = clickedElement.closest('.delete-btn');
+            if (deleteBtn) {
+                const studentId = deleteBtn.closest('[data-student-id]')?.dataset.studentId;
+                if (studentId) {
+                    actions.deleteStudent(studentId);
+                    return;
+                }
+            }
+            
+            // --- Original Logic for all other buttons ---
+            const target = clickedElement.closest('[id], [data-tab-id]');
             if (!target) return;
 
             const id = target.id;
             const tabId = target.dataset.tabId;
-            const studentId = target.dataset.studentId;
 
-            if (target.classList.contains('delete-btn')) {
-                actions.deleteStudent(studentId);
-                return;
-            }
-            if (target.classList.contains('student-name-btn')) {
-                renderStudentProfileModal(studentId);
-                return;
-            }
              if (id === 'back-to-gradebook-btn') {
                 renderFullGradebookUI();
                 return;
@@ -482,10 +512,10 @@ document.getElementById('password')?.addEventListener('keydown', (e) => {
 
         contentWrapper.addEventListener('input', (e) => {
             const target = e.target;
-            const classData = getActiveClassData(); // Get current class data
+            const classData = getActiveClassData(); 
 
             if (target.id === 'student-search-input') {
-                renderGradebook(); // Search still needs direct render for filtering
+                renderGradebook(); 
                 return;
             }
             
@@ -499,7 +529,6 @@ document.getElementById('password')?.addEventListener('keydown', (e) => {
                     
                     if (!classData.attendance[selectedDate]) classData.attendance[selectedDate] = {};
                     if (!classData.attendance[selectedDate][studentId]) {
-                        // Get current status from the radio button
                         const statusRadio = document.querySelector(`input[name="status-${studentId}"]:checked`);
                         const status = statusRadio ? statusRadio.value : 'present';
                         classData.attendance[selectedDate][studentId] = { status: status, notes: '' };
@@ -508,31 +537,25 @@ document.getElementById('password')?.addEventListener('keydown', (e) => {
                     classData.attendance[selectedDate][studentId].notes = notes;
                     triggerAutoSave();
                 }
-                return; // Don't run other input logic
+                return; 
             }
 
-            // Handle grade input changes
             if (target.classList.contains('grade-input')) {
                 const studentId = target.dataset.studentId;
                 const assignmentId = target.dataset.assignmentId;
                 const category = target.dataset.cat;
                 const value = target.value.trim();
 
-                // --- Refined Parsing ---
                 let numericValue;
                 if (value === '') { numericValue = null; }
                 else { numericValue = parseFloat(value); if (isNaN(numericValue)) { numericValue = null; } }
-                // --- End Refined Parsing ---
 
                 if (studentId && assignmentId && classData?.students?.[studentId]) {
-                    // --- 1. Update State Logic ---
                     if (!classData.students[studentId].grades) classData.students[studentId].grades = {};
                     if (!classData.students[studentId].grades[assignmentId]) classData.students[studentId].grades[assignmentId] = {};
                     if (category) { classData.students[studentId].grades[assignmentId][category] = numericValue; }
                     else { classData.students[studentId].grades[assignmentId].grade = numericValue; }
-                    // --- End State Update ---
 
-                    // --- 2. Validation ---
                     const unit = Object.values(classData.units || {}).find(u => u.assignments?.[assignmentId]);
                     const assignment = unit?.assignments?.[assignmentId];
                     let maxScore = Infinity;
@@ -540,30 +563,23 @@ document.getElementById('password')?.addEventListener('keydown', (e) => {
                     else if (category) { maxScore = assignment?.categoryTotals?.[category] ?? Infinity; }
                     const isValid = numericValue === null || (!isNaN(numericValue) && numericValue >= 0 && (maxScore === Infinity || numericValue <= maxScore));
                     target.classList.toggle('grade-input-error', !isValid && value !== '');
-                    // --- End Validation ---
 
-                    // --- 3. Recalculate & Update Averages in DOM FIRST ---
-                    recalculateAndRenderAverages(); // Call the specific update function
-
-                    // --- 4. Trigger Save/Sync AFTER UI update ---
+                    recalculateAndRenderAverages(); 
                     triggerAutoSave();
                 }
             }
-
-            // --- Handle other inputs (IEP, Class Name, Category Weights) ---
-            // Keep the logic for these as is
             
            if (target.id === 'className' && classData) {
                  classData.name = target.textContent.trim();
-                 triggerAutoSave(); // Save happens after name change
+                 triggerAutoSave(); 
             } else if (target.classList.contains('cat-weight-input') && classData) {
                  const cat = target.dataset.cat;
                  const value = parseFloat(target.value) || 0;
                  if (cat && classData.categoryWeights) {
                      classData.categoryWeights[cat] = value;
-                     renderCategoryWeights(); // Re-render category weights section immediately
-                     renderGradebook(); // *** Re-render gradebook immediately after weight change ***
-                     triggerAutoSave(); // Save happens after UI updates
+                     renderCategoryWeights(); 
+                     renderGradebook(); 
+                     triggerAutoSave(); 
                  }
                 }     
         });
@@ -575,7 +591,6 @@ document.getElementById('password')?.addEventListener('keydown', (e) => {
                 renderGradebook();
             }
 
-            // --- ADDED BLOCK FOR ATTENDANCE & IEP ---
             if (e.target.id === 'attendance-date-picker') {
                 renderAttendanceSheet(e.target.value);
             }
@@ -586,10 +601,10 @@ document.getElementById('password')?.addEventListener('keydown', (e) => {
         
             if (e.target.classList.contains('iep-checkbox')) {
                 const studentId = e.target.dataset.studentId;
-                const classData = getActiveClassData(); // Get class data here
+                const classData = getActiveClassData(); 
                  if (studentId && classData?.students?.[studentId]) {
                      classData.students[studentId].iep = e.target.checked;
-                     recalculateAndRenderAverages(); // Also recalculate averages
+                     recalculateAndRenderAverages(); 
                      triggerAutoSave(); 
                  }
             }
@@ -606,24 +621,84 @@ document.getElementById('password')?.addEventListener('keydown', (e) => {
                     if (!classData.attendance) classData.attendance = {};
                     if (!classData.attendance[selectedDate]) classData.attendance[selectedDate] = {};
 
-                    // Preserve existing notes when changing status
                     const existingNotes = classData.attendance[selectedDate][studentId]?.notes || '';
                     
                     classData.attendance[selectedDate][studentId] = { status: status, notes: existingNotes };
                     triggerAutoSave();
-                    
-                    // Re-render to update summary (this is optional but good for consistency)
-                    // renderAttendanceSheet(selectedDate); 
                 }
             }
         });
 
+        // --- UPDATED KEYDOWN LISTENER (Feature 2: Arrow Keys) ---
         contentWrapper.addEventListener('keydown', (e) => {
+            // 1. Default Enter behavior
             if (e.key === 'Enter' && e.target.classList.contains('grade-input')) {
                 e.preventDefault();
                 e.target.blur(); 
             }
+
+            // 2. Arrow Key Navigation
+            if (e.target.classList.contains('grade-input') && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                e.preventDefault();
+                handleGradebookNavigation(e.key, e.target);
+            }
         });
+
+        // ... (Drag and Drop listeners go here, keeping them as is) ...
+        let draggedTab = null;
+        contentWrapper.addEventListener('dragstart', (e) => {
+            const target = e.target.closest('.tab-button');
+            if (target) {
+                draggedTab = target;
+                setTimeout(() => { target.classList.add('dragging'); }, 0);
+            }
+        });
+
+        contentWrapper.addEventListener('dragend', (e) => {
+            if (draggedTab) {
+                draggedTab.classList.remove('dragging');
+                draggedTab = null;
+                const appState = getAppState();
+                const semesterData = getActiveSemesterData();
+                if (!semesterData.classes) return;
+                const classTabsContainer = document.getElementById('class-tabs-container');
+                if (!classTabsContainer) return;
+                const tabs = classTabsContainer.querySelectorAll('.tab-button');
+                tabs.forEach((tab, index) => {
+                    const classId = tab.dataset.classId;
+                    if (semesterData.classes[classId]) {
+                        semesterData.classes[classId].order = index;
+                    }
+                });
+                triggerAutoSave();
+            }
+        });
+
+        contentWrapper.addEventListener('dragover', (e) => {
+            if (!draggedTab) return;
+            e.preventDefault(); 
+            const classTabsContainer = e.target.closest('#class-tabs-container');
+            if (!classTabsContainer) return;
+            const afterElement = getDragAfterElement(classTabsContainer, e.clientX);
+            if (afterElement == null) {
+                classTabsContainer.appendChild(draggedTab);
+            } else {
+                classTabsContainer.insertBefore(draggedTab, afterElement);
+            }
+        });
+        
+        function getDragAfterElement(container, x) {
+            const draggableElements = [...container.querySelectorAll('.tab-button:not(.dragging)')];
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = x - box.left - box.width / 2;
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest;
+                }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
     }
     
     document.getElementById('sign-out-btn')?.addEventListener('click', () => signOut(supabaseClient));
@@ -640,6 +715,58 @@ document.getElementById('password')?.addEventListener('keydown', (e) => {
     });
 
     ['mousemove', 'mousedown', 'keypress', 'click'].forEach(event => window.addEventListener(event, resetInactivityTimer));
-   // Replace the existing visibilitychange listener in Frontend/main.js
+}
 
+// --- HELPER FUNCTIONS ---
+
+function handleModalEnter(modal, currentInput) {
+    // Get all visible, enabled inputs in the modal
+    const inputs = Array.from(modal.querySelectorAll('input:not([type="hidden"]):not([disabled]), select:not([disabled])'));
+    const currentIndex = inputs.indexOf(currentInput);
+
+    if (currentIndex > -1 && currentIndex < inputs.length - 1) {
+        // Focus the next input
+        inputs[currentIndex + 1].focus();
+    } else {
+        // If it's the last input, trigger the Save/Confirm button
+        const confirmBtn = document.getElementById('modal-confirm-btn');
+        if (confirmBtn) confirmBtn.click();
+    }
+}
+
+function handleGradebookNavigation(key, currentInput) {
+    // Get all student rows
+    const rows = Array.from(document.querySelectorAll('.student-row'));
+    const currentRow = currentInput.closest('tr');
+    const currentRowIndex = rows.indexOf(currentRow);
+
+    // Get all inputs in the current row
+    const currentInputs = Array.from(currentRow.querySelectorAll('.grade-input'));
+    const currentInputIndex = currentInputs.indexOf(currentInput);
+
+    if (key === 'ArrowRight') {
+        if (currentInputIndex < currentInputs.length - 1) {
+            currentInputs[currentInputIndex + 1].focus();
+        }
+    } else if (key === 'ArrowLeft') {
+        if (currentInputIndex > 0) {
+            currentInputs[currentInputIndex - 1].focus();
+        }
+    } else if (key === 'ArrowDown') {
+        if (currentRowIndex < rows.length - 1) {
+            const nextRow = rows[currentRowIndex + 1];
+            const inputsInNextRow = Array.from(nextRow.querySelectorAll('.grade-input'));
+            if (inputsInNextRow[currentInputIndex]) {
+                inputsInNextRow[currentInputIndex].focus();
+            }
+        }
+    } else if (key === 'ArrowUp') {
+        if (currentRowIndex > 0) {
+            const prevRow = rows[currentRowIndex - 1];
+            const inputsInPrevRow = Array.from(prevRow.querySelectorAll('.grade-input'));
+            if (inputsInPrevRow[currentInputIndex]) {
+                inputsInPrevRow[currentInputIndex].focus();
+            }
+        }
+    }
 }

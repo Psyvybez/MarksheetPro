@@ -2,8 +2,11 @@
 
 import { updateLastLogin, loadDataForUser } from './api.js';
 import { handleDataLoad, resetInactivityTimer } from './main.js';
-import { renderFullGradebookUI } from './render.js';
+// We can remove renderFullGradebookUI as you correctly pointed out.
 import { setCurrentUser, setAppState, getAppState, getCurrentUser } from './state.js';
+
+// This flag will prevent the listener from firing twice on a page load
+let hasHandledInitialLoad = false;
 
 export function setupAuthListener(supabaseClient, wasLocalDataLoaded) {
     supabaseClient.auth.onAuthStateChange(async (event, session) => {
@@ -13,6 +16,7 @@ export function setupAuthListener(supabaseClient, wasLocalDataLoaded) {
         const loadingOverlay = document.getElementById('loading-overlay');
 
         if (event === 'SIGNED_OUT' || !session) {
+            hasHandledInitialLoad = false; // Reset flag on sign out
             const currentUser = getCurrentUser();
             if (currentUser) localStorage.removeItem(`marksheetProData-${currentUser.id}`);
             setCurrentUser(null);
@@ -23,42 +27,70 @@ export function setupAuthListener(supabaseClient, wasLocalDataLoaded) {
             return;
         }
 
-        if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
-            setCurrentUser(user);
+        // --- NEW LOGIC TO PREVENT DOUBLE-LOAD ---
 
-            if (!wasLocalDataLoaded) loadingOverlay?.classList.remove('hidden');
+        // Handle a page refresh (INITIAL_SESSION)
+        if (event === 'INITIAL_SESSION') {
+            hasHandledInitialLoad = true; // Set the flag
+            setCurrentUser(user);
+            authContainer?.classList.add('hidden');
+            appContainer?.classList.remove('hidden');
+            resetInactivityTimer();
+
+            // This is your new logic:
+            if (wasLocalDataLoaded) {
+                // We have local data, so just render it. NO server fetch.
+                console.log("AUTH: Resuming session from local state.");
+                handleDataLoad(getAppState(), true);
+                loadingOverlay?.classList.add('hidden');
+            } else {
+                // No local data. Force sign out as requested.
+                console.log("AUTH: No local data found. Forcing sign out.");
+                signOut(supabaseClient, true);
+            }
+        }
+
+        // Handle a fresh login (SIGNED_IN)
+        if (event === 'SIGNED_IN') {
+            // Check the flag. If INITIAL_SESSION already ran, stop.
+            if (hasHandledInitialLoad) {
+                console.log("AUTH: Ignoring duplicate SIGNED_IN event.");
+                return; 
+            }
+            
+            // If we are here, it's a REAL login from the form.
+            // We MUST fetch from the server.
+            setCurrentUser(user);
+            loadingOverlay?.classList.remove('hidden');
             
             try {
-                if (event === 'SIGNED_IN') updateLastLogin(user.id);
-                
+                updateLastLogin(user.id);
                 authContainer?.classList.add('hidden');
                 appContainer?.classList.remove('hidden');
                 resetInactivityTimer();
                 
-                // ... (inside setupAuthListener)
-                
-                // loadDataForUser will get the latest data.
-                const { data, error } = await loadDataForUser(user.id, getAppState(), wasLocalDataLoaded);
+                console.log("AUTH: New sign-in, fetching from server.");
+                const { data, error } = await loadDataForUser(user.id, getAppState(), false);
                 if (error) throw error;
 
-                // handleDataLoad will now correctly decide what to render:
-                // - If data.full_name is missing -> renderAccountPage(true)
-                // - If data.full_name exists -> renderFullGradebookUI()
                 handleDataLoad(data, true);
-// ...
             } catch (e) {
-                console.error("AUTH LISTENER FATAL:", e);
+                console.error("AUTH LISTENER FATAL (SIGNED_IN):", e);
                 signOut(supabaseClient, true);
             } finally {
                 loadingOverlay?.classList.add('hidden');
             }
         }
+        // --- END NEW LOGIC ---
     });
 }
 
 export async function handleAuthSubmit(e, supabaseClient) {
     e.preventDefault();
     if (!supabaseClient) return;
+
+    // Reset the flag on a manual login attempt
+    hasHandledInitialLoad = false; 
 
     const email = document.getElementById('email-address').value;
     const password = document.getElementById('password').value;
@@ -86,6 +118,7 @@ export async function handleAuthSubmit(e, supabaseClient) {
 }
 
 export function signOut(supabaseClient, isForced = false) {
+    hasHandledInitialLoad = false; // Reset flag on sign out
     const currentUser = getCurrentUser();
     if (currentUser) {
         console.log("SIGN OUT: Clearing local browser storage.");

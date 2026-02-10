@@ -10,6 +10,7 @@ export function calculateStudentAverages(student, classData) {
     let termStudentTotals = { k: 0, t: 0, c: 0, a: 0 };
     let termClassTotals = { k: 0, t: 0, c: 0, a: 0 };
     let termCategoriesGradedCount = { k: 0, t: 0, c: 0, a: 0 };
+    let totalAssignmentsGraded = 0; // Track total graded assignments for baseline blending
 
     Object.values(classData.units || {}).filter(u => !u.isFinal).forEach(unit => {
         let unitWeight = unit.weight || 0;
@@ -28,6 +29,8 @@ export function calculateStudentAverages(student, classData) {
                         termClassTotals[cat] += asgMaxCat * unitWeight * weight;
                         termStudentTotals[cat] += studentGradeCat * unitWeight * weight;
                         termCategoriesGradedCount[cat]++;
+                        // Count this as a graded assignment (increment once per assignment, not per category)
+                        if (cat === 'k') totalAssignmentsGraded++;
                     }
                 }
             }
@@ -60,6 +63,17 @@ export function calculateStudentAverages(student, classData) {
          termMark = termWeightedGrade / termTotalWeightUsed;
     } else {
          termMark = null;
+    }
+
+    // Apply starting overall mark if set
+    if (student.startingOverallMark !== null && student.startingOverallMark !== undefined && termMark !== null) {
+        // Blend the starting mark with calculated mark based on assignments graded
+        // With 0 assignments: use starting mark
+        // As assignments are added, gradually shift toward calculated mark
+        // Blending formula: (startingMark * assignments_remaining + calculatedMark * assignments_graded) / total_assignments
+        // Simplified: weight by "progress" - as more assignments are graded, weight calculated mark more
+        const progressWeight = Math.min(totalAssignmentsGraded / Math.max(1, totalAssignmentsGraded + 3), 0.9);
+        termMark = (student.startingOverallMark * (1 - progressWeight)) + (termMark * progressWeight);
     }
 
     if (classData.hasFinal) {
