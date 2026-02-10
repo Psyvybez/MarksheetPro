@@ -394,6 +394,7 @@ function showFeedbackModal() {
 
 //
 //
+//
 function setupEventListeners() {
     const contentWrapper = document.getElementById('content-wrapper');
     const authContainer = document.getElementById('auth-container');
@@ -450,31 +451,7 @@ function setupEventListeners() {
         contentWrapper.addEventListener('click', (e) => {
             const clickedElement = e.target;
 
-            // --- ZOOM BUTTON LOGIC ---
-            if (clickedElement.id === 'zoomInBtn' || clickedElement.id === 'zoomOutBtn') {
-                const table = document.getElementById('gradebookTable');
-                const zoomText = document.getElementById('zoom-level-text');
-                const appState = getAppState();
-                
-                let currentZoom = appState.gradebook_data.zoomLevel || 1;
-                
-                if (clickedElement.id === 'zoomInBtn') currentZoom += 0.1;
-                if (clickedElement.id === 'zoomOutBtn') currentZoom -= 0.1;
-                
-                if (currentZoom < 0.5) currentZoom = 0.5;
-                if (currentZoom > 1.5) currentZoom = 1.5;
-                
-                currentZoom = Math.round(currentZoom * 10) / 10;
-
-                if(table) table.style.zoom = currentZoom;
-                if(zoomText) zoomText.textContent = `${Math.round(currentZoom * 100)}%`;
-                
-                if (appState.gradebook_data) {
-                    appState.gradebook_data.zoomLevel = currentZoom;
-                    triggerAutoSave();
-                }
-                return;
-            }
+            // (Zoom Logic Removed Here)
 
             const studentNameBtn = clickedElement.closest('.student-name-btn');
             if (studentNameBtn) {
@@ -698,7 +675,7 @@ function setupEventListeners() {
                 const classData = getActiveClassData(); 
                  if (studentId && classData?.students?.[studentId]) {
                      classData.students[studentId].iep = e.target.checked;
-                     updateClassStats(); // <--- UPDATED: Instantly update IEP count
+                     updateClassStats(); // Instantly update IEP count
                      recalculateAndRenderAverages(); 
                      triggerAutoSave(); 
                  }

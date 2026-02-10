@@ -93,13 +93,14 @@ export function updateClassStats() {
 
 //
 //
+//
 export function renderCategoryWeights() {
     const classData = getActiveClassData();
     const container = document.getElementById('category-weights-container');
     if (!classData || !container) return;
 
     classData.categoryWeights = classData.categoryWeights || {};
-    // Default Names
+    // Ensure default names are full words
     classData.categoryNames = classData.categoryNames || { k: 'Knowledge', t: 'Thinking', c: 'Communication', a: 'Application' };
     
     const defaults = { k: 25, t: 25, c: 25, a: 25 };
@@ -108,27 +109,37 @@ export function renderCategoryWeights() {
     
     classData.categoryWeights = weights;
 
-    // Helper: Smaller inputs (text-xs) and padding (p-1.5)
+    // Helper: Stacked Layout (Name on top, Weight on bottom)
     const makeInput = (key, defaultLabel) => `
-        <div class="flex flex-col gap-1 min-w-[100px]">
-            <label class="block text-[10px] font-medium text-gray-500 uppercase">Title & %</label>
-            <div class="flex gap-2">
-                <input type="text" data-cat="${key}" class="cat-name-input p-1.5 border border-gray-300 rounded-md w-full text-xs font-bold text-gray-700" value="${names[key]}" placeholder="${defaultLabel}">
-                <input type="number" step="0.1" data-cat="${key}" class="cat-weight-input p-1.5 border border-gray-300 rounded-md w-14 text-center font-mono text-xs" value="${weights[key]}">
+        <div class="flex flex-col gap-2 p-2 bg-gray-50 rounded-lg border border-gray-100">
+            <input type="text" 
+                   data-cat="${key}" 
+                   class="cat-name-input w-full p-2 border border-gray-300 rounded-md text-sm font-bold text-gray-800 text-center focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 outline-none" 
+                   value="${names[key]}" 
+                   placeholder="${defaultLabel}">
+            
+            <div class="flex items-center justify-center">
+                <input type="number" 
+                       step="0.1" 
+                       data-cat="${key}" 
+                       class="cat-weight-input w-20 p-2 border border-gray-300 rounded-md text-center font-mono text-sm font-semibold focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 outline-none" 
+                       value="${weights[key]}">
+                <span class="ml-1 text-gray-500 font-bold">%</span>
             </div>
         </div>
     `;
 
     container.innerHTML = `
-        <div class="flex flex-col xl:flex-row justify-between items-end gap-4">
+        <div class="flex flex-col xl:flex-row justify-between items-center gap-4">
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 flex-grow w-full">
                 ${makeInput('k', 'Knowledge')}
                 ${makeInput('t', 'Thinking')}
-                ${makeInput('c', 'Comm.')}
+                ${makeInput('c', 'Communication')}
                 ${makeInput('a', 'Application')}
             </div>
-            <div class="p-1.5 rounded-lg whitespace-nowrap self-center xl:self-end" id="cat-weight-total-container">
-                <span class="text-sm font-bold" id="cat-weight-total"></span>
+            
+            <div class="p-3 rounded-lg whitespace-nowrap shadow-sm min-w-[120px] text-center" id="cat-weight-total-container">
+                <span class="text-lg font-bold" id="cat-weight-total"></span>
             </div>
         </div>
     `;
@@ -142,16 +153,13 @@ export function renderCategoryWeights() {
         const totalContainer = document.getElementById('cat-weight-total-container');
         if(!totalEl || !totalContainer) return;
 
-        totalEl.textContent = `Total: ${total}%`;
-        const isTotal100 = Math.round(total) === 100;
-        totalContainer.className = `p-1.5 rounded-lg whitespace-nowrap ${isTotal100 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`;
+        totalEl.textContent = `Total: ${Number(total.toFixed(1))}%`;
+        const isTotal100 = Math.abs(total - 100) < 0.1; // Allow tiny float error
+        totalContainer.className = `p-3 rounded-lg whitespace-nowrap shadow-sm min-w-[120px] text-center ${isTotal100 ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-100 text-red-700 border border-red-200'}`;
     };
     updateTotal();
 }
 
-//
-//
-//
 export function renderGradebook() {
     const classData = getActiveClassData();
     const table = document.getElementById('gradebookTable');
@@ -160,13 +168,7 @@ export function renderGradebook() {
 
     if (!classData || !table || !classNameEl) return;
 
-    // 1. Apply Zoom
-    const savedZoom = appState.gradebook_data.zoomLevel || 1;
-    table.style.zoom = savedZoom;
-    const zoomText = document.getElementById('zoom-level-text');
-    if(zoomText) zoomText.textContent = `${Math.round(savedZoom * 100)}%`;
-
-    // 2. Stats & Basic UI
+    // 1. Stats & Basic UI
     updateClassStats(); 
     document.body.classList.toggle('has-final', classData.hasFinal);
     document.body.classList.toggle('no-final', !classData.hasFinal);
@@ -175,7 +177,7 @@ export function renderGradebook() {
     const students = classData.students || {};
     const allUnits = classData.units || {};
     
-    // 3. Category Names & First Letter Logic
+    // 2. Category Names & First Letter Logic
     const catNames = classData.categoryNames || { k: 'Knowledge', t: 'Thinking', c: 'Communication', a: 'Application' };
     
     // Helper: Gets "K" from "Knowledge", "E" from "Exams"
@@ -195,7 +197,7 @@ export function renderGradebook() {
         }
     }
 
-    // 4. Build Headers (Using getLet for Short Names)
+    // 3. Build Headers (Using getLet for Short Names)
     const studentInfoHeaders = `
         <th class="student-info-header p-3 text-left">Student Name</th>
         <th class="student-info-header p-3 text-center">IEP</th>
@@ -389,6 +391,7 @@ export function updateUIFromState() {
 
 //
 //
+//
 export function renderFullGradebookUI() {
     if (!contentWrapper) return;
     contentWrapper.innerHTML = `
@@ -400,7 +403,25 @@ export function renderFullGradebookUI() {
         
         <div id="content-instructions" class="tab-content hidden fade-in bg-white p-6 rounded-lg shadow-md">
             <h2 class="text-2xl font-semibold mb-6 text-gray-800">Welcome to Marksheet Pro!</h2>
-            <div class="space-y-6"><div><h3 class="text-lg font-semibold text-primary mb-2">Getting Started</h3><p>Select a semester and add a class to begin.</p></div></div>
+            <div class="space-y-6">
+                 <div>
+                    <h3 class="text-lg font-semibold text-primary mb-2">Getting Started: Your First Class</h3>
+                    <ol class="list-decimal list-inside space-y-1 text-gray-700">
+                        <li>Use the <strong>Semester 1 / Semester 2</strong> tabs to select a semester.</li>
+                        <li>Click the <strong>"+ Add Class"</strong> button to create your first class (e.g., "Grade 10 Math").</li>
+                        <li>The new class tab will appear. Click on it to open your gradebook.</li>
+                    </ol>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold text-primary mb-2">Setting Up Your Gradebook</h3>
+                    <ul class="list-disc list-inside space-y-1 text-gray-700">
+                        <li><strong>Category Weights:</strong> Set the K/T/C/A weights for your class. Make sure they total 100%.</li>
+                        <li><strong>Units:</strong> Click <strong>"Edit Units"</strong> to set up your units for the term (e.g., "Unit 1: Algebra"). Make sure their term weights also total 100%.</li>
+                        <li><strong>Students:</strong> Click <strong>"+ Add Student"</strong> to add students one-by-one. Use <strong>"Import Students"</strong> to copy and paste a list of names from a document, spreadsheet, or PDF.</li>
+                        <li><strong>Assignments:</strong> First, select a unit from the <strong>"All Units"</strong> dropdown. Then, click <strong>"Manage Assignments"</strong> to add your assessments for that unit.</li>
+                    </ul>
+                </div>
+            </div>
         </div>
 
         <div id="main-content-area" class="tab-content hidden fade-in">
@@ -412,7 +433,9 @@ export function renderFullGradebookUI() {
                     <button id="recordMidtermsBtn" class="bg-primary hover:bg-primary-dark text-white font-bold py-2 px-4 rounded-lg">Record Midterms</button>
                     <button id="archiveClassBtn" class="bg-accent hover:bg-accent-dark text-white font-bold py-2 px-4 rounded-lg">Archive Class</button>
                     <div class="relative">
-                        <button id="exportMenuBtn" class="bg-accent hover:bg-accent-dark text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2">Export <span>&#9662;</span></button>
+                        <button id="exportMenuBtn" class="bg-accent hover:bg-accent-dark text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2">
+                            Export <span>&#9662;</span>
+                        </button>
                         <div id="exportMenuDropdown" class="hidden absolute right-0 mt-2 w-60 bg-white rounded-md shadow-lg z-20 border border-gray-200">
                             <a href="#" id="exportCsvBtn" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Export Full Gradebook (CSV)</a>
                             <a href="#" id="exportPdfBtn" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Export Student Reports (PDF)</a>
@@ -427,27 +450,21 @@ export function renderFullGradebookUI() {
             
             <div id="category-weights-container" class="bg-white p-4 rounded-lg shadow-md"></div>
 
-            <div class="my-2 flex flex-col sm:flex-row justify-between items-center gap-4">
-                <div class="flex items-center gap-2 w-full sm:w-auto">
-                    <div class="relative flex-grow sm:flex-grow-0"><input type="text" id="student-search-input" placeholder="Search students..." class="py-2 px-4 w-full border border-gray-300 rounded-md shadow-sm transition-all focus:outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-200"></div>
-                    
-                    <div class="flex items-center gap-1 bg-white rounded-lg border border-gray-300 px-2 py-1 shadow-sm mr-2 select-none">
-                        <button id="zoomOutBtn" class="text-gray-500 hover:text-gray-700 font-bold px-2 text-lg leading-none" title="Zoom Out">&minus;</button>
-                        <span id="zoom-level-text" class="text-xs text-gray-600 font-medium w-10 text-center">100%</span>
-                        <button id="zoomInBtn" class="text-gray-500 hover:text-gray-700 font-bold px-2 text-lg leading-none" title="Zoom In">&plus;</button>
-                    </div>
+        <div class="my-2 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-2 w-full sm:w-auto">
+                <div class="relative flex-grow sm:flex-grow-0"><input type="text" id="student-search-input" placeholder="Search students..." class="py-2 px-4 w-full border border-gray-300 rounded-md shadow-sm transition-all focus:outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-200"></div>
+                <div id="class-stats-container" class="text-sm text-gray-500 font-medium flex items-center gap-3 px-2"></div>
 
-                    <div id="class-stats-container" class="text-sm text-gray-500 font-medium flex items-center gap-3 px-2"></div>
-                    <button id="addStudentBtn" class="bg-accent hover:bg-accent-dark text-white font-bold py-2 px-4 rounded-lg whitespace-nowrap">+ Add Student</button>
-                    <button id="attendanceBtn" class="bg-primary hover:bg-primary-dark text-white font-bold py-2 px-4 rounded-lg">Attendance</button>
-                </div>
-
-                <div class="flex page-center gap-2">
-                    <div class="relative"><button id="editUnitsBtn" class="bg-primary hover:bg-primary-dark text-white font-bold py-2 px-4 rounded-lg">Edit Units</button></div>
-                    <button id="addAssignmentBtn" class="bg-accent hover:bg-accent-dark text-white font-bold py-2 px-4 rounded-lg">Manage Assignments</button>
-                    <select id="unitFilterDropdown" class="bg-white border border-gray-300 text-gray-700 font-bold py-2 px-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-200 shadow-sm"></select>
-                </div>
+                <button id="addStudentBtn" class="bg-accent hover:bg-accent-dark text-white font-bold py-2 px-4 rounded-lg whitespace-nowrap">+ Add Student</button>
+                <button id="attendanceBtn" class="bg-primary hover:bg-primary-dark text-white font-bold py-2 px-4 rounded-lg">Attendance</button>
             </div>
+
+            <div class="flex page-center gap-2">
+                <div class="relative"><button id="editUnitsBtn" class="bg-primary hover:bg-primary-dark text-white font-bold py-2 px-4 rounded-lg">Edit Units</button></div>
+                <button id="addAssignmentBtn" class="bg-accent hover:bg-accent-dark text-white font-bold py-2 px-4 rounded-lg">Manage Assignments</button>
+                <select id="unitFilterDropdown" class="bg-white border border-gray-300 text-gray-700 font-bold py-2 px-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-200 shadow-sm"></select>
+            </div>
+        </div>
                 
             <div id="table-wrapper" class="bg-white rounded-lg shadow-md"><table id="gradebookTable" class="w-full text-sm text-gray-500"><thead></thead><tbody></tbody><tfoot></tfoot></table></div>
         </div>
