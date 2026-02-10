@@ -1229,32 +1229,41 @@ export function exportContactListPDF() {
 }
 
 // --- NEW FUNCTION: Move Class ---
+//
+
 export function moveClassToSemester() {
     const appState = getAppState();
     const classData = getActiveClassData();
     
     if (!classData) return;
 
-    const currentSem = appState.gradebook_data.activeSemester;
+    const currentSem = appState.gradebook_data.activeSemester || '1';
     const targetSem = currentSem === '1' ? '2' : '1';
     const classId = appState.gradebook_data.activeClassId;
 
     if (confirm(`Are you sure you want to move "${classData.name}" to Semester ${targetSem}?`)) {
         // 1. Ensure target semester classes object exists
+        if (!appState.gradebook_data.semesters[targetSem]) {
+             appState.gradebook_data.semesters[targetSem] = { classes: {} };
+        }
         if (!appState.gradebook_data.semesters[targetSem].classes) {
             appState.gradebook_data.semesters[targetSem].classes = {};
         }
 
-        // 2. Move data: Copy to target, delete from source
+        // 2. Move data: Copy to target
         appState.gradebook_data.semesters[targetSem].classes[classId] = classData;
+        
+        // 3. Delete from source (Current Semester)
         delete appState.gradebook_data.semesters[currentSem].classes[classId];
 
-        // 3. Switch active semester so user follows the class
-        appState.gradebook_data.activeSemester = targetSem;
+        // 4. Update Active Class Logic
+        // Since the active class is gone, pick the next available one in the CURRENT semester (or null)
+        const remainingClasses = Object.keys(appState.gradebook_data.semesters[currentSem].classes || {});
+        appState.gradebook_data.activeClassId = remainingClasses.length > 0 ? remainingClasses[0] : null;
 
-        // 4. Save and Render
-        renderClassTabs();
-        renderFullGradebookUI();
+        // 5. Force UI Update
+        // This function refreshes the tabs (making the moved one disappear) and the content area
+        updateUIFromState(); 
         triggerAutoSave();
     }
 }
