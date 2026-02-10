@@ -343,6 +343,8 @@ export function renderGradebook() {
     recalculateAndRenderAverages();
 }
 
+//
+
 export function updateUIFromState() {
     const appState = getAppState();
     if(!appState.gradebook_data) return;
@@ -360,13 +362,14 @@ export function updateUIFromState() {
     const semesterData = getActiveSemesterData();
     const hasClasses = Object.keys(semesterData.classes || {}).length > 0;
 
-    // 1. Update Semester Tabs state
+    // 1. Update Semester Tabs
     semesterBtn1.classList.toggle('active', activeSemester === '1');
     semesterBtn2.classList.toggle('active', activeSemester === '2');
     
-    // 2. FIX: Update "Move Class" Button Text dynamically
+    // 2. DYNAMIC LABEL FIX: Update button text based on CURRENT active semester
     const moveClassBtn = document.getElementById('moveClassBtn');
     if (moveClassBtn) {
+        // If we are in Sem 1, target is 2. If in Sem 2, target is 1.
         const targetSem = activeSemester === '1' ? '2' : '1';
         moveClassBtn.textContent = `Move to Sem ${targetSem}`;
     }
@@ -388,11 +391,10 @@ export function updateUIFromState() {
     }
 }
 
-
 export function renderFullGradebookUI() {
     if (!contentWrapper) return;
 
-    // Calculate initial target semester for the Move button
+    // Calculate initial target for the button
     const appState = getAppState();
     const currentSem = appState.gradebook_data?.activeSemester || '1';
     const targetSem = currentSem === '1' ? '2' : '1';
