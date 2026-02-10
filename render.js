@@ -3,7 +3,7 @@ import { recalculateAndRenderAverages, calculateStudentAverages, calculateClassA
 import { getProfilePictureUrl, uploadProfilePicture } from './api.js';
 import { showModal } from './ui.js';
 import { triggerAutoSave } from './main.js';
-import { exportStudentPDF } from './actions.js';
+import { exportStudentPDF, deleteStudent } from './actions.js';
 
 let contentWrapper;
 document.addEventListener('DOMContentLoaded', () => {
@@ -65,7 +65,6 @@ export function renderUnitFilter() {
 
     let optionsHtml = `<option value="all">All Units</option>`;
     Object.values(units).filter(u => !u.isFinal).sort((a,b) => a.order - b.order).forEach(unit => {
-         // --- CHANGED: Show Unit Title if available ---
          const displayTitle = unit.title ? `Unit ${unit.order}: ${unit.title}` : `Unit ${unit.order}`;
          optionsHtml += `<option value="${unit.id}" ${unit.id === activeUnitId ? 'selected' : ''}>${displayTitle}</option>`;
     });
@@ -130,7 +129,6 @@ export function renderGradebook() {
     classNameEl.textContent = classData.name;
     const students = classData.students || {};
     const allUnits = classData.units || {};
-    // FIX: Use let so we can reset to 'all' if needed
     let activeUnitId = appState.gradebook_data?.activeUnitId;
 
     let unitsToDisplay = allUnits;
@@ -138,11 +136,19 @@ export function renderGradebook() {
         if (allUnits[activeUnitId]) {
             unitsToDisplay = { [activeUnitId]: allUnits[activeUnitId] };
         } else {
-            // If the unit ID is invalid/missing, reset to 'all' and show everything
             activeUnitId = 'all';
             if (appState.gradebook_data) appState.gradebook_data.activeUnitId = 'all';
         }
     }
+
+    // --- Calculate Stats ---
+    const totalStudents = Object.keys(students).length;
+    const iepCount = Object.values(students).filter(s => s.iep).length;
+    const statsContainer = document.getElementById('class-stats-container');
+    if (statsContainer) {
+        statsContainer.innerHTML = `<span class="text-gray-600">Students: <strong class="text-gray-800">${totalStudents}</strong></span><span class="text-gray-300">|</span><span class="text-gray-600">IEP: <strong class="text-indigo-600">${iepCount}</strong></span>`;
+    }
+
     const studentInfoHeaders = `
         <th class="student-info-header p-3 text-left">Student Name</th>
         <th class="student-info-header p-3 text-center">IEP</th>
@@ -163,12 +169,10 @@ export function renderGradebook() {
         const assignments = Object.values(unit.assignments || {}).sort((a, b) => a.order - b.order);
         const colspan = unit.isFinal ? assignments.length : assignments.length * 4;
         
-        // --- CHANGED: Format "Unit X: Title - Subtitle" ---
         const titleText = unit.title ? `: ${unit.title}` : '';
         const subtitleText = unit.subtitle ? ` - ${unit.subtitle}` : '';
         const displayTitle = unit.isFinal ? 'Final Assessment' : `Unit ${unit.order}${titleText}${subtitleText}`;
 
-        // --- CHANGED: Darker Border (border-gray-400) ---
         headerHtml1 += `<th colspan="${colspan || 1}" class="p-3 text-sm font-semibold tracking-wide text-center border-l-2 border-gray-400">${displayTitle}</th>`;
 
         if(assignments.length === 0){
@@ -183,7 +187,6 @@ export function renderGradebook() {
                 } else {
                     headerHtml2 += `<th colspan="4" class="p-3 text-xs font-medium text-gray-500 tracking-wider text-center border-l-2 border-gray-400">${asg.name}<br>${weightText}</th>`;
                     ['k','t','c','a'].forEach(cat => {
-                        // Assignment columns have normal border-l, only the start of the assignment block has darker border
                         const borderClass = cat === 'k' ? 'border-l-2 border-gray-400' : 'border-l';
                         headerHtml3 += `<th class="p-2 text-xs font-medium text-gray-500 uppercase tracking-wider text-center ${borderClass} assignment-header-cell">${cat.toUpperCase()}<br><span class="font-normal">${asg.categoryTotals?.[cat] || 0}</span></th>`;
                     });
@@ -226,18 +229,25 @@ export function renderGradebook() {
                 ? `<img src="${profilePicUrl}" class="w-8 h-8 rounded-full mr-2 object-cover">`
                 : `<div class="w-8 h-8 rounded-full mr-2 bg-gray-300 flex items-center justify-center text-white font-bold">${student.firstName.charAt(0)}${student.lastName.charAt(0)}</div>`;
 
-            // --- CHANGED: Added Delete Button in Student Name cell ---
+            // Check if student has notes
+            const hasNotes = student.generalNotes && student.generalNotes.trim().length > 0;
+            const noteIndicator = hasNotes ? `<span class="text-accent text-xl leading-none ml-1 relative top-1" title="Has General Note">*</span>` : '';
+
+            // Updated Row HTML with separate delete button
             let rowHtml = `<tr class="student-row" data-student-id="${studentId}">
-                <td class="p-0 relative group">
-                    <button class="student-name-btn flex items-center p-3 w-full text-left">
-                        ${profilePicHtml}
-                        <span>${student.lastName}, ${student.firstName}</span>
-                    </button>
-                    <button class="delete-btn absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity p-2" title="Delete Student">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
+                <td class="p-0 border-t border-gray-200">
+                    <div class="flex items-center pl-2 h-full">
+                        <button class="delete-btn text-gray-400 hover:text-red-600 hover:bg-red-50 p-1 mr-2 rounded transition-colors" title="Delete Student" style="background: none; width: auto; height: auto;">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                        </button>
+                        <button class="student-name-btn flex items-center p-2 flex-grow text-left hover:bg-gray-50 rounded">
+                            ${profilePicHtml}
+                            <span class="font-medium text-gray-700">${student.lastName}, ${student.firstName}</span>
+                            ${noteIndicator}
+                        </button>
+                    </div>
                 </td>
                 <td class="p-3 text-center">
                     <input type="checkbox" class="iep-checkbox h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" data-student-id="${studentId}" ${student.iep ? 'checked' : ''}>
@@ -366,7 +376,7 @@ export function renderFullGradebookUI() {
         <div id="content-instructions" class="tab-content hidden fade-in bg-white p-6 rounded-lg shadow-md">
             <h2 class="text-2xl font-semibold mb-6 text-gray-800">Welcome to Marksheet Pro!</h2>
             <div class="space-y-6">
-                <div>
+                 <div>
                     <h3 class="text-lg font-semibold text-primary mb-2">Getting Started: Your First Class</h3>
                     <ol class="list-decimal list-inside space-y-1 text-gray-700">
                         <li>Use the <strong>Semester 1 / Semester 2</strong> tabs to select a semester.</li>
@@ -381,22 +391,6 @@ export function renderFullGradebookUI() {
                         <li><strong>Units:</strong> Click <strong>"Edit Units"</strong> to set up your units for the term (e.g., "Unit 1: Algebra"). Make sure their term weights also total 100%.</li>
                         <li><strong>Students:</strong> Click <strong>"+ Add Student"</strong> to add students one-by-one. Use <strong>"Import Students"</strong> to copy and paste a list of names from a document, spreadsheet, or PDF.</li>
                         <li><strong>Assignments:</strong> First, select a unit from the <strong>"All Units"</strong> dropdown. Then, click <strong>"Manage Assignments"</strong> to add your assessments for that unit.</li>
-                    </ul>
-                </div>
-                <div>
-                    <h3 class="text-lg font-semibold text-primary mb-2">Daily Use</h3>
-                    <ul class="list-disc list-inside space-y-1 text-gray-700">
-                        <li><strong>Entering Grades:</strong> Click directly into any cell in the gradebook to type in a mark. Changes are saved automatically.</li>
-                        <li><strong>Student Profile:</strong> Click any student's name to edit their info, add IEP notes, or manage parent contacts.</li>
-                        <li><strong>Searching:</strong> Use the <strong>"Search students..."</strong> bar to quickly filter your student list.</li>
-                    </ul>
-                </div>
-                <div>
-                    <h3 class="text-lg font-semibold text-primary mb-2">Data & Account</h3>
-                    <ul class="list-disc list-inside space-y-1 text-gray-700">
-                        <li><strong>Backup:</strong> Use the <strong>"Backup"</strong> button in the header to download a JSON file of all your data.</li>
-                        <li><strong>Restore:</strong> Use the <strong>"Restore"</strong> button to upload a backup file and overwrite your current data.</li>
-                        <li><strong>My Account:</strong> Click <strong>"My Account"</strong> to update your name, school info, or change your password.</li>
                     </ul>
                 </div>
             </div>
@@ -428,12 +422,13 @@ export function renderFullGradebookUI() {
             
             <div id="category-weights-container" class="bg-white p-4 rounded-lg shadow-md"></div>
 
-        <div class="my-2 flex justify-between items-center">
-            <div class="flex items-center gap-2">
-                <div class="relative"><input type="text" id="student-search-input" placeholder="Search students..." class="py-2 px-4 w-full border border-gray-300 rounded-md shadow-sm transition-all focus:outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-200"></div>
-                <button id="addStudentBtn" class="bg-accent hover:bg-accent-dark text-white font-bold py-2 px-4 rounded-lg">+ Add Student</button>
-                <button id="attendanceBtn" class="bg-primary hover:bg-primary-dark text-white font-bold py-2 px-4 rounded-lg">Attendance</button>
+        <div class="my-2 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-2 w-full sm:w-auto">
+                <div class="relative flex-grow sm:flex-grow-0"><input type="text" id="student-search-input" placeholder="Search students..." class="py-2 px-4 w-full border border-gray-300 rounded-md shadow-sm transition-all focus:outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-200"></div>
+                <div id="class-stats-container" class="text-sm text-gray-500 font-medium flex items-center gap-3 px-2"></div>
 
+                <button id="addStudentBtn" class="bg-accent hover:bg-accent-dark text-white font-bold py-2 px-4 rounded-lg whitespace-nowrap">+ Add Student</button>
+                <button id="attendanceBtn" class="bg-primary hover:bg-primary-dark text-white font-bold py-2 px-4 rounded-lg">Attendance</button>
             </div>
 
             <div class="flex page-center gap-2">
@@ -450,6 +445,7 @@ export function renderFullGradebookUI() {
 }
 
 export function renderAccountPage(isSetupMode = false) {
+    // ... (No changes here)
     const appState = getAppState();
     if(!contentWrapper) return;
 
@@ -465,14 +461,11 @@ export function renderAccountPage(isSetupMode = false) {
 
     contentWrapper.innerHTML = `
         <div class="bg-white rounded-lg shadow-md p-8 max-w-2xl mx-auto fade-in">
-            
             ${isSetupMode
                 ? `<h2 class="text-2xl font-bold text-primary mb-2">Welcome to Marksheet Pro!</h2><p class="text-gray-600 mb-6">Please set up your profile to get started.</p>`
                 : `<h2 class="text-2xl font-bold text-gray-800 mb-6">My Account</h2>`
             }
-            
             <div id="account-feedback" class="hidden mb-4 p-3 rounded-md"></div>
-
             <div class="space-y-6">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div class="md:col-span-1"><label for="title-input" class="block text-sm font-medium text-gray-700">Title</label><input type="text" id="title-input" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" value="${currentTitle}" placeholder="e.g., Mr."></div>
@@ -481,12 +474,9 @@ export function renderAccountPage(isSetupMode = false) {
                 <div><label for="school-board-input" class="block text-sm font-medium text-gray-700">School Board</label><input type="text" id="school-board-input" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" value="${currentSchoolBoard}" placeholder="e.g., TCDSB"></div>
                 <div><label for="school-name-input" class="block text-sm font-medium text-gray-700">School Name</label><input type="text" id="school-name-input" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" value="${currentSchoolName}" placeholder="e.g., Maplewood High School"></div>
                 <div><label for="room-number-input" class="block text-sm font-medium text-gray-700">Room Number</label><input type="text" id="room-number-input" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" value="${currentRoomNumber}" placeholder="e.g., 204B"></div>
-                
                 <div><label for="birthday-input" class="block text-sm font-medium text-gray-700">Birthday</label><input type="date" id="birthday-input" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" value="${currentBirthday}"></div>
-                
                 <div><label for="new-password-input" class="block text-sm font-medium text-gray-700">New Password</label><input type="password" id="new-password-input" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="Leave blank to keep current password"></div>
             </div>
-
             <hr class="my-8">
             <div>
                 <h3 class="text-lg font-semibold text-gray-700 mb-4">Account Information</h3>
@@ -495,17 +485,15 @@ export function renderAccountPage(isSetupMode = false) {
                     <p><strong>Last Login:</strong> <span id="last-login">${lastLogin}</span></p>
                 </div>
             </div>
-
             <hr class="my-8">
             <div>
                 <h3 class="text-lg font-semibold text-red-700 mb-2">Danger Zone</h3>
                 <p class="text-sm text-gray-600 mb-4">Deleting your account is permanent and cannot be undone. All of your classes, students, and grade data will be lost forever.</p>
                 <button id="delete-account-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm">Delete My Account</button>
             </div>
-
             <div class="mt-8 flex justify-between items-center">
                 ${isSetupMode
-                    ? `<div></div>` // Empty div to keep save button on the right
+                    ? `<div></div>` 
                     : `<button id="back-to-app-btn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-sm">&larr; Back to Gradebook</button>`
                 }
                 <button id="save-profile-btn" class="bg-primary hover:bg-primary-dark text-white font-bold py-2 px-4 rounded-lg shadow-sm">Save Changes</button>
@@ -515,6 +503,7 @@ export function renderAccountPage(isSetupMode = false) {
 }
 
 export function renderAttendanceSheet(dateString) {
+    // ... (No changes here)
     const classData = getActiveClassData();
     if (!classData) return;
 
@@ -647,7 +636,7 @@ export async function renderStudentProfileModal(studentId) {
                 <div>
                     <label for="student-general-notes" class="block text-sm font-medium">General Notes</label>
                     <textarea id="student-general-notes" class="mt-1 block w-full h-24 px-3 py-2 border border-gray-300 rounded-md shadow-sm">${student.generalNotes || ''}</textarea>
-_                </div>
+                </div>
             </div>
         </div>
     `;
@@ -656,6 +645,8 @@ _                </div>
         title: 'Edit Student Profile',
         modalWidth: 'max-w-3xl',
         content: modalContent,
+        // Added Delete Button to Footer
+        footerContent: `<button id="modal-delete-student-btn" class="text-red-600 hover:text-red-800 font-medium text-sm px-3 py-2 border border-transparent hover:border-red-200 rounded transition-colors">Delete Student</button>`,
         confirmText: 'Save Changes',
         confirmClasses: 'bg-primary hover:bg-primary-dark',
         onConfirm: async (closeModal) => {
@@ -688,6 +679,15 @@ _                </div>
     });
 
     const modalElement = document.getElementById('custom-modal');
+
+    // Listener for the new Delete button in the modal
+    const modalDeleteBtn = document.getElementById('modal-delete-student-btn');
+    if (modalDeleteBtn) {
+        modalDeleteBtn.addEventListener('click', () => {
+            // Trigger the delete action (which opens a confirmation modal)
+            deleteStudent(student.id);
+        });
+    }
 
     modalElement.addEventListener('click', e => {
         if (e.target.id === 'upload-pic-btn') {
