@@ -564,29 +564,74 @@ function setupEventListeners() {
                 return; 
             }
 
+            //
             if (target.classList.contains('grade-input')) {
                 const studentId = target.dataset.studentId;
                 const assignmentId = target.dataset.assignmentId;
                 const category = target.dataset.cat;
-                const value = target.value.trim();
+                const rawValue = target.value.trim().toUpperCase(); // Normalize input
 
-                let numericValue;
-                if (value === '') { numericValue = null; }
-                else { numericValue = parseFloat(value); if (isNaN(numericValue)) { numericValue = null; } }
+                // 1. Logic to handle "M" or Numbers
+                let storageValue;
+                if (rawValue === '') { 
+                    storageValue = null; 
+                } else if (rawValue === 'M') { 
+                    storageValue = 'M'; 
+                } else { 
+                    storageValue = parseFloat(rawValue); 
+                    if (isNaN(storageValue)) { storageValue = null; } 
+                }
 
                 if (studentId && assignmentId && classData?.students?.[studentId]) {
                     if (!classData.students[studentId].grades) classData.students[studentId].grades = {};
                     if (!classData.students[studentId].grades[assignmentId]) classData.students[studentId].grades[assignmentId] = {};
-                    if (category) { classData.students[studentId].grades[assignmentId][category] = numericValue; }
-                    else { classData.students[studentId].grades[assignmentId].grade = numericValue; }
 
+                    // 2. Helper to update UI and State for a single cell
+                    const updateCell = (cat, val) => {
+                        // Update State
+                        if (cat) { classData.students[studentId].grades[assignmentId][cat] = val; }
+                        else { classData.students[studentId].grades[assignmentId].grade = val; }
+
+                        // Update UI (Find input by selector to handle "fill row" logic)
+                        const selector = cat 
+                            ? `.grade-input[data-student-id="${studentId}"][data-assignment-id="${assignmentId}"][data-cat="${cat}"]`
+                            : `.grade-input[data-student-id="${studentId}"][data-assignment-id="${assignmentId}"]`;
+                        
+                        const inputEl = document.querySelector(selector);
+                        if (inputEl) {
+                            if (inputEl.value.toUpperCase() !== (val === null ? '' : String(val))) {
+                                inputEl.value = val === null ? '' : val;
+                            }
+                            
+                            // 3. INSTANTLY toggle red class on parent TD
+                            const parentTd = inputEl.closest('td');
+                            if (parentTd) {
+                                if (val === 0 || val === 'M') {
+                                    parentTd.classList.add('missing-cell');
+                                } else {
+                                    parentTd.classList.remove('missing-cell');
+                                }
+                            }
+                        }
+                    };
+
+                    // 4. "Fill Whole Row" Logic: If M is entered, apply to all categories
+                    if (storageValue === 'M' && category) {
+                        ['k', 't', 'c', 'a'].forEach(c => updateCell(c, 'M'));
+                    } else {
+                        // Otherwise just update this single cell
+                        updateCell(category, storageValue);
+                    }
+
+                    // Validation Styling (Red border for invalid numbers)
                     const unit = Object.values(classData.units || {}).find(u => u.assignments?.[assignmentId]);
                     const assignment = unit?.assignments?.[assignmentId];
                     let maxScore = Infinity;
                     if (unit?.isFinal) { maxScore = assignment?.total ?? Infinity; }
                     else if (category) { maxScore = assignment?.categoryTotals?.[category] ?? Infinity; }
-                    const isValid = numericValue === null || (!isNaN(numericValue) && numericValue >= 0 && (maxScore === Infinity || numericValue <= maxScore));
-                    target.classList.toggle('grade-input-error', !isValid && value !== '');
+                    
+                    const isValid = storageValue === 'M' || storageValue === null || (!isNaN(storageValue) && storageValue >= 0 && (maxScore === Infinity || storageValue <= maxScore));
+                    target.classList.toggle('grade-input-error', !isValid && rawValue !== '');
 
                     recalculateAndRenderAverages(); 
                     triggerAutoSave();
