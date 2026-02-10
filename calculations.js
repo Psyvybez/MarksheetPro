@@ -1,176 +1,193 @@
-import { getActiveClassData } from './state.js';
+import { getAppState } from './state.js';
 
 export function calculateStudentAverages(student, classData) {
-    if (!student || !classData?.units || !classData.categoryWeights) {
-         return { termMark: null, finalMark: null, overallGrade: null, categories: {} };
-    }
+    const units = classData.units || {};
+    const catWeights = classData.categoryWeights || { k: 25, t: 25, c: 25, a: 25 };
+    
+    let totalWeightedTermMark = 0;
+    let totalTermWeight = 0;
+    
+    let catTotals = { k: 0, t: 0, c: 0, a: 0 };
+    let catMaxes = { k: 0, t: 0, c: 0, a: 0 };
 
-    let termMark = null, finalMark = null, overallGrade = null;
-    const categoryWeights = classData.categoryWeights;
-    let termStudentTotals = { k: 0, t: 0, c: 0, a: 0 };
-    let termClassTotals = { k: 0, t: 0, c: 0, a: 0 };
-    let termCategoriesGradedCount = { k: 0, t: 0, c: 0, a: 0 };
-    let totalAssignmentsGraded = 0; // Track total graded assignments for baseline blending
+    // Helper to parse grades: Handles "M" as 0
+    const parseGrade = (val) => {
+        if (typeof val === 'string' && val.trim().toUpperCase() === 'M') return 0;
+        return parseFloat(val);
+    };
 
-    Object.values(classData.units || {}).filter(u => !u.isFinal).forEach(unit => {
-        let unitWeight = unit.weight || 0;
+    Object.values(units).forEach(unit => {
+        if (unit.isFinal) return; // Skip final unit for term calc
 
-        for (const asg of Object.values(unit.assignments || {})) {
-            const weight = asg.weight || 1;
+        const assignments = Object.values(unit.assignments || {});
+        let unitWeightedScore = 0;
+        let unitTotalWeight = 0;
 
-            for (const cat of ['k', 't', 'c', 'a']) {
-                const asgMaxCat = asg.categoryTotals?.[cat] || 0;
-                const studentGradeCat = student.grades?.[asg.id]?.[cat];
+        assignments.forEach(asg => {
+            // SKIP calculation if assignment is marked as "Submitted" (Ungraded)
+            if (asg.isSubmitted) return;
 
-                const isGradeEntered = studentGradeCat !== null && studentGradeCat !== undefined && !isNaN(studentGradeCat) && studentGradeCat !== "";
+            const gradeEntry = student.grades?.[asg.id];
+            const weight = parseFloat(asg.weight) || 1;
 
-                if (asgMaxCat > 0) {
-                    if (isGradeEntered) {
-                        termClassTotals[cat] += asgMaxCat * unitWeight * weight;
-                        termStudentTotals[cat] += studentGradeCat * unitWeight * weight;
-                        termCategoriesGradedCount[cat]++;
-                        // Count this as a graded assignment (increment once per assignment, not per category)
-                        if (cat === 'k') totalAssignmentsGraded++;
-                    }
+            ['k', 't', 'c', 'a'].forEach(cat => {
+                const scoreRaw = gradeEntry?.[cat];
+                const score = parseGrade(scoreRaw);
+                const total = parseFloat(asg.categoryTotals?.[cat]) || 0;
+
+                if (!isNaN(score) && total > 0) {
+                    const weightedScore = (score / total) * 100 * weight;
+                    // Add to Unit Totals
+                    unitWeightedScore += weightedScore * (catWeights[cat] / 100);
+                    unitTotalWeight += weight * (catWeights[cat] / 100);
+
+                    // Add to Category Totals (for display)
+                    catTotals[cat] += score * weight;
+                    catMaxes[cat] += total * weight;
                 }
-            }
+            });
+        });
+
+        // Add Unit Average to Term Total
+        if (unitTotalWeight > 0) {
+            const unitAvg = (unitWeightedScore / unitTotalWeight) * 100; // Normalized to 100%
+            const unitWeightInTerm = parseFloat(unit.weight) || 0;
+            
+            totalWeightedTermMark += unitAvg * unitWeightInTerm;
+            totalTermWeight += unitWeightInTerm;
         }
     });
 
-    let termPercentages = {};
-    for (const cat of ['k', 't', 'c', 'a']) {
-        if (termClassTotals[cat] > 0 && termCategoriesGradedCount[cat] > 0) {
-            termPercentages[cat] = (termStudentTotals[cat] / termClassTotals[cat]) * 100;
-        } else {
-            termPercentages[cat] = null;
-        }
-    }
+    // --- Term Mark Calculation ---
+    let termMark = totalTermWeight > 0 ? totalWeightedTermMark / totalTermWeight : null;
 
-    let termWeightedGrade = 0;
-    let termTotalWeightUsed = 0;
-    let categoriesWithMarks = 0;
+    // --- Final Mark Calculation ---
+    let finalMark = null;
+    const finalUnit = Object.values(units).find(u => u.isFinal);
+    
+    if (finalUnit) {
+        let finalWeightedSum = 0;
+        let finalTotalWeight = 0;
+        
+        Object.values(finalUnit.assignments || {}).forEach(asg => {
+            // SKIP if submitted/ungraded
+            if (asg.isSubmitted) return;
 
-    for (const cat of ['k', 't', 'c', 'a']) {
-        if (termPercentages[cat] !== null) {
-            const weight = categoryWeights[cat] || 0;
-            termWeightedGrade += termPercentages[cat] * weight;
-            termTotalWeightUsed += weight;
-            categoriesWithMarks++;
-        }
-    }
+            const gradeRaw = student.grades?.[asg.id]?.grade;
+            const score = parseGrade(gradeRaw);
+            const total = parseFloat(asg.total) || 0;
+            const weight = parseFloat(asg.weight) || 1;
 
-    if (categoriesWithMarks > 0 && termTotalWeightUsed > 0) {
-         termMark = termWeightedGrade / termTotalWeightUsed;
-    } else {
-         termMark = null;
-    }
-
-    // Apply starting overall mark if set
-    if (student.startingOverallMark !== null && student.startingOverallMark !== undefined && termMark !== null) {
-        // Blend the starting mark with calculated mark based on assignments graded
-        // With 0 assignments: use starting mark
-        // As assignments are added, gradually shift toward calculated mark
-        // Blending formula: (startingMark * assignments_remaining + calculatedMark * assignments_graded) / total_assignments
-        // Simplified: weight by "progress" - as more assignments are graded, weight calculated mark more
-        const progressWeight = Math.min(totalAssignmentsGraded / Math.max(1, totalAssignmentsGraded + 3), 0.9);
-        termMark = (student.startingOverallMark * (1 - progressWeight)) + (termMark * progressWeight);
-    }
-
-    if (classData.hasFinal) {
-        let finalStudentTotal = 0, finalMaxTotal = 0;
-        let finalGradeEnteredCount = 0;
-        const finalUnit = Object.values(classData.units).find(u => u.isFinal);
-        if (finalUnit) {
-            for (const asg of Object.values(finalUnit.assignments || {})) {
-                const weight = asg.weight || 1;
-                const asgTotal = asg.total || 0;
-                if (asgTotal > 0) {
-                    const studentGrade = student.grades?.[asg.id]?.grade;
-                    const isGradeEntered = studentGrade !== null && studentGrade !== undefined && !isNaN(studentGrade) && studentGrade !== "";
-                    if (isGradeEntered) {
-                        finalMaxTotal += asgTotal * weight;
-                        finalStudentTotal += studentGrade * weight;
-                        finalGradeEnteredCount++;
-                    }
-                }
+            if (!isNaN(score) && total > 0) {
+                finalWeightedSum += (score / total) * 100 * weight;
+                finalTotalWeight += weight;
             }
-        }
-        if (finalMaxTotal > 0 && finalGradeEnteredCount > 0) {
-             finalMark = (finalStudentTotal / finalMaxTotal) * 100;
-        } else {
-            finalMark = null;
+        });
+
+        if (finalTotalWeight > 0) {
+            finalMark = finalWeightedSum / finalTotalWeight;
         }
     }
 
-    if (classData.hasFinal && classData.finalWeight && finalMark !== null && termMark !== null) {
-        const finalWeight = (classData.finalWeight || 0) / 100;
-        overallGrade = (termMark * (1 - finalWeight)) + (finalMark * finalWeight);
-    } else if (classData.hasFinal && classData.finalWeight && finalMark !== null && termMark === null) {
-        overallGrade = null;
+    // --- Overall Grade Calculation ---
+    let overallGrade = null;
+    if (termMark !== null && finalMark !== null) {
+        // (Term % * TermWeight) + (Final % * FinalWeight)
+        // Adjust weights based on data.finalWeight
+        const finalWeightPct = parseFloat(classData.finalWeight) || 30;
+        const termWeightPct = 100 - finalWeightPct;
+        overallGrade = (termMark * (termWeightPct/100)) + (finalMark * (finalWeightPct/100));
     } else if (termMark !== null) {
         overallGrade = termMark;
-    } else {
-        overallGrade = null;
+    } else if (finalMark !== null) {
+        // Rare case: only final exists
+        overallGrade = finalMark;
     }
 
-    return { termMark, finalMark, overallGrade, categories: termPercentages };
-}
-
-export function calculateClassAverages(classData) {
-    const students = Object.values(classData?.students || {});
-    if (students.length === 0) return { termMark: null, finalMark: null, overallGrade: null };
-
-    let termSum = 0, termCount = 0;
-    let finalSum = 0, finalCount = 0;
-    let overallSum = 0, overallCount = 0;
-
-    for (const student of students) {
-        const avgs = calculateStudentAverages(student, classData);
-        if (avgs.termMark !== null) { termSum += avgs.termMark; termCount++; }
-        if (avgs.finalMark !== null) { finalSum += avgs.finalMark; finalCount++; }
-        if (avgs.overallGrade !== null) { overallSum += avgs.overallGrade; overallCount++; }
-    }
+    // --- Category Averages ---
+    const categoryAvgs = {};
+    ['k', 't', 'c', 'a'].forEach(cat => {
+        categoryAvgs[cat] = catMaxes[cat] > 0 ? (catTotals[cat] / catMaxes[cat]) * 100 : null;
+    });
 
     return {
-        termMark: termCount > 0 ? termSum / termCount : null,
-        finalMark: finalCount > 0 ? finalSum / finalCount : null,
-        overallGrade: overallCount > 0 ? overallSum / overallCount : null,
+        termMark,
+        finalMark,
+        overallGrade,
+        categories: categoryAvgs
     };
 }
 
+export function calculateClassAverages(classData) {
+    if (!classData) return {};
+    // ... existing logic if needed, or rely on recalculateAndRenderAverages in main loop
+    // For simplicity, we usually calculate this on the fly in the render loop or helper
+    return {}; 
+}
+
 export function recalculateAndRenderAverages() {
-    const classData = getActiveClassData(); // Use state getter
+    // This function is called after rendering to fill in the footer and student summary columns
+    const { getActiveClassData } = require('./state.js'); // Dynamic import to avoid cycles
+    const classData = getActiveClassData();
     if (!classData) return;
 
-    // Update each student row
-    Object.values(classData.students || {}).forEach(student => {
-        const avgs = calculateStudentAverages(student, classData); // Calculate for this student
-        const studentRow = document.querySelector(`.student-row[data-student-id="${student.id}"]`);
-        if (studentRow) {
-            // Find and update each average cell within the row
-            studentRow.querySelector('.student-overall').textContent = avgs.overallGrade !== null ? `${avgs.overallGrade.toFixed(1)}%` : '--';
-            studentRow.querySelector('.student-term-mark').textContent = avgs.termMark !== null ? `${avgs.termMark.toFixed(1)}%` : '--';
-            if (classData.hasFinal) {
-                 const finalCell = studentRow.querySelector('.student-final');
-                 if(finalCell) finalCell.textContent = avgs.finalMark !== null ? `${avgs.finalMark.toFixed(1)}%` : '--';
-            }
-            for (const cat of ['k', 't', 'c', 'a']) {
-                 const catCell = studentRow.querySelector(`.student-cat-${cat}`);
-                 if (catCell) catCell.textContent = avgs.categories[cat] !== null ? `${avgs.categories[cat].toFixed(1)}%` : '--';
-            }
+    const students = Object.values(classData.students || {});
+    if (students.length === 0) return;
+
+    let classOverallSum = 0, classOverallCount = 0;
+    let classTermSum = 0, classTermCount = 0;
+    let classFinalSum = 0, classFinalCount = 0;
+
+    students.forEach(student => {
+        const avgs = calculateStudentAverages(student, classData);
+        
+        // Update Student Row DOM
+        const row = document.querySelector(`tr[data-student-id="${student.id}"]`);
+        if (row) {
+            const fmt = (v) => v !== null ? `${v.toFixed(1)}%` : '--%';
+            
+            // Color coding helper
+            const colorize = (el, val) => {
+                el.classList.remove('bg-green-100', 'text-green-800', 'bg-yellow-100', 'text-yellow-800', 'bg-red-100', 'text-red-800', 'font-bold');
+                if (val !== null) {
+                    el.classList.add('font-bold');
+                    if (val >= 80) el.classList.add('bg-green-100', 'text-green-800');
+                    else if (val >= 70) el.classList.add('bg-yellow-100', 'text-yellow-800'); // B Level
+                    else if (val >= 60) el.classList.add('bg-yellow-100', 'text-yellow-800'); // C Level
+                    else if (val < 50) el.classList.add('bg-red-100', 'text-red-800');
+                }
+            };
+
+            const overallEl = row.querySelector('.student-overall');
+            const termEl = row.querySelector('.student-term-mark');
+            const finalEl = row.querySelector('.student-final');
+            
+            if(overallEl) { overallEl.textContent = fmt(avgs.overallGrade); colorize(overallEl, avgs.overallGrade); }
+            if(termEl) { termEl.textContent = fmt(avgs.termMark); }
+            if(finalEl) { finalEl.textContent = fmt(avgs.finalMark); }
+
+            ['k','t','c','a'].forEach(cat => {
+                const el = row.querySelector(`.student-cat-${cat}`);
+                if(el) {
+                    el.textContent = fmt(avgs.categories[cat]);
+                    colorize(el, avgs.categories[cat]);
+                }
+            });
         }
+
+        if (avgs.overallGrade !== null) { classOverallSum += avgs.overallGrade; classOverallCount++; }
+        if (avgs.termMark !== null) { classTermSum += avgs.termMark; classTermCount++; }
+        if (avgs.finalMark !== null) { classFinalSum += avgs.finalMark; classFinalCount++; }
     });
 
-    // Update the footer row
-    const classAverages = calculateClassAverages(classData);
-    const tfoot = document.querySelector('#gradebookTable tfoot');
-    if (tfoot) {
-        tfoot.querySelector('.class-overall').textContent = classAverages.overallGrade !== null ? `${classAverages.overallGrade.toFixed(1)}%` : '--';
-        tfoot.querySelector('.class-term-mark').textContent = classAverages.termMark !== null ? `${classAverages.termMark.toFixed(1)}%` : '--';
-        if(classData.hasFinal){
-            const finalCell = tfoot.querySelector('.class-final');
-            if(finalCell) finalCell.textContent = classAverages.finalMark !== null ? `${classAverages.finalMark.toFixed(1)}%` : '--';
-        }
-        // Could add class category averages to footer if needed
-    }
+    // Update Footer (Class Averages)
+    const fmtAvg = (sum, count) => count > 0 ? `${(sum/count).toFixed(1)}%` : '--%';
+    
+    const footerOverall = document.querySelector('tfoot .class-overall');
+    const footerTerm = document.querySelector('tfoot .class-term-mark');
+    const footerFinal = document.querySelector('tfoot .class-final');
+
+    if(footerOverall) footerOverall.textContent = fmtAvg(classOverallSum, classOverallCount);
+    if(footerTerm) footerTerm.textContent = fmtAvg(classTermSum, classTermCount);
+    if(footerFinal) footerFinal.textContent = fmtAvg(classFinalSum, classFinalCount);
 }

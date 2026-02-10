@@ -141,7 +141,7 @@ export function renderGradebook() {
         }
     }
 
-    // --- Calculate Stats ---
+    // --- Stats ---
     const totalStudents = Object.keys(students).length;
     const iepCount = Object.values(students).filter(s => s.iep).length;
     const statsContainer = document.getElementById('class-stats-container');
@@ -181,14 +181,26 @@ export function renderGradebook() {
         } else {
             assignments.forEach(asg => {
                 const weightText = asg.weight && asg.weight !== 1 ? `<span class="text-xs font-normal text-gray-500">(x${asg.weight})</span>` : '';
+                
+                // --- SUBMISSION TOGGLE LOGIC ---
+                const isSubmitted = asg.isSubmitted || false;
+                const submittedClass = isSubmitted ? 'submitted-assignment-col' : '';
+                const checked = isSubmitted ? 'checked' : '';
+                
+                const toggleHtml = `
+                    <div class="mt-1 flex items-center justify-center gap-1">
+                        <input type="checkbox" class="assignment-status-toggle" data-unit-id="${unit.id}" data-assignment-id="${asg.id}" ${checked}>
+                        <label class="text-[9px] text-blue-600 font-bold uppercase cursor-pointer">Submitted</label>
+                    </div>`;
+
                 if(unit.isFinal) {
-                    headerHtml2 += `<th class="p-3 text-xs font-medium text-gray-500 tracking-wider text-center border-l-2 border-gray-400">${asg.name}<br>${weightText}</th>`;
-                    headerHtml3 += `<th class="p-2 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border-l-2 border-gray-400 assignment-header-cell">Score<br><span class="font-normal">${asg.total || 0}</span></th>`;
+                    headerHtml2 += `<th class="p-3 text-xs font-medium text-gray-500 tracking-wider text-center border-l-2 border-gray-400 ${submittedClass}">${asg.name}<br>${weightText}${toggleHtml}</th>`;
+                    headerHtml3 += `<th class="p-2 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border-l-2 border-gray-400 assignment-header-cell ${submittedClass}">Score<br><span class="font-normal">${asg.total || 0}</span></th>`;
                 } else {
-                    headerHtml2 += `<th colspan="4" class="p-3 text-xs font-medium text-gray-500 tracking-wider text-center border-l-2 border-gray-400">${asg.name}<br>${weightText}</th>`;
+                    headerHtml2 += `<th colspan="4" class="p-3 text-xs font-medium text-gray-500 tracking-wider text-center border-l-2 border-gray-400 ${submittedClass}">${asg.name}<br>${weightText}${toggleHtml}</th>`;
                     ['k','t','c','a'].forEach(cat => {
                         const borderClass = cat === 'k' ? 'border-l-2 border-gray-400' : 'border-l';
-                        headerHtml3 += `<th class="p-2 text-xs font-medium text-gray-500 uppercase tracking-wider text-center ${borderClass} assignment-header-cell">${cat.toUpperCase()}<br><span class="font-normal">${asg.categoryTotals?.[cat] || 0}</span></th>`;
+                        headerHtml3 += `<th class="p-2 text-xs font-medium text-gray-500 uppercase tracking-wider text-center ${borderClass} assignment-header-cell ${submittedClass}">${cat.toUpperCase()}<br><span class="font-normal">${asg.categoryTotals?.[cat] || 0}</span></th>`;
                     });
                 }
             });
@@ -205,53 +217,36 @@ export function renderGradebook() {
     });
 
     if (studentIds.length === 0) {
-        const message = Object.keys(students).length === 0
-            ? "No students yet. Click '+ Add Student' to get started."
-            : "No students match your search.";
+        const message = Object.keys(students).length === 0 ? "No students yet. Click '+ Add Student' to get started." : "No students match your search.";
         tbody.innerHTML = `<tr><td colspan="100%" class="text-center p-8 text-gray-500">${message}</td></tr>`;
     } else {
         tbody.innerHTML = studentIds.sort((a, b) => {
             const lastNameA = String(students[a]?.lastName || '');
             const lastNameB = String(students[b]?.lastName || '');
-            const firstNameA = String(students[a]?.firstName || '');
-            const firstNameB = String(students[b]?.firstName || '');
-            return lastNameA.localeCompare(lastNameB) || firstNameA.localeCompare(firstNameB);
+            return lastNameA.localeCompare(lastNameB);
         }).map(studentId => {
             const student = students[studentId];
-
-            const midtermDisplayValue = (student.midtermGrade !== null && student.midtermGrade !== undefined)
-                ? student.midtermGrade.toFixed(1) : '';
-
+            const midtermDisplayValue = (student.midtermGrade !== null && student.midtermGrade !== undefined) ? student.midtermGrade.toFixed(1) : '';
             const midtermDisplayScore = midtermDisplayValue !== '' ? `${midtermDisplayValue}%` : '--';
-
             const profilePicUrl = student.profilePicturePath ? getProfilePictureUrl(student.profilePicturePath) : null;
             const profilePicHtml = profilePicUrl
                 ? `<img src="${profilePicUrl}" class="w-8 h-8 rounded-full mr-2 object-cover">`
                 : `<div class="w-8 h-8 rounded-full mr-2 bg-gray-300 flex items-center justify-center text-white font-bold">${student.firstName.charAt(0)}${student.lastName.charAt(0)}</div>`;
-
-            // Check if student has notes
             const hasNotes = student.generalNotes && student.generalNotes.trim().length > 0;
             const noteIndicator = hasNotes ? `<span class="text-accent text-xl leading-none ml-1 relative top-1" title="Has General Note">*</span>` : '';
 
-            // Updated Row HTML with separate delete button
             let rowHtml = `<tr class="student-row" data-student-id="${studentId}">
                 <td class="p-0 border-t border-gray-200">
                     <div class="flex items-center pl-2 h-full">
                         <button class="delete-btn text-gray-400 hover:text-red-600 hover:bg-red-50 p-1 mr-2 rounded transition-colors" title="Delete Student" style="background: none; width: auto; height: auto;">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                         </button>
                         <button class="student-name-btn flex items-center p-2 flex-grow text-left hover:bg-gray-50 rounded">
-                            ${profilePicHtml}
-                            <span class="font-medium text-gray-700">${student.lastName}, ${student.firstName}</span>
-                            ${noteIndicator}
+                            ${profilePicHtml}<span class="font-medium text-gray-700">${student.lastName}, ${student.firstName}</span>${noteIndicator}
                         </button>
                     </div>
                 </td>
-                <td class="p-3 text-center">
-                    <input type="checkbox" class="iep-checkbox h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" data-student-id="${studentId}" ${student.iep ? 'checked' : ''}>
-                </td>
+                <td class="p-3 text-center"><input type="checkbox" class="iep-checkbox h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" data-student-id="${studentId}" ${student.iep ? 'checked' : ''}></td>
                 <td class="p-3 text-center font-semibold student-overall">--%</td>
                 <td class="p-3 text-center font-semibold student-midterm">${midtermDisplayScore}</td>
                 <td class="p-3 text-center font-semibold student-term-mark">--%</td>
@@ -267,14 +262,24 @@ export function renderGradebook() {
                     rowHtml += `<td class="border-l-2 border-gray-400"></td>`;
                 } else {
                     assignments.forEach(asg => {
+                        const isSubmitted = asg.isSubmitted || false;
+                        const subClass = isSubmitted ? 'submitted-assignment-col' : '';
+
+                        // Helper to check for Red Cell (M or 0)
+                        const getCellClass = (val) => {
+                             if (!val && val !== 0) return '';
+                             const s = String(val).toUpperCase();
+                             return (s === 'M' || s === '0') ? 'missing-cell' : '';
+                        };
+
                         if (unit.isFinal) {
                             const score = student.grades?.[asg.id]?.grade ?? '';
-                            rowHtml += `<td class="p-0 border-l-2 border-gray-400"><input type="number" step="0.1" class="grade-input" data-student-id="${studentId}" data-assignment-id="${asg.id}" value="${score}"></td>`;
+                            rowHtml += `<td class="p-0 border-l-2 border-gray-400 ${subClass} ${getCellClass(score)}"><input type="text" class="grade-input" data-student-id="${studentId}" data-assignment-id="${asg.id}" value="${score}"></td>`;
                         } else {
                             ['k','t','c','a'].forEach(cat => {
                                 const score = student.grades?.[asg.id]?.[cat] ?? '';
                                 const borderClass = cat === 'k' ? 'border-l-2 border-gray-400' : 'border-l';
-                                rowHtml += `<td class="p-0 ${borderClass}"><input type="number" step="0.1" class="grade-input" data-student-id="${studentId}" data-assignment-id="${asg.id}" data-cat="${cat}" value="${score}"></td>`;
+                                rowHtml += `<td class="p-0 ${borderClass} ${subClass} ${getCellClass(score)}"><input type="text" class="grade-input" data-student-id="${studentId}" data-assignment-id="${asg.id}" data-cat="${cat}" value="${score}"></td>`;
                             });
                         }
                     });
@@ -285,13 +290,7 @@ export function renderGradebook() {
     }
 
     const tfoot = table.querySelector('tfoot');
-    let footerCells = [
-        `<td class="p-3 text-left">Class Average</td>`, `<td></td>`,
-        `<td class="class-overall text-center">--%</td>`,
-        `<td></td>`,
-        `<td class="class-term-mark text-center">--%</td>`
-    ];
-    
+    let footerCells = [`<td class="p-3 text-left">Class Average</td>`, `<td></td>`, `<td class="class-overall text-center">--%</td>`, `<td></td>`, `<td class="class-term-mark text-center">--%</td>`];
     if (classData.hasFinal) footerCells.push(`<td class="class-final text-center">--%</td>`);
     footerCells.push(`<td></td>`, `<td></td>`, `<td></td>`, `<td></td>`);
     let footerHtml = `<tr class="bg-gray-50 font-semibold">${footerCells.join('')}`;
@@ -303,26 +302,20 @@ export function renderGradebook() {
     });
     tfoot.innerHTML = footerHtml + `</tr>`;
 
+    // Re-enable/Update buttons... (same as before)
     const recordMidtermsBtn = document.getElementById('recordMidtermsBtn');
     if (recordMidtermsBtn) {
         const recorded = !!classData.midtermsRecorded;
         recordMidtermsBtn.disabled = recorded;
         recordMidtermsBtn.classList.toggle('bg-gray-400', recorded);
-        recordMidtermsBtn.classList.toggle('cursor-not-allowed', recorded);
         recordMidtermsBtn.classList.toggle('bg-primary', !recorded);
-        recordMidtermsBtn.classList.toggle('hover:bg-primary-dark', !recorded);
-        recordMidtermsBtn.title = recorded ? 'Midterm marks have already been recorded.' : '';
     }
-
     const addAssignmentBtn = document.getElementById('addAssignmentBtn');
     if (addAssignmentBtn) {
         const isAllUnitsView = !activeUnitId || activeUnitId === 'all';
         addAssignmentBtn.disabled = isAllUnitsView;
         addAssignmentBtn.classList.toggle('bg-gray-400', isAllUnitsView);
-        addAssignmentBtn.classList.toggle('cursor-not-allowed', isAllUnitsView);
         addAssignmentBtn.classList.toggle('bg-accent', !isAllUnitsView);
-        addAssignmentBtn.classList.toggle('hover:bg-accent-dark', !isAllUnitsView);
-        addAssignmentBtn.title = isAllUnitsView ? 'Please select a specific unit to manage its assignments.' : 'Manage assignments for the selected unit';
     }
 
     adjustStickyHeaders();

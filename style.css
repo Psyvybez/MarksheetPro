@@ -157,3 +157,28 @@ body.has-final #gradebookTable th:nth-child(6), body.has-final #gradebookTable t
     z-index: 94;
     pointer-events: auto !important;
 }
+/* --- SUBMISSION & MISSING LOGIC STYLES --- */
+
+/* Missing or Zero Grade (Red) */
+.missing-cell {
+    background-color: #fee2e2 !important; /* Red background */
+}
+.missing-cell input {
+    color: #b91c1c; /* Dark red text */
+    font-weight: bold;
+}
+
+/* Submitted / Ungraded Assignment (Blue) */
+.submitted-assignment-col {
+    background-color: #e0f2fe !important; /* Light Blue background */
+}
+.submitted-assignment-col input {
+    color: #0369a1; /* Dark Blue text */
+}
+
+/* Toggle Checkbox in Header */
+.assignment-status-toggle {
+    cursor: pointer;
+    width: 0.8rem; 
+    height: 0.8rem;
+}

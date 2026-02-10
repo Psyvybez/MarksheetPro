@@ -724,6 +724,27 @@ function setupEventListeners() {
             }, { offset: Number.NEGATIVE_INFINITY }).element;
         }
     }
+
+
+    // LISTENER: Handle "Submitted" (Ungraded) Toggle in Header
+    document.addEventListener('change', (e) => {
+        if (e.target.classList.contains('assignment-status-toggle')) {
+            const unitId = e.target.dataset.unitId;
+            const asgId = e.target.dataset.assignmentId;
+            const isChecked = e.target.checked;
+            const appState = getAppState();
+            const activeClassId = appState.gradebook_data.activeClassId;
+            
+            // Update State
+            if (appState.gradebook_data.semesters[appState.gradebook_data.activeSemester].classes[activeClassId].units[unitId].assignments[asgId]) {
+                appState.gradebook_data.semesters[appState.gradebook_data.activeSemester].classes[activeClassId].units[unitId].assignments[asgId].isSubmitted = isChecked;
+                
+                // Save & Re-render
+                triggerAutoSave();
+                renderGradebook();
+            }
+        }
+    });
     
     document.getElementById('sign-out-btn')?.addEventListener('click', () => signOut(supabaseClient));
     document.getElementById('account-management-btn')?.addEventListener('click', () => renderAccountPage(false));
