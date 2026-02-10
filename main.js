@@ -400,7 +400,6 @@ function setupEventListeners() {
     const contentWrapper = document.getElementById('content-wrapper');
     const authContainer = document.getElementById('auth-container');
 
-    // ... (Auth Listeners remain the same) ...
     if (authContainer) {
         document.getElementById('auth-submit-btn')?.addEventListener('click', (e) => handleAuthSubmit(e, supabaseClient));
         document.getElementById('password')?.addEventListener('keydown', (e) => {
@@ -429,6 +428,65 @@ function setupEventListeners() {
             }
         });
     }
+
+    // Inside setupEventListeners()
+
+    // 1. Forgot Password Toggle
+    document.getElementById('forgot-password-link')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        const authTitle = document.getElementById('auth-title');
+        const authSubmitBtn = document.getElementById('auth-submit-btn');
+        const passwordInput = document.getElementById('password');
+        const forgotLink = document.getElementById('forgot-password-link');
+        const toggleLink = document.getElementById('auth-toggle-link');
+
+        // Toggle UI to "Reset Mode"
+        authTitle.textContent = 'Reset your password';
+        authSubmitBtn.textContent = 'Send Reset Link';
+        passwordInput.classList.add('hidden'); // Hide password field
+        forgotLink.classList.add('hidden');    // Hide the link itself
+        toggleLink.innerHTML = '<a href="#" class="font-medium text-blue-600">Back to Sign In</a>';
+        
+        // Handle "Back to Sign In" click
+        toggleLink.onclick = () => location.reload(); // Simple way to reset form
+    });
+
+    // 2. Resend Verification Email
+    document.getElementById('resend-verification-btn')?.addEventListener('click', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('verify-email-address').textContent;
+        if (!email) return;
+        
+        const btn = e.target;
+        btn.textContent = "Sending...";
+        btn.disabled = true;
+
+        const { error } = await supabaseClient.auth.resend({
+            type: 'signup',
+            email: email
+        });
+
+        if (error) alert("Error sending email: " + error.message);
+        else alert("Verification email resent!");
+
+        btn.textContent = "Click to resend";
+        btn.disabled = false;
+    });
+
+    // 3. Update Password (Final Step)
+    document.getElementById('update-password-btn')?.addEventListener('click', async () => {
+        const newPassword = document.getElementById('new-password').value;
+        if (!newPassword) return alert("Please enter a password");
+
+        const { error } = await supabaseClient.auth.updateUser({ password: newPassword });
+
+        if (error) {
+            alert("Error updating password: " + error.message);
+        } else {
+            alert("Password updated successfully!");
+            window.location.href = "/"; // Refresh to clear URL params and log in
+        }
+    });
 
     document.addEventListener('keydown', (e) => {
         const modal = document.getElementById('custom-modal');

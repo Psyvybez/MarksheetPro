@@ -64,45 +64,56 @@ export function setupAuthListener(supabaseClient, wasLocalDataLoaded) {
                     loadingOverlay?.classList.add('hidden');
                 }
             }
+            // Inside setupAuthListener callback
+            if (event === 'PASSWORD_RECOVERY') {
+                // User clicked the "Reset Password" link in their email
+                document.getElementById('auth-container').classList.add('hidden');
+                document.getElementById('update-password-container').classList.remove('hidden');
+            }
         }
+        
         // --- END NEW LOGIC ---
     });
 }
 
 //
+// Update handleAuthSubmit
 export async function handleAuthSubmit(e, supabaseClient) {
     e.preventDefault();
     if (!supabaseClient) return;
 
-    hasHandledInitialLoad = false; 
-
     const email = document.getElementById('email-address').value;
     const password = document.getElementById('password').value;
+    const authSubmitBtn = document.getElementById('auth-submit-btn');
     const authError = document.getElementById('auth-error');
     const loadingOverlay = document.getElementById('loading-overlay');
-    const authSubmitBtn = document.getElementById('auth-submit-btn');
 
     if(authError) authError.classList.add('hidden');
     loadingOverlay.classList.remove('hidden');
-   
+
     try {
-        let isLoginMode = authSubmitBtn.textContent === 'Sign in';
-        
-        if (isLoginMode) {
-            // LOGIN LOGIC
+        const mode = authSubmitBtn.textContent; // "Sign in", "Create account", or "Send Reset Link"
+
+        if (mode === 'Send Reset Link') {
+            const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+                redirectTo: window.location.origin, // Important: Redirects back to your app
+            });
+            if (error) throw error;
+            alert('Password reset link sent! Check your email.');
+            // Optional: Switch back to Sign In mode here
+        } 
+        else if (mode === 'Sign in') {
             const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
             if (error) throw error;
-        } else {
-            // SIGN UP LOGIC
+        } 
+        else {
+            // Sign Up Logic
             const { data, error } = await supabaseClient.auth.signUp({ email, password });
             if (error) throw error;
-
-            // If session is null, email confirmation is required
             if (data.user && !data.session) {
                 document.getElementById('auth-container').classList.add('hidden');
                 document.getElementById('verify-email-container').classList.remove('hidden');
                 document.getElementById('verify-email-address').textContent = email;
-                return; // Stop here, don't auto-load app
             }
         }
     } catch (error) {

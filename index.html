@@ -47,6 +47,11 @@
                     <input id="email-address" name="email" type="email" autocomplete="email" required class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="Email address">
                     <input id="password" name="password" type="password" autocomplete="current-password" required class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="Password">
                 </div>
+                <div class="flex items-center justify-end my-2">
+    <button id="forgot-password-link" class="text-sm font-medium text-blue-600 hover:text-blue-500">
+        Forgot your password?
+    </button>
+</div>
                 <div><button id="auth-submit-btn" class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary-dark">Sign in</button></div>
                 <p class="mt-2 text-center text-sm text-gray-600"><a href="#" id="auth-toggle-link" class="font-medium text-accent hover:text-accent-dark">Or create a new account</a></p>
             </div>
@@ -67,6 +72,12 @@
             <p class="text-sm text-gray-500">
                 Click the link in the email to automatically sign in.
             </p>
+            <p class="mt-4 text-xs text-gray-500">
+    Didn't receive it? 
+    <button id="resend-verification-btn" class="text-blue-600 hover:text-blue-800 font-bold underline">
+        Click to resend
+    </button>
+</p>
             <div class="mt-6">
                 <button id="back-to-login-btn" class="text-sm font-medium text-blue-600 hover:text-blue-500">
                     &larr; Back to Sign In
@@ -91,8 +102,20 @@
         </header>
         <div id="content-wrapper"></div>
     </div>
+    <div id="update-password-container" class="hidden min-h-screen flex items-center justify-center bg-[#fdfefe] py-12 px-4 sm:px-6 lg:p-8">
+    <div class="max-w-md w-full space-y-6">
+        <h2 class="text-center text-3xl font-extrabold text-gray-900">Set new password</h2>
+        <div class="rounded-md shadow-sm -space-y-px">
+            <input id="new-password" type="password" required class="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="Enter new password">
+        </div>
+        <button id="update-password-btn" class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary-dark">
+            Update Password
+        </button>
+    </div>
+</div>
     <div id="modal-container"></div>
     <div id="tutorial-container"></div>
+    
 
     <script type="module" src="main.js"></script>
 </body>
