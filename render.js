@@ -378,11 +378,16 @@ export function updateUIFromState() {
     }
 }
 
-//
-//
+
 //
 export function renderFullGradebookUI() {
     if (!contentWrapper) return;
+
+    // Determine target semester for the "Move" button
+    const appState = getAppState();
+    const currentSem = appState.gradebook_data.activeSemester || '1';
+    const targetSem = currentSem === '1' ? '2' : '1';
+
     contentWrapper.innerHTML = `
         <div class="mb-4">
             <div class="border-b border-gray-200"><nav class="flex items-center space-x-8"><button id="semesterBtn1" class="semester-button py-3 px-1 border-b-2 border-transparent font-medium text-lg text-gray-500 hover:text-gray-700">Semester 1</button><button id="semesterBtn2" class="semester-button py-3 px-1 border-b-2 border-transparent font-medium text-lg text-gray-500 hover:text-gray-700">Semester 2</button></nav></div>
@@ -420,6 +425,9 @@ export function renderFullGradebookUI() {
                     <button id="savePresetBtn" class="bg-secondary hover:bg-secondary-dark text-white font-bold py-2 px-4 rounded-lg">Save Class as Preset</button>
                     <button id="importStudentsBtn" class="bg-secondary hover:bg-secondary-dark text-white font-bold py-2 px-4 rounded-lg">Import Students</button>
                     <button id="recordMidtermsBtn" class="bg-primary hover:bg-primary-dark text-white font-bold py-2 px-4 rounded-lg">Record Midterms</button>
+                    
+                    <button id="moveClassBtn" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg">Move to Sem ${targetSem}</button>
+                    
                     <button id="archiveClassBtn" class="bg-accent hover:bg-accent-dark text-white font-bold py-2 px-4 rounded-lg">Archive Class</button>
                     <div class="relative">
                         <button id="exportMenuBtn" class="bg-accent hover:bg-accent-dark text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2">

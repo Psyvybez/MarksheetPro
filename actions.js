@@ -1227,3 +1227,34 @@ export function exportContactListPDF() {
 
     doc.save(`${classData.name}_contact_list.pdf`);
 }
+
+// --- NEW FUNCTION: Move Class ---
+export function moveClassToSemester() {
+    const appState = getAppState();
+    const classData = getActiveClassData();
+    
+    if (!classData) return;
+
+    const currentSem = appState.gradebook_data.activeSemester;
+    const targetSem = currentSem === '1' ? '2' : '1';
+    const classId = appState.gradebook_data.activeClassId;
+
+    if (confirm(`Are you sure you want to move "${classData.name}" to Semester ${targetSem}?`)) {
+        // 1. Ensure target semester classes object exists
+        if (!appState.gradebook_data.semesters[targetSem].classes) {
+            appState.gradebook_data.semesters[targetSem].classes = {};
+        }
+
+        // 2. Move data: Copy to target, delete from source
+        appState.gradebook_data.semesters[targetSem].classes[classId] = classData;
+        delete appState.gradebook_data.semesters[currentSem].classes[classId];
+
+        // 3. Switch active semester so user follows the class
+        appState.gradebook_data.activeSemester = targetSem;
+
+        // 4. Save and Render
+        renderClassTabs();
+        renderFullGradebookUI();
+        triggerAutoSave();
+    }
+}

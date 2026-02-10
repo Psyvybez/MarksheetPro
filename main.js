@@ -401,14 +401,12 @@ function setupEventListeners() {
     const contentWrapper = document.getElementById('content-wrapper');
     const authContainer = document.getElementById('auth-container');
 
-    // ... (Auth Listeners remain unchanged) ...
     if (authContainer) {
         document.getElementById('auth-submit-btn')?.addEventListener('click', (e) => handleAuthSubmit(e, supabaseClient));
         document.getElementById('password')?.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') { e.preventDefault(); document.getElementById('auth-submit-btn')?.click(); }
         });
         document.getElementById('auth-toggle-link')?.addEventListener('click', (e) => {
-            // ... (Toggle auth logic unchanged) ...
             e.preventDefault();
             const authTitle = document.getElementById('auth-title');
             const authSubmitBtn = document.getElementById('auth-submit-btn');
@@ -446,7 +444,8 @@ function setupEventListeners() {
     if (contentWrapper) {
         contentWrapper.addEventListener('click', (e) => {
             const clickedElement = e.target;
-            // ... (Zoom & Button Logic unchanged) ...
+
+            // Zoom logic
             if (clickedElement.id === 'zoomInBtn' || clickedElement.id === 'zoomOutBtn') {
                 const contentArea = document.getElementById('main-content-area');
                 const zoomText = document.getElementById('zoom-level-text');
@@ -465,6 +464,7 @@ function setupEventListeners() {
                 }
                 return;
             }
+
             const studentNameBtn = clickedElement.closest('.student-name-btn');
             if (studentNameBtn) {
                 const studentId = studentNameBtn.closest('[data-student-id]')?.dataset.studentId;
@@ -475,14 +475,17 @@ function setupEventListeners() {
                 const studentId = deleteBtn.closest('[data-student-id]')?.dataset.studentId;
                 if (studentId) { actions.deleteStudent(studentId); return; }
             }
+            
             const target = clickedElement.closest('[id], [data-tab-id]');
             if (!target) return;
             const id = target.id;
             const tabId = target.dataset.tabId;
-             if (id === 'back-to-gradebook-btn') { renderFullGradebookUI(); return; }
+
+            if (id === 'back-to-gradebook-btn') { renderFullGradebookUI(); return; }
             if (id === 'back-to-app-btn') { handleDataLoad(getAppState(), true); return; }
             if(id === 'save-profile-btn') { saveProfile(); return; }
             if(id === 'delete-account-btn') { promptDeleteAccount(); return; }
+
             const actionMap = {
                 'semesterBtn1': () => actions.switchSemester('1'),
                 'semesterBtn2': () => actions.switchSemester('2'),
@@ -500,8 +503,11 @@ function setupEventListeners() {
                 'exportCsvBtn': () => { actions.exportToCSV(); document.getElementById('exportMenuDropdown')?.classList.add('hidden'); },
                 'exportBlankPdfBtn': () => { actions.exportBlankMarksheet(); document.getElementById('exportMenuDropdown')?.classList.add('hidden'); },
                 'exportStudentListBtn': () => { actions.exportStudentListPDF(); document.getElementById('exportMenuDropdown')?.classList.add('hidden'); },
-                'exportContactListBtn': () => { actions.exportContactListPDF(); document.getElementById('exportMenuDropdown')?.classList.add('hidden'); }
+                'exportContactListBtn': () => { actions.exportContactListPDF(); document.getElementById('exportMenuDropdown')?.classList.add('hidden'); },
+                // --- NEW ACTION MAPPED HERE ---
+                'moveClassBtn': actions.moveClassToSemester 
             };
+
             if (actionMap[id]) { e.preventDefault(); actionMap[id](); } 
             else if (tabId) { e.preventDefault(); actions.switchActiveClass(tabId); }
         });
@@ -510,33 +516,25 @@ function setupEventListeners() {
             const target = e.target;
             const classData = getActiveClassData(); 
 
-            // --- LISTENER: Update Assignment Totals from Table Header ---
+            // Assignment Total Editing Logic
             if (target.classList.contains('assignment-total-input')) {
                 const unitId = target.dataset.unitId;
                 const asgId = target.dataset.assignmentId;
-                const cat = target.dataset.cat; // 'k', 't', 'c', 'a' or undefined (for final)
+                const cat = target.dataset.cat;
                 const val = parseFloat(target.value) || 0;
-
                 if (classData && unitId && asgId) {
                     const assignment = classData.units[unitId]?.assignments?.[asgId];
                     if (assignment) {
-                        if (cat) {
-                            // Update K/T/C/A total
-                            if (!assignment.categoryTotals) assignment.categoryTotals = {};
-                            assignment.categoryTotals[cat] = val;
-                        } else {
-                            // Update Final Exam Total
-                            assignment.total = val;
-                        }
-                        // Recalculate averages immediately
+                        if (cat) { if (!assignment.categoryTotals) assignment.categoryTotals = {}; assignment.categoryTotals[cat] = val; } 
+                        else { assignment.total = val; }
                         recalculateAndRenderAverages();
                         triggerAutoSave();
                     }
                 }
                 return;
             }
-            // ------------------------------------------------------------
 
+            // Category Renaming Logic
             if (target.classList.contains('cat-name-input')) {
                 const cat = target.dataset.cat;
                 const val = target.value.trim();
@@ -548,9 +546,11 @@ function setupEventListeners() {
                 }
                 return;
             }
+
             if (target.id === 'student-search-input') { renderGradebook(); return; }
+            
+            // Attendance Logic
             if (target.classList.contains('attendance-note-input')) {
-                // ... (Attendance note logic unchanged) ...
                 const studentRow = target.closest('.student-attendance-row');
                 const datePicker = document.getElementById('attendance-date-picker');
                 if (studentRow && datePicker && classData) {
@@ -568,8 +568,9 @@ function setupEventListeners() {
                 }
                 return; 
             }
+
+            // Grade Input Logic
             if (target.classList.contains('grade-input')) {
-                // ... (Grade input logic unchanged) ...
                 const studentId = target.dataset.studentId;
                 const assignmentId = target.dataset.assignmentId;
                 const category = target.dataset.cat;
@@ -635,7 +636,6 @@ function setupEventListeners() {
         });
         
         contentWrapper.addEventListener('change', (e) => {
-             // ... (Change listeners unchanged) ...
              if (e.target.id === 'unitFilterDropdown') {
                 const appState = getAppState();
                 if(appState.gradebook_data) appState.gradebook_data.activeUnitId = e.target.value;
@@ -670,7 +670,7 @@ function setupEventListeners() {
             }
         });
 
-        // ... (Remaining listeners for keydown, drag, etc. are the same) ...
+        // Keydown/Drag listeners remain unchanged
         contentWrapper.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && e.target.classList.contains('grade-input')) { e.preventDefault(); e.target.blur(); }
             if (e.target.classList.contains('grade-input') && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) { e.preventDefault(); handleGradebookNavigation(e.key, e.target); }
