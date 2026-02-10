@@ -50,7 +50,7 @@ export function calculateStudentAverages(student, classData) {
 
         // Add Unit Average to Term Total
         if (unitTotalWeight > 0) {
-            const unitAvg = (unitWeightedScore / unitTotalWeight) * 100; // Normalized to 100%
+            const unitAvg = (unitWeightedScore / unitTotalWeight); // Normalized to 100%
             const unitWeightInTerm = parseFloat(unit.weight) || 0;
             
             totalWeightedTermMark += unitAvg * unitWeightInTerm;
