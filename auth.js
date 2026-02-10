@@ -8,11 +8,13 @@ import { setCurrentUser, setAppState, getAppState, getCurrentUser } from './stat
 // This flag will prevent the listener from firing twice on a page load
 let hasHandledInitialLoad = false;
 
+//
 export function setupAuthListener(supabaseClient, wasLocalDataLoaded) {
     supabaseClient.auth.onAuthStateChange(async (event, session) => {
         const user = session?.user;
         const authContainer = document.getElementById('auth-container');
         const appContainer = document.getElementById('app-container');
+        const verifyContainer = document.getElementById('verify-email-container'); // Get the verification screen
         const loadingOverlay = document.getElementById('loading-overlay');
 
         if (event === 'SIGNED_OUT' || !session) {
@@ -21,32 +23,37 @@ export function setupAuthListener(supabaseClient, wasLocalDataLoaded) {
             if (currentUser) localStorage.removeItem(`marksheetProData-${currentUser.id}`);
             setCurrentUser(null);
             setAppState({});
+            
+            // Show Login, Hide App & Verify Screen
             authContainer?.classList.remove('hidden');
             appContainer?.classList.add('hidden');
+            verifyContainer?.classList.add('hidden');
             loadingOverlay?.classList.add('hidden');
             return;
         }
 
-        // --- NEW LOGIC TO PREVENT DOUBLE-LOAD ---
-
-        // Handle a page refresh (INITIAL_SESSION)
-            if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') { 
+        // Handle Page Refresh (INITIAL_SESSION) OR Email Link Click (SIGNED_IN)
+        if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
             hasHandledInitialLoad = true;
-   
             setCurrentUser(user);
+            
+            // Hide Auth & Verify Screens, Show App
             authContainer?.classList.add('hidden');
+            verifyContainer?.classList.add('hidden'); // <--- IMPORTANT: Hide the standby screen
             appContainer?.classList.remove('hidden');
             resetInactivityTimer();
 
+            // CLEANUP: Remove the ugly hash from the URL (access_token=...)
+            if (window.location.hash && window.location.hash.includes('access_token')) {
+                window.history.replaceState(null, '', window.location.pathname);
+            }
+
             if (wasLocalDataLoaded) {
-                // We have local data, so just render it. NO server fetch.
                 console.log("AUTH: Resuming session from local state.");
                 handleDataLoad(getAppState(), true);
                 loadingOverlay?.classList.add('hidden');
             } else {
-                // FIX: Do NOT sign out. Fetch from server instead.
-                // This handles new users (Email Verification) or new devices.
-                console.log("AUTH: No local data (New User/Device). Fetching from server...");
+                console.log("AUTH: Fetching fresh data from server...");
                 loadingOverlay?.classList.remove('hidden');
 
                 try {
@@ -57,22 +64,14 @@ export function setupAuthListener(supabaseClient, wasLocalDataLoaded) {
                     
                     handleDataLoad(data, true);
                 } catch (e) {
-                    console.error("AUTH ERROR (INITIAL_SESSION):", e);
+                    console.error("AUTH ERROR:", e);
                     // Only sign out if the server fetch actually FAILS
                     signOut(supabaseClient, true);
                 } finally {
                     loadingOverlay?.classList.add('hidden');
                 }
             }
-            // Inside setupAuthListener callback
-            if (event === 'PASSWORD_RECOVERY') {
-                // User clicked the "Reset Password" link in their email
-                document.getElementById('auth-container').classList.add('hidden');
-                document.getElementById('update-password-container').classList.remove('hidden');
-            }
         }
-        
-        // --- END NEW LOGIC ---
     });
 }
 
