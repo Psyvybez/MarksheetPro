@@ -61,7 +61,7 @@ export function renderUnitFilter() {
     }
 
     const units = classData.units || {};
-    const activeUnitId = appState.gradebook_data.activeUnitId = appState.gradebook_data.activeUnitId || 'all';
+    let activeUnitId = appState.gradebook_data.activeUnitId = appState.gradebook_data.activeUnitId || 'all';
 
     let optionsHtml = `<option value="all">All Units</option>`;
     Object.values(units).filter(u => !u.isFinal).sort((a,b) => a.order - b.order).forEach(unit => {
