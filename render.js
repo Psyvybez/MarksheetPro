@@ -133,10 +133,10 @@ export function renderCategoryWeights() {
     container.innerHTML = `
         <div class="flex flex-col xl:flex-row items-stretch gap-4">
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 flex-grow w-full">
-                ${makeInput('', 'Knowledge')}
-                ${makeInput('', 'Thinking')}
-                ${makeInput('', 'Communication')}
-                ${makeInput('', 'Application')}
+                ${makeInput('k', 'Knowledge')}
+                ${makeInput('t', 'Thinking')}
+                ${makeInput('c', 'Communication')}
+                ${makeInput('a', 'Application')}
             </div>
             
             <div class="flex items-center justify-center p-4 rounded-lg shadow-sm border min-w-[140px]" id="cat-weight-total-container">
