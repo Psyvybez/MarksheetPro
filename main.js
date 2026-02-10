@@ -410,11 +410,35 @@ function setupEventListeners() {
             const authTitle = document.getElementById('auth-title');
             const authSubmitBtn = document.getElementById('auth-submit-btn');
             const authToggleLink = document.getElementById('auth-toggle-link');
-            let isLoginMode = authSubmitBtn.textContent === 'Sign in';
-            isLoginMode = !isLoginMode;
-            authTitle.textContent = isLoginMode ? 'Sign in to your account' : 'Create a new account';
-            authSubmitBtn.textContent = isLoginMode ? 'Sign in' : 'Create account';
-            authToggleLink.innerHTML = isLoginMode ? 'Or create a new account' : 'Already have an account? Sign in';
+            
+            // Check if we are currently in "Sign In" mode
+            const isCurrentlySignIn = authSubmitBtn.textContent === 'Sign in';
+
+            if (isCurrentlySignIn) {
+                // SWITCH TO: Create Account Mode
+                authTitle.textContent = 'Create a new account';
+                authSubmitBtn.textContent = 'Create account';
+                authToggleLink.innerHTML = 'Already have an account? <span class="font-bold underline">Sign in</span>';
+                
+                // Change Button Color to Purple (Accent) to distinguish it
+                authSubmitBtn.classList.remove('bg-primary', 'hover:bg-primary-dark');
+                authSubmitBtn.classList.add('bg-accent', 'hover:bg-accent-dark');
+                
+                // Optional: Add a subtle transition
+                authTitle.classList.add('text-accent');
+            } else {
+                // SWITCH TO: Sign In Mode
+                authTitle.textContent = 'Sign in to your account';
+                authSubmitBtn.textContent = 'Sign in';
+                authToggleLink.innerHTML = 'Or <span class="font-bold underline">create a new account</span>';
+                
+                // Revert Button Color to Navy (Primary)
+                authSubmitBtn.classList.remove('bg-accent', 'hover:bg-accent-dark');
+                authSubmitBtn.classList.add('bg-primary', 'hover:bg-primary-dark');
+                
+                // Remove title color
+                authTitle.classList.remove('text-accent');
+            }
         });
     }
 
