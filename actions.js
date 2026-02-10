@@ -156,6 +156,7 @@ export function deleteStudent(studentId) {
     showModal({
         title: 'Delete Student',
         content: `<p>Are you sure you want to delete "<strong>${student.firstName} ${student.lastName}</strong>" and all their grades?</p>`,
+        confirmClasses: 'bg-red-600 hover:bg-red-700',
         onConfirm: () => {
             delete classData.students[studentId];
             renderGradebook();
@@ -168,12 +169,13 @@ export function editUnits() {
     const classData = getActiveClassData();
     if (!classData) return;
 
-        let draggedItem = null;
+    let draggedItem = null;
 
-        function renderUnitsEditor(units, hasFinal, finalWeight) {
+    function renderUnitsEditor(units, hasFinal, finalWeight) {
         const termUnits = Object.values(units).filter(u => !u.isFinal).sort((a,b) => a.order - b.order);
         let totalWeight = termUnits.reduce((sum, unit) => sum + (parseFloat(unit.weight) || 0), 0);
-        const weightColor = totalWeight === 100 ? 'text-green-600' : 'text-red-600';
+        // Use a tiny epsilon for float comparison
+        const weightColor = Math.abs(totalWeight - 100) < 0.1 ? 'text-green-600' : 'text-red-600';
 
         let termUnitsHtml = termUnits.map(unit => `
             <div class="unit-item flex items-center gap-3 p-2 border rounded-md bg-gray-50" draggable="true" data-unit-id="${unit.id}">
@@ -181,7 +183,7 @@ export function editUnits() {
                 <span class="font-semibold text-gray-600">Unit ${unit.order}:</span>
                 <input type="text" data-field="title" class="p-1 border rounded-md flex-grow" value="${unit.title || ''}" placeholder="Custom Title (e.g., Algebra)">
                 <input type="text" data-field="subtitle" class="p-1 border rounded-md flex-grow" value="${unit.subtitle || ''}" placeholder="Subtitle (optional)">
-                <input type="number" step="0.1" data-field="weight" class="p-1 border rounded-md w-24 text-right" value="${unit.weight}">
+                <input type="number" step="0.01" data-field="weight" class="p-1 border rounded-md w-24 text-right" value="${parseFloat(unit.weight).toFixed(2)}">
                 <span class="font-medium">%</span>
                 <button class="delete-unit-btn delete-btn" data-unit-id="${unit.id}">&times;</button>
             </div>
@@ -207,7 +209,7 @@ export function editUnits() {
                      ${finalUnitHtml}
                 </div>
                 <div class="flex-shrink-0 pt-4 border-t mt-4">
-                    <div id="term-weight-total-display" class="text-right font-bold mb-4 ${weightColor}">Term Weight Total: ${totalWeight}%</div>
+                    <div id="term-weight-total-display" class="text-right font-bold mb-4 ${weightColor}">Term Weight Total: ${totalWeight.toFixed(2)}%</div>
                     <h4 class="text-md font-semibold mb-2 text-right">Final Assessment Settings</h4>
                     <div class="flex items-center justify-end gap-4">
                         <label class="flex items-center gap-2">
@@ -225,7 +227,9 @@ export function editUnits() {
 
     function getStateFromModalDOM(modal) {
         const updatedUnits = {};
-        modal.querySelectorAll('.unit-item[draggable="true"]').forEach((item, index) => {
+        const unitItems = modal.querySelectorAll('.unit-item[draggable="true"]');
+        
+        unitItems.forEach((item, index) => {
             const unitId = item.dataset.unitId;
             const originalUnit = classData.units[unitId] || {};
             updatedUnits[unitId] = {
@@ -263,20 +267,23 @@ export function editUnits() {
             const newState = getStateFromModalDOM(modal);
             
             if (!newState || typeof newState.units !== 'object' || Array.isArray(newState.units)) {
-                console.error("Invalid state retrieved from modal"); 
                 return false;
             }
             
-            if (!isValidWeightDistribution(newState)) {
+            // Allow slight floating point errors
+            const termUnits = Object.values(newState.units).filter(u => !u.isFinal);
+            const totalWeight = termUnits.reduce((sum, unit) => sum + unit.weight, 0);
+
+            if (Math.abs(totalWeight - 100) > 0.5) {
                 showModal({
-                title: 'Invalid Weight Distribution',
-                content: '<p>The total weight of all term units must equal 100%.</p>',
-                confirmText: null,
-                cancelText: 'Close',
-                modalWidth: 'max-w-xs'
-            });
-            return false;
-        }
+                    title: 'Invalid Weight Distribution',
+                    content: `<p>The total weight of all term units is <strong>${totalWeight.toFixed(2)}%</strong>. It must equal 100%.</p>`,
+                    confirmText: null,
+                    cancelText: 'Close',
+                    modalWidth: 'max-w-xs'
+                });
+                return false;
+            }
 
             classData.units = newState.units;
             classData.hasFinal = newState.hasFinal;
@@ -291,49 +298,89 @@ export function editUnits() {
     const modal = document.getElementById('custom-modal');
     if (!modal) return;
 
-    const updateTotalWeightDisplay = () => {
-        const state = getStateFromModalDOM(modal);
-        const termUnits = Object.values(state.units).filter(u => !u.isFinal);
-        const totalWeight = termUnits.reduce((sum, unit) => sum + (parseFloat(unit.weight) || 0), 0);
-        const display = modal.querySelector('#term-weight-total-display');
-        if (display) {
-            display.textContent = `Term Weight Total: ${totalWeight}%`;
-            display.className = `text-right font-bold mb-4 ${Math.round(totalWeight) === 100 ? 'text-green-600' : 'text-red-600'}`;
-        }
-    };
-
-    const reRenderModalContent = () => {
+    const reRenderModalContent = (tempUnits, hasFinal, finalWeight) => {
         const modalContent = modal.querySelector('.modal-content-area');
         if(!modalContent) return;
-        const state = getStateFromModalDOM(modal);
-        modalContent.innerHTML = renderUnitsEditor(state.units, state.hasFinal, state.finalWeight);
+        modalContent.innerHTML = renderUnitsEditor(tempUnits, hasFinal, finalWeight);
     };
 
     modal.addEventListener('input', e => {
         if (e.target.matches('.unit-item input[data-field="weight"]')) {
-            updateTotalWeightDisplay();
+             const display = modal.querySelector('#term-weight-total-display');
+             const state = getStateFromModalDOM(modal);
+             const termUnits = Object.values(state.units).filter(u => !u.isFinal);
+             const totalWeight = termUnits.reduce((sum, unit) => sum + unit.weight, 0);
+             if (display) {
+                display.textContent = `Term Weight Total: ${totalWeight.toFixed(2)}%`;
+                display.className = `text-right font-bold mb-4 ${Math.abs(totalWeight - 100) < 0.1 ? 'text-green-600' : 'text-red-600'}`;
+            }
         }
     });
 
     modal.addEventListener('change', e => {
         if (e.target.id === 'has-final-checkbox') {
-            reRenderModalContent();
+             const state = getStateFromModalDOM(modal);
+             reRenderModalContent(state.units, e.target.checked, state.finalWeight);
         }
     });
 
     modal.addEventListener('click', e => {
         if (e.target.id === 'add-unit-btn') {
             const state = getStateFromModalDOM(modal);
+            const termUnits = Object.values(state.units).filter(u => !u.isFinal);
+            
+            // Logic: Add new unit -> Take evenly from others
+            const count = termUnits.length;
+            const newUnitWeight = 100 / (count + 1); // e.g. 100/4 = 25
+            const weightToSubtractPerUnit = newUnitWeight / count; // e.g. 25/3 = 8.333
+
+            // Update existing weights
+            Object.keys(state.units).forEach(key => {
+                if (!state.units[key].isFinal) {
+                    state.units[key].weight = Math.max(0, state.units[key].weight - weightToSubtractPerUnit);
+                }
+            });
+
+            // Add new unit
             const newId = `unit_${Date.now()}`;
-            const newOrder = Object.values(state.units).filter(u => !u.isFinal).length + 1;
-            state.units[newId] = { id: newId, order: newOrder, title: ``, subtitle: '', weight: 0, assignments: {} };
-            reRenderModalContent();
+            state.units[newId] = { 
+                id: newId, 
+                order: count + 1, 
+                title: ``, 
+                subtitle: '', 
+                weight: newUnitWeight, 
+                assignments: {} 
+            };
+            
+            reRenderModalContent(state.units, state.hasFinal, state.finalWeight);
+
         } else if (e.target.classList.contains('delete-unit-btn')) {
-            e.target.closest('.unit-item').remove();
-            updateTotalWeightDisplay();
+            const unitIdToDelete = e.target.dataset.unitId;
+            const state = getStateFromModalDOM(modal);
+            const termUnits = Object.values(state.units).filter(u => !u.isFinal);
+            
+            // Logic: Delete unit -> Spread weight evenly to others
+            const unitToDelete = state.units[unitIdToDelete];
+            if (unitToDelete) {
+                const weightToDistribute = unitToDelete.weight;
+                const remainingCount = termUnits.length - 1;
+
+                if (remainingCount > 0) {
+                    const weightToAddPerUnit = weightToDistribute / remainingCount;
+                    Object.keys(state.units).forEach(key => {
+                        if (key !== unitIdToDelete && !state.units[key].isFinal) {
+                            state.units[key].weight += weightToAddPerUnit;
+                        }
+                    });
+                }
+                
+                delete state.units[unitIdToDelete];
+                reRenderModalContent(state.units, state.hasFinal, state.finalWeight);
+            }
         }
     });
     
+    // Drag and Drop Logic
     modal.addEventListener('dragstart', e => {
         if (e.target.classList.contains('unit-item')) {
             draggedItem = e.target;
@@ -345,7 +392,7 @@ export function editUnits() {
         if (!draggedItem) return;
         draggedItem.classList.remove('dragging');
         draggedItem = null;
-        
+        // Re-number visible units locally for visual consistency
         modal.querySelectorAll('#unit-list .unit-item').forEach((item, index) => {
             const orderSpan = item.querySelector('span:nth-of-type(1)');
             if (orderSpan) orderSpan.textContent = `Unit ${index + 1}:`;
@@ -949,8 +996,6 @@ function exportClassPDF({ studentIds = [], includeMissingAssignments = false }) 
         });
     }
 }
-
-// Replace the existing exportBlankMarksheet function in Frontend/actions.js with this
 
 export function exportBlankMarksheet() {
     const classData = getActiveClassData(); // Use state getter

@@ -65,7 +65,8 @@ export function renderUnitFilter() {
 
     let optionsHtml = `<option value="all">All Units</option>`;
     Object.values(units).filter(u => !u.isFinal).sort((a,b) => a.order - b.order).forEach(unit => {
-         const displayTitle = unit.title || `Unit ${unit.order}`;
+         // --- CHANGED: Show Unit Title if available ---
+         const displayTitle = unit.title ? `Unit ${unit.order}: ${unit.title}` : `Unit ${unit.order}`;
          optionsHtml += `<option value="${unit.id}" ${unit.id === activeUnitId ? 'selected' : ''}>${displayTitle}</option>`;
     });
     const finalUnit = Object.values(units).find(u => u.isFinal);
@@ -129,9 +130,9 @@ export function renderGradebook() {
     classNameEl.textContent = classData.name;
     const students = classData.students || {};
     const allUnits = classData.units || {};
-    const activeUnitId = appState.gradebook_data?.activeUnitId;
+    // FIX: Use let so we can reset to 'all' if needed
+    let activeUnitId = appState.gradebook_data?.activeUnitId;
 
-// FIX: Ensure the active unit actually exists before trying to filter by it
     let unitsToDisplay = allUnits;
     if (activeUnitId && activeUnitId !== 'all') {
         if (allUnits[activeUnitId]) {
@@ -161,24 +162,30 @@ export function renderGradebook() {
     Object.values(unitsToDisplay).sort((a,b) => a.order - b.order).forEach(unit => {
         const assignments = Object.values(unit.assignments || {}).sort((a, b) => a.order - b.order);
         const colspan = unit.isFinal ? assignments.length : assignments.length * 4;
-        const displayTitle = unit.title || `Unit ${unit.order}`;
-        const unitTitle = displayTitle + (unit.subtitle ? ` - ${unit.subtitle}` : '');
+        
+        // --- CHANGED: Format "Unit X: Title - Subtitle" ---
+        const titleText = unit.title ? `: ${unit.title}` : '';
+        const subtitleText = unit.subtitle ? ` - ${unit.subtitle}` : '';
+        const displayTitle = unit.isFinal ? 'Final Assessment' : `Unit ${unit.order}${titleText}${subtitleText}`;
 
-        headerHtml1 += `<th colspan="${colspan || 1}" class="p-3 text-sm font-semibold tracking-wide text-center border-l">${unitTitle}</th>`;
+        // --- CHANGED: Darker Border (border-gray-400) ---
+        headerHtml1 += `<th colspan="${colspan || 1}" class="p-3 text-sm font-semibold tracking-wide text-center border-l-2 border-gray-400">${displayTitle}</th>`;
 
         if(assignments.length === 0){
-            headerHtml2 += `<td colspan="${colspan || 1}" class="p-3 text-center text-xs text-gray-400 border-l italic">No assignments</td>`;
-            headerHtml3 += `<td colspan="${colspan || 1}" class="border-l"></td>`;
+            headerHtml2 += `<td colspan="${colspan || 1}" class="p-3 text-center text-xs text-gray-400 border-l-2 border-gray-400 italic">No assignments</td>`;
+            headerHtml3 += `<td colspan="${colspan || 1}" class="border-l-2 border-gray-400"></td>`;
         } else {
             assignments.forEach(asg => {
                 const weightText = asg.weight && asg.weight !== 1 ? `<span class="text-xs font-normal text-gray-500">(x${asg.weight})</span>` : '';
                 if(unit.isFinal) {
-                    headerHtml2 += `<th class="p-3 text-xs font-medium text-gray-500 tracking-wider text-center border-l">${asg.name}<br>${weightText}</th>`;
-                    headerHtml3 += `<th class="p-2 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border-l assignment-header-cell">Score<br><span class="font-normal">${asg.total || 0}</span></th>`;
+                    headerHtml2 += `<th class="p-3 text-xs font-medium text-gray-500 tracking-wider text-center border-l-2 border-gray-400">${asg.name}<br>${weightText}</th>`;
+                    headerHtml3 += `<th class="p-2 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border-l-2 border-gray-400 assignment-header-cell">Score<br><span class="font-normal">${asg.total || 0}</span></th>`;
                 } else {
-                    headerHtml2 += `<th colspan="4" class="p-3 text-xs font-medium text-gray-500 tracking-wider text-center border-l">${asg.name}<br>${weightText}</th>`;
+                    headerHtml2 += `<th colspan="4" class="p-3 text-xs font-medium text-gray-500 tracking-wider text-center border-l-2 border-gray-400">${asg.name}<br>${weightText}</th>`;
                     ['k','t','c','a'].forEach(cat => {
-                        headerHtml3 += `<th class="p-2 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border-l assignment-header-cell">${cat.toUpperCase()}<br><span class="font-normal">${asg.categoryTotals?.[cat] || 0}</span></th>`;
+                        // Assignment columns have normal border-l, only the start of the assignment block has darker border
+                        const borderClass = cat === 'k' ? 'border-l-2 border-gray-400' : 'border-l';
+                        headerHtml3 += `<th class="p-2 text-xs font-medium text-gray-500 uppercase tracking-wider text-center ${borderClass} assignment-header-cell">${cat.toUpperCase()}<br><span class="font-normal">${asg.categoryTotals?.[cat] || 0}</span></th>`;
                     });
                 }
             });
@@ -219,11 +226,17 @@ export function renderGradebook() {
                 ? `<img src="${profilePicUrl}" class="w-8 h-8 rounded-full mr-2 object-cover">`
                 : `<div class="w-8 h-8 rounded-full mr-2 bg-gray-300 flex items-center justify-center text-white font-bold">${student.firstName.charAt(0)}${student.lastName.charAt(0)}</div>`;
 
+            // --- CHANGED: Added Delete Button in Student Name cell ---
             let rowHtml = `<tr class="student-row" data-student-id="${studentId}">
-                <td class="p-0">
-                    <button class="student-name-btn flex items-center p-3">
+                <td class="p-0 relative group">
+                    <button class="student-name-btn flex items-center p-3 w-full text-left">
                         ${profilePicHtml}
                         <span>${student.lastName}, ${student.firstName}</span>
+                    </button>
+                    <button class="delete-btn absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity p-2" title="Delete Student">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
                     </button>
                 </td>
                 <td class="p-3 text-center">
@@ -241,16 +254,17 @@ export function renderGradebook() {
             Object.values(unitsToDisplay).sort((a,b) => a.order - b.order).forEach(unit => {
                 const assignments = Object.values(unit.assignments || {}).sort((a, b) => a.order - b.order);
                 if(assignments.length === 0) {
-                    rowHtml += `<td class="border-l"></td>`;
+                    rowHtml += `<td class="border-l-2 border-gray-400"></td>`;
                 } else {
                     assignments.forEach(asg => {
                         if (unit.isFinal) {
                             const score = student.grades?.[asg.id]?.grade ?? '';
-                            rowHtml += `<td class="p-0 border-l"><input type="number" step="0.1" class="grade-input" data-student-id="${studentId}" data-assignment-id="${asg.id}" value="${score}"></td>`;
+                            rowHtml += `<td class="p-0 border-l-2 border-gray-400"><input type="number" step="0.1" class="grade-input" data-student-id="${studentId}" data-assignment-id="${asg.id}" value="${score}"></td>`;
                         } else {
                             ['k','t','c','a'].forEach(cat => {
                                 const score = student.grades?.[asg.id]?.[cat] ?? '';
-                                rowHtml += `<td class="p-0 border-l"><input type="number" step="0.1" class="grade-input" data-student-id="${studentId}" data-assignment-id="${asg.id}" data-cat="${cat}" value="${score}"></td>`;
+                                const borderClass = cat === 'k' ? 'border-l-2 border-gray-400' : 'border-l';
+                                rowHtml += `<td class="p-0 ${borderClass}"><input type="number" step="0.1" class="grade-input" data-student-id="${studentId}" data-assignment-id="${asg.id}" data-cat="${cat}" value="${score}"></td>`;
                             });
                         }
                     });
@@ -275,7 +289,7 @@ export function renderGradebook() {
     Object.values(unitsToDisplay).sort((a,b) => a.order - b.order).forEach(unit => {
         const assignments = Object.values(unit.assignments || {});
         const colspan = unit.isFinal ? (assignments.length || 1) : (assignments.length * 4 || 1);
-        footerHtml += `<td colspan="${colspan}" class="p-3 border-l"></td>`;
+        footerHtml += `<td colspan="${colspan}" class="p-3 border-l-2 border-gray-400"></td>`;
     });
     tfoot.innerHTML = footerHtml + `</tr>`;
 
