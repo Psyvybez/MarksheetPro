@@ -738,6 +738,12 @@ function setupEventListeners() {
             }
         }
     });
+
+    document.getElementById('back-to-login-btn')?.addEventListener('click', () => {
+        document.getElementById('verify-email-container').classList.add('hidden');
+        // signOut resets the UI to the login screen
+        signOut(supabaseClient); 
+    });
     
     document.getElementById('sign-out-btn')?.addEventListener('click', () => signOut(supabaseClient));
     document.getElementById('account-management-btn')?.addEventListener('click', () => renderAccountPage(false));

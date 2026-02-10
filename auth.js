@@ -69,11 +69,11 @@ export function setupAuthListener(supabaseClient, wasLocalDataLoaded) {
     });
 }
 
+//
 export async function handleAuthSubmit(e, supabaseClient) {
     e.preventDefault();
     if (!supabaseClient) return;
 
-    // Reset the flag on a manual login attempt
     hasHandledInitialLoad = false; 
 
     const email = document.getElementById('email-address').value;
@@ -87,10 +87,24 @@ export async function handleAuthSubmit(e, supabaseClient) {
    
     try {
         let isLoginMode = authSubmitBtn.textContent === 'Sign in';
-        const { error } = isLoginMode 
-            ? await supabaseClient.auth.signInWithPassword({ email, password })
-            : await supabaseClient.auth.signUp({ email, password });
-        if (error) throw error;
+        
+        if (isLoginMode) {
+            // LOGIN LOGIC
+            const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+            if (error) throw error;
+        } else {
+            // SIGN UP LOGIC
+            const { data, error } = await supabaseClient.auth.signUp({ email, password });
+            if (error) throw error;
+
+            // If session is null, email confirmation is required
+            if (data.user && !data.session) {
+                document.getElementById('auth-container').classList.add('hidden');
+                document.getElementById('verify-email-container').classList.remove('hidden');
+                document.getElementById('verify-email-address').textContent = email;
+                return; // Stop here, don't auto-load app
+            }
+        }
     } catch (error) {
         if (authError) {
             authError.textContent = error.message;

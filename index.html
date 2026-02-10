@@ -53,6 +53,28 @@
         </div>
     </div>
 
+    <div id="verify-email-container" class="hidden min-h-screen flex items-center justify-center bg-[#fdfefe] py-12 px-4 sm:px-6 lg:p-8">
+        <div class="max-w-md w-full space-y-8 text-center">
+            <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-blue-100">
+                <svg class="h-8 w-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+            </div>
+            <h2 class="mt-6 text-3xl font-extrabold text-gray-900">Check your inbox</h2>
+            <p class="mt-2 text-sm text-gray-600">
+                We've sent a verification link to <span id="verify-email-address" class="font-medium text-gray-900"></span>.
+            </p>
+            <p class="text-sm text-gray-500">
+                Click the link in the email to automatically sign in.
+            </p>
+            <div class="mt-6">
+                <button id="back-to-login-btn" class="text-sm font-medium text-blue-600 hover:text-blue-500">
+                    &larr; Back to Sign In
+                </button>
+            </div>
+        </div>
+    </div>
+
     <div id="app-container" class="hidden container mx-auto p-4 sm:p-6 lg:p-8">
         <header class="bg-white shadow-md rounded-lg p-6 mb-6 flex justify-between items-center">
             <div>
