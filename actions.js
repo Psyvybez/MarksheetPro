@@ -423,6 +423,7 @@ export function editUnits() {
     });
 }
 
+//
 export function manageAssignments() {
     const appState = getAppState();
     const classData = getActiveClassData();
@@ -437,9 +438,13 @@ export function manageAssignments() {
 
     let draggedItem = null;
 
+    // Ensure order/weight exist
     Object.values(unit.assignments || {}).forEach((asg, index) => {
         if (asg.order === undefined) asg.order = index;
         if (asg.weight === undefined) asg.weight = 1;
+        if (!unit.isFinal && !asg.categoryTotals) {
+            asg.categoryTotals = { k: 0, t: 0, c: 0, a: 0 };
+        }
     });
 
     function renderAssignmentsEditor(currentUnit) {
@@ -505,15 +510,13 @@ export function manageAssignments() {
         modal.querySelectorAll('.assignment-item').forEach((item, index) => {
             const asgId = item.dataset.asgId;
             const originalAsg = unit.assignments[asgId] || {};
-            const name = item.querySelector('[data-field="name"]').value;
-            const weight = parseFloat(item.querySelector('[data-field="weight"]').value) || 1;
             
             updatedAssignments[asgId] = {
                 ...originalAsg,
                 id: asgId,
-                name: name,
+                name: item.querySelector('[data-field="name"]').value,
                 order: index,
-                weight: weight
+                weight: parseFloat(item.querySelector('[data-field="weight"]').value) || 1
             };
 
             if (unit.isFinal) {
@@ -560,7 +563,7 @@ export function manageAssignments() {
             if (unit.isFinal) {
                 newAsg.total = 100;
             } else {
-                newAsg.categoryTotals = { k: 0, t: 0, c: 0, a: 0 };
+                newAsg.categoryTotals = { k: 10, t: 10, c: 10, a: 10 }; // Default non-zero for convenience
             }
             assignmentsState[newAsgId] = newAsg;
             unit.assignments = assignmentsState;
@@ -577,38 +580,25 @@ export function manageAssignments() {
         }
     });
     
+    // ... Drag/Drop logic unchanged ...
     editor.addEventListener('dragstart', e => {
         if (e.target.classList.contains('assignment-item')) {
             draggedItem = e.target;
             setTimeout(() => e.target.classList.add('dragging'), 0);
         }
     });
-
-    editor.addEventListener('dragend', () => {
-        draggedItem?.classList.remove('dragging');
-        draggedItem = null;
-    });
+    editor.addEventListener('dragend', () => { draggedItem?.classList.remove('dragging'); draggedItem = null; });
     editor.addEventListener('dragover', e => {
         if (!draggedItem) return;
         e.preventDefault();
         const list = e.target.closest('.assignment-list');
         if (!list) return;
-
         const afterElement = [...list.querySelectorAll('.assignment-item:not(.dragging)')].reduce((closest, child) => {
             const box = child.getBoundingClientRect();
             const offset = e.clientY - box.top - box.height / 2;
-            if (offset < 0 && offset > closest.offset) {
-                return { offset: offset, element: child };
-            } else {
-                return closest;
-            }
+            if (offset < 0 && offset > closest.offset) { return { offset: offset, element: child }; } else { return closest; }
         }, { offset: Number.NEGATIVE_INFINITY }).element;
-
-        if (afterElement == null) {
-            list.appendChild(draggedItem);
-        } else {
-            list.insertBefore(draggedItem, afterElement);
-        }
+        if (afterElement == null) { list.appendChild(draggedItem); } else { list.insertBefore(draggedItem, afterElement); }
     });
 }
 

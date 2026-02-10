@@ -149,6 +149,7 @@ export function renderCategoryWeights() {
 
 //
 //
+//
 export function renderGradebook() {
     const classData = getActiveClassData();
     const table = document.getElementById('gradebookTable');
@@ -157,19 +158,15 @@ export function renderGradebook() {
 
     if (!classData || !table || !classNameEl) return;
 
-    // --- 1. APPLY ZOOM (Default 80%) ---
+    // 1. APPLY ZOOM (Default 80%)
     const savedZoom = appState.gradebook_data.zoomLevel || 0.8; 
-    
-    // Apply to the MAIN CONTAINER
     const contentArea = document.getElementById('main-content-area');
     if (contentArea) contentArea.style.zoom = savedZoom;
-
     const zoomText = document.getElementById('zoom-level-text');
     if(zoomText) zoomText.textContent = `${Math.round(savedZoom * 100)}%`;
-    // -------------------------------------
 
     // 2. Stats & Basic UI
-    updateClassStats(); 
+    updateClassStats(); // Ensure this helper exists
     document.body.classList.toggle('has-final', classData.hasFinal);
     document.body.classList.toggle('no-final', !classData.hasFinal);
     classNameEl.textContent = classData.name;
@@ -188,7 +185,7 @@ export function renderGradebook() {
         }
     }
 
-    // 3. Standard Headers (K, T, C, A)
+    // 3. Headers
     const studentInfoHeaders = `
         <th class="student-info-header p-3 text-left">Student Name</th>
         <th class="student-info-header p-3 text-center">IEP</th>
@@ -233,14 +230,15 @@ export function renderGradebook() {
 
                 if(unit.isFinal) {
                     headerHtml2 += `<th class="p-3 text-xs font-medium text-gray-500 tracking-wider text-center border-l-2 border-gray-400 ${submittedClass}">${asg.name}<br>${weightText}${toggleHtml}</th>`;
-                    headerHtml3 += `<th class="p-2 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border-l-2 border-gray-400 assignment-header-cell ${submittedClass}">Score<br><span class="font-normal">${asg.total || 0}</span></th>`;
+                    headerHtml3 += `<th class="p-2 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border-l-2 border-gray-400 assignment-header-cell ${submittedClass}">Score<br><input type="number" class="assignment-total-input font-normal w-12 text-center bg-transparent border-b border-transparent hover:border-gray-400 focus:border-blue-500 p-0" data-unit-id="${unit.id}" data-assignment-id="${asg.id}" value="${asg.total || 0}"></th>`;
                 } else {
                     headerHtml2 += `<th colspan="4" class="p-3 text-xs font-medium text-gray-500 tracking-wider text-center border-l-2 border-gray-400 ${submittedClass}">${asg.name}<br>${weightText}${toggleHtml}</th>`;
                     
-                    // Standard K, T, C, A headers
+                    // UPDATED: Now uses inputs for K, T, C, A totals
                     ['k','t','c','a'].forEach(cat => {
                         const borderClass = cat === 'k' ? 'border-l-2 border-gray-400' : 'border-l';
-                        headerHtml3 += `<th class="p-2 text-xs font-medium text-gray-500 uppercase tracking-wider text-center ${borderClass} assignment-header-cell ${submittedClass}">${cat.toUpperCase()}<br><span class="font-normal">${asg.categoryTotals?.[cat] || 0}</span></th>`;
+                        const catTotal = asg.categoryTotals?.[cat] || 0;
+                        headerHtml3 += `<th class="p-2 text-xs font-medium text-gray-500 uppercase tracking-wider text-center ${borderClass} assignment-header-cell ${submittedClass}">${cat.toUpperCase()}<br><input type="number" class="assignment-total-input font-normal w-10 text-center bg-transparent border-b border-transparent hover:border-gray-400 focus:border-blue-500 p-0 text-xs" data-unit-id="${unit.id}" data-assignment-id="${asg.id}" data-cat="${cat}" value="${catTotal}"></th>`;
                     });
                 }
             });
@@ -248,6 +246,7 @@ export function renderGradebook() {
     });
     thead.innerHTML = headerHtml1 + '</tr>' + headerHtml2 + '</tr>' + headerHtml3 + '</tr>';
 
+    // Body & Footer (Standard Logic)
     const tbody = table.querySelector('tbody');
     const searchTerm = document.getElementById('student-search-input')?.value.toLowerCase() || '';
     const studentIds = Object.keys(students).filter(id => {
