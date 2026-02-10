@@ -30,8 +30,9 @@ export function setupAuthListener(supabaseClient, wasLocalDataLoaded) {
         // --- NEW LOGIC TO PREVENT DOUBLE-LOAD ---
 
         // Handle a page refresh (INITIAL_SESSION)
-        if (event === 'INITIAL_SESSION') {
-            hasHandledInitialLoad = true; // Set the flag
+            if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') { 
+            hasHandledInitialLoad = true;
+   
             setCurrentUser(user);
             authContainer?.classList.add('hidden');
             appContainer?.classList.remove('hidden');
