@@ -94,6 +94,7 @@ export function updateClassStats() {
 //
 //
 //
+//
 export function renderCategoryWeights() {
     const classData = getActiveClassData();
     const container = document.getElementById('category-weights-container');
@@ -109,28 +110,28 @@ export function renderCategoryWeights() {
     
     classData.categoryWeights = weights;
 
-    // Helper: Stacked Layout (Name on top, Weight on bottom)
-    const makeInput = (key, defaultLabel) => `
-        <div class="flex flex-col gap-2 p-2 bg-gray-50 rounded-lg border border-gray-100">
+    // Helper: Card Layout (Name on top, Weight on bottom)
+    const makeInput = (key, defaultPlaceholder) => `
+        <div class="flex flex-col items-center justify-center p-3 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow">
             <input type="text" 
                    data-cat="${key}" 
-                   class="cat-name-input w-full p-2 border border-gray-300 rounded-md text-sm font-bold text-gray-800 text-center focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 outline-none" 
+                   class="cat-name-input w-full text-center font-bold text-gray-600 text-sm mb-2 border-b-2 border-transparent hover:border-gray-200 focus:border-indigo-500 focus:outline-none transition-colors bg-transparent px-1" 
                    value="${names[key]}" 
-                   placeholder="${defaultLabel}">
+                   placeholder="${defaultPlaceholder}">
             
-            <div class="flex items-center justify-center">
+            <div class="flex items-center justify-center bg-gray-50 rounded px-3 py-1 border border-gray-200">
                 <input type="number" 
                        step="0.1" 
                        data-cat="${key}" 
-                       class="cat-weight-input w-20 p-2 border border-gray-300 rounded-md text-center font-mono text-sm font-semibold focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 outline-none" 
+                       class="cat-weight-input w-12 text-center font-bold text-gray-900 text-lg bg-transparent focus:outline-none" 
                        value="${weights[key]}">
-                <span class="ml-1 text-gray-500 font-bold">%</span>
+                <span class="text-gray-500 font-bold ml-1">%</span>
             </div>
         </div>
     `;
 
     container.innerHTML = `
-        <div class="flex flex-col xl:flex-row justify-between items-center gap-4">
+        <div class="flex flex-col xl:flex-row items-stretch gap-4">
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 flex-grow w-full">
                 ${makeInput('k', 'Knowledge')}
                 ${makeInput('t', 'Thinking')}
@@ -138,8 +139,8 @@ export function renderCategoryWeights() {
                 ${makeInput('a', 'Application')}
             </div>
             
-            <div class="p-3 rounded-lg whitespace-nowrap shadow-sm min-w-[120px] text-center" id="cat-weight-total-container">
-                <span class="text-lg font-bold" id="cat-weight-total"></span>
+            <div class="flex items-center justify-center p-4 rounded-lg shadow-sm border min-w-[140px]" id="cat-weight-total-container">
+                <span class="text-xl font-bold" id="cat-weight-total"></span>
             </div>
         </div>
     `;
@@ -154,8 +155,14 @@ export function renderCategoryWeights() {
         if(!totalEl || !totalContainer) return;
 
         totalEl.textContent = `Total: ${Number(total.toFixed(1))}%`;
-        const isTotal100 = Math.abs(total - 100) < 0.1; // Allow tiny float error
-        totalContainer.className = `p-3 rounded-lg whitespace-nowrap shadow-sm min-w-[120px] text-center ${isTotal100 ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-100 text-red-700 border border-red-200'}`;
+        
+        // Green if 100%, Red otherwise
+        const isTotal100 = Math.abs(total - 100) < 0.1; 
+        totalContainer.className = `flex items-center justify-center p-4 rounded-lg shadow-sm border min-w-[140px] transition-colors ${
+            isTotal100 
+            ? 'bg-green-50 text-green-700 border-green-200' 
+            : 'bg-red-50 text-red-700 border-red-200'
+        }`;
     };
     updateTotal();
 }
