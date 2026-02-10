@@ -352,6 +352,7 @@ export function updateUIFromState() {
     const mainContent = document.getElementById('main-content-area');
     const instructionsContent = document.getElementById('content-instructions');
     const instructionsTab = document.querySelector('[data-tab-id="instructions"]');
+    
     if (!semesterBtn1 || !semesterBtn2 || !mainContent || !instructionsContent || !instructionsTab) return;
 
     const activeSemester = appState.gradebook_data.activeSemester || '1';
@@ -359,8 +360,17 @@ export function updateUIFromState() {
     const semesterData = getActiveSemesterData();
     const hasClasses = Object.keys(semesterData.classes || {}).length > 0;
 
+    // 1. Update Semester Tabs state
     semesterBtn1.classList.toggle('active', activeSemester === '1');
     semesterBtn2.classList.toggle('active', activeSemester === '2');
+    
+    // 2. FIX: Update "Move Class" Button Text dynamically
+    const moveClassBtn = document.getElementById('moveClassBtn');
+    if (moveClassBtn) {
+        const targetSem = activeSemester === '1' ? '2' : '1';
+        moveClassBtn.textContent = `Move to Sem ${targetSem}`;
+    }
+
     renderClassTabs();
     
     const noClassContent = document.getElementById('no-class-content');
@@ -379,13 +389,12 @@ export function updateUIFromState() {
 }
 
 
-//
 export function renderFullGradebookUI() {
     if (!contentWrapper) return;
 
-    // Determine target semester for the "Move" button
+    // Calculate initial target semester for the Move button
     const appState = getAppState();
-    const currentSem = appState.gradebook_data.activeSemester || '1';
+    const currentSem = appState.gradebook_data?.activeSemester || '1';
     const targetSem = currentSem === '1' ? '2' : '1';
 
     contentWrapper.innerHTML = `
@@ -450,6 +459,13 @@ export function renderFullGradebookUI() {
         <div class="my-2 flex flex-col sm:flex-row justify-between items-center gap-4">
             <div class="flex items-center gap-2 w-full sm:w-auto">
                 <div class="relative flex-grow sm:flex-grow-0"><input type="text" id="student-search-input" placeholder="Search students..." class="py-2 px-4 w-full border border-gray-300 rounded-md shadow-sm transition-all focus:outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-200"></div>
+                
+                <div class="flex items-center gap-1 bg-white rounded-lg border border-gray-300 px-2 py-1 shadow-sm mr-2 select-none">
+                    <button id="zoomOutBtn" class="text-gray-500 hover:text-gray-700 font-bold px-2 text-lg leading-none" title="Zoom Out">&minus;</button>
+                    <span id="zoom-level-text" class="text-xs text-gray-600 font-medium w-10 text-center">100%</span>
+                    <button id="zoomInBtn" class="text-gray-500 hover:text-gray-700 font-bold px-2 text-lg leading-none" title="Zoom In">&plus;</button>
+                </div>
+
                 <div id="class-stats-container" class="text-sm text-gray-500 font-medium flex items-center gap-3 px-2"></div>
 
                 <button id="addStudentBtn" class="bg-accent hover:bg-accent-dark text-white font-bold py-2 px-4 rounded-lg whitespace-nowrap">+ Add Student</button>
