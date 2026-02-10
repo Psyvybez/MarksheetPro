@@ -167,6 +167,7 @@ export function renderCategoryWeights() {
     updateTotal();
 }
 
+//
 export function renderGradebook() {
     const classData = getActiveClassData();
     const table = document.getElementById('gradebookTable');
@@ -175,8 +176,20 @@ export function renderGradebook() {
 
     if (!classData || !table || !classNameEl) return;
 
-    // 1. Stats & Basic UI
-    updateClassStats(); 
+    // --- 1. APPLY ZOOM (Default 80%) ---
+    // Change default from 1 to 0.8
+    const savedZoom = appState.gradebook_data.zoomLevel || 0.8; 
+    
+    // Apply to the MAIN CONTAINER, not just the table
+    const contentArea = document.getElementById('main-content-area');
+    if (contentArea) contentArea.style.zoom = savedZoom;
+
+    const zoomText = document.getElementById('zoom-level-text');
+    if(zoomText) zoomText.textContent = `${Math.round(savedZoom * 100)}%`;
+    // -------------------------------------
+
+    // 2. Stats & Basic UI
+    updateClassStats(); // Ensure this helper function exists in your file
     document.body.classList.toggle('has-final', classData.hasFinal);
     document.body.classList.toggle('no-final', !classData.hasFinal);
     classNameEl.textContent = classData.name;
@@ -184,10 +197,10 @@ export function renderGradebook() {
     const students = classData.students || {};
     const allUnits = classData.units || {};
     
-    // 2. Category Names & First Letter Logic
+    // 3. Category Names
     const catNames = classData.categoryNames || { k: 'Knowledge', t: 'Thinking', c: 'Communication', a: 'Application' };
     
-    // Helper: Gets "K" from "Knowledge", "E" from "Exams"
+    // Helper: Gets "K" from "Knowledge"
     const getLet = (key) => {
         const name = catNames[key];
         return (name && name.length > 0) ? name.trim().charAt(0).toUpperCase() : key.toUpperCase();
@@ -204,7 +217,7 @@ export function renderGradebook() {
         }
     }
 
-    // 3. Build Headers (Using getLet for Short Names)
+    // 4. Build Headers
     const studentInfoHeaders = `
         <th class="student-info-header p-3 text-left">Student Name</th>
         <th class="student-info-header p-3 text-center">IEP</th>
@@ -252,11 +265,8 @@ export function renderGradebook() {
                     headerHtml3 += `<th class="p-2 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border-l-2 border-gray-400 assignment-header-cell ${submittedClass}">Score<br><span class="font-normal">${asg.total || 0}</span></th>`;
                 } else {
                     headerHtml2 += `<th colspan="4" class="p-3 text-xs font-medium text-gray-500 tracking-wider text-center border-l-2 border-gray-400 ${submittedClass}">${asg.name}<br>${weightText}${toggleHtml}</th>`;
-                    
-                    // Loop K/T/C/A using dynamic letters
                     ['k','t','c','a'].forEach(cat => {
                         const borderClass = cat === 'k' ? 'border-l-2 border-gray-400' : 'border-l';
-                        // USING getLet(cat) HERE
                         headerHtml3 += `<th class="p-2 text-xs font-medium text-gray-500 uppercase tracking-wider text-center ${borderClass} assignment-header-cell ${submittedClass}" title="${catNames[cat]}">${getLet(cat)}<br><span class="font-normal">${asg.categoryTotals?.[cat] || 0}</span></th>`;
                     });
                 }
