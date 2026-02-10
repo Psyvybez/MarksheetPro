@@ -18,17 +18,52 @@ export function initializeSupabase(url, key) {
     return supabaseClient;
 }
 
+//
 export async function loadDataForUser(userId, appState, wasLocalDataLoaded) {
     console.log(`DATA: Fetching from server for user ${userId}.`);
     try {
-        const { data: serverProfileRows, error, status } = await supabaseClient.from('profiles').select('*').eq('id', userId);
-        if (error && status !== 406) throw error;
+        // 1. Attempt initial fetch
+        let { data: serverProfileRows, error, status } = await supabaseClient.from('profiles').select('*').eq('id', userId);
         
-        const profileData = serverProfileRows?.[0];
+        if (error && status !== 406) throw error;
+        let profileData = serverProfileRows?.[0];
 
+        // 2. If no profile, try to create one
+        if (!profileData) {
+            console.log("DATA: No profile found on server, attempting creation...");
+            
+            const newGradebookData = { 
+                semesters: { '1': { classes: {} }, '2': { classes: {} } }, 
+                presets: {}, activeSemester: '1', activeClassId: null,
+                lastModified: new Date().toISOString()
+            };
+
+            const { data: newData, error: insertError } = await supabaseClient
+                .from('profiles')
+                .insert({ id: userId, gradebook_data: newGradebookData })
+                .select()
+                .single();
+
+            if (insertError) {
+                // 3. HANDLE CONFLICT (409): Profile already exists (Race Condition)
+                if (insertError.code === '23505' || insertError.message.includes('duplicate')) {
+                    console.warn("DATA: Profile creation conflict (already exists). Retrying fetch...");
+                    const retry = await supabaseClient.from('profiles').select('*').eq('id', userId).single();
+                    if (retry.error) throw retry.error;
+                    profileData = retry.data; // Recovered!
+                } else {
+                    throw insertError; // Real error
+                }
+            } else {
+                return { data: newData, needsFullRender: true };
+            }
+        }
+
+        // 4. Standard Data Merge Logic (runs if profile was found or recovered)
         if (profileData) {
             const localTimestamp = appState.gradebook_data?.lastModified;
             const serverTimestamp = profileData.gradebook_data?.lastModified;
+            
             if (!localTimestamp || (serverTimestamp && new Date(serverTimestamp) > new Date(localTimestamp))) {
                 console.log("DATA: Server data is newer. Applying server state.");
                 return { data: profileData, needsFullRender: !wasLocalDataLoaded };
@@ -36,17 +71,10 @@ export async function loadDataForUser(userId, appState, wasLocalDataLoaded) {
                 console.log("DATA: Local data is up-to-date. No server data applied.");
                 return { data: appState, needsFullRender: true }; 
             }
-        } else {
-            console.log("DATA: No profile found on server, creating new one.");
-            const newGradebookData = { 
-                semesters: { '1': { classes: {} }, '2': { classes: {} } }, 
-                presets: {}, activeSemester: '1', activeClassId: null,
-                lastModified: new Date().toISOString()
-            };
-            const { data: newData, error: newError } = await supabaseClient.from('profiles').insert({ id: userId, gradebook_data: newGradebookData }).select().single();
-            if (newError) throw newError;
-            return { data: newData, needsFullRender: true };
         }
+        
+        throw new Error("Profile could not be loaded or created.");
+
     } catch (error) {
         console.error('DATA FATAL: Failed to load or create user profile.', error);
         return { error };
