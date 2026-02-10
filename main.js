@@ -392,6 +392,7 @@ function showFeedbackModal() {
 
 
 
+//
 function setupEventListeners() {
     const contentWrapper = document.getElementById('content-wrapper');
     const authContainer = document.getElementById('auth-container');
@@ -411,44 +412,30 @@ function setupEventListeners() {
             const authSubmitBtn = document.getElementById('auth-submit-btn');
             const authToggleLink = document.getElementById('auth-toggle-link');
             
-            // Check if we are currently in "Sign In" mode
             const isCurrentlySignIn = authSubmitBtn.textContent === 'Sign in';
 
             if (isCurrentlySignIn) {
-                // SWITCH TO: Create Account Mode
                 authTitle.textContent = 'Create a new account';
                 authSubmitBtn.textContent = 'Create account';
                 authToggleLink.innerHTML = 'Already have an account? <span class="font-bold underline">Sign in</span>';
-                
-                // Change Button Color to Purple (Accent) to distinguish it
                 authSubmitBtn.classList.remove('bg-primary', 'hover:bg-primary-dark');
                 authSubmitBtn.classList.add('bg-accent', 'hover:bg-accent-dark');
-                
-                // Optional: Add a subtle transition
                 authTitle.classList.add('text-accent');
             } else {
-                // SWITCH TO: Sign In Mode
                 authTitle.textContent = 'Sign in to your account';
                 authSubmitBtn.textContent = 'Sign in';
                 authToggleLink.innerHTML = 'Or <span class="font-bold underline">create a new account</span>';
-                
-                // Revert Button Color to Navy (Primary)
                 authSubmitBtn.classList.remove('bg-accent', 'hover:bg-accent-dark');
                 authSubmitBtn.classList.add('bg-primary', 'hover:bg-primary-dark');
-                
-                // Remove title color
                 authTitle.classList.remove('text-accent');
             }
         });
     }
 
-    // --- GLOBAL LISTENER FOR POPUP NAVIGATION (Feature 1) ---
     document.addEventListener('keydown', (e) => {
         const modal = document.getElementById('custom-modal');
-        // Only run if the modal is actually open
         if (modal && document.body.classList.contains('modal-open') && e.key === 'Enter') {
             const target = e.target;
-            // Only hijack Enter if we are inside a text input or select box
             if ((target.tagName === 'INPUT' || target.tagName === 'SELECT') && modal.contains(target)) {
                 e.preventDefault();
                 handleModalEnter(modal, target);
@@ -460,7 +447,32 @@ function setupEventListeners() {
         contentWrapper.addEventListener('click', (e) => {
             const clickedElement = e.target;
 
-            // --- Check for student name button click ---
+            // --- ZOOM BUTTON LOGIC ---
+            if (clickedElement.id === 'zoomInBtn' || clickedElement.id === 'zoomOutBtn') {
+                const table = document.getElementById('gradebookTable');
+                const zoomText = document.getElementById('zoom-level-text');
+                const appState = getAppState();
+                
+                let currentZoom = appState.gradebook_data.zoomLevel || 1;
+                
+                if (clickedElement.id === 'zoomInBtn') currentZoom += 0.1;
+                if (clickedElement.id === 'zoomOutBtn') currentZoom -= 0.1;
+                
+                if (currentZoom < 0.5) currentZoom = 0.5;
+                if (currentZoom > 1.5) currentZoom = 1.5;
+                
+                currentZoom = Math.round(currentZoom * 10) / 10;
+
+                if(table) table.style.zoom = currentZoom;
+                if(zoomText) zoomText.textContent = `${Math.round(currentZoom * 100)}%`;
+                
+                if (appState.gradebook_data) {
+                    appState.gradebook_data.zoomLevel = currentZoom;
+                    triggerAutoSave();
+                }
+                return;
+            }
+
             const studentNameBtn = clickedElement.closest('.student-name-btn');
             if (studentNameBtn) {
                 const studentId = studentNameBtn.closest('[data-student-id]')?.dataset.studentId;
@@ -470,7 +482,6 @@ function setupEventListeners() {
                 }
             }
 
-            // --- Check for Delete button click ---
             const deleteBtn = clickedElement.closest('.delete-btn');
             if (deleteBtn) {
                 const studentId = deleteBtn.closest('[data-student-id]')?.dataset.studentId;
@@ -480,7 +491,6 @@ function setupEventListeners() {
                 }
             }
             
-            // --- Original Logic for all other buttons ---
             const target = clickedElement.closest('[id], [data-tab-id]');
             if (!target) return;
 
@@ -538,6 +548,20 @@ function setupEventListeners() {
             const target = e.target;
             const classData = getActiveClassData(); 
 
+            // CATEGORY RENAME LOGIC
+            if (target.classList.contains('cat-name-input')) {
+                const cat = target.dataset.cat;
+                const val = target.value.trim();
+                
+                if (classData && cat) {
+                    if (!classData.categoryNames) classData.categoryNames = { k: 'K', t: 'T', c: 'C', a: 'A' };
+                    classData.categoryNames[cat] = val || cat.toUpperCase();
+                    renderGradebook(); 
+                    triggerAutoSave();
+                }
+                return;
+            }
+
             if (target.id === 'student-search-input') {
                 renderGradebook(); 
                 return;
@@ -564,61 +588,42 @@ function setupEventListeners() {
                 return; 
             }
 
-            //
-            //
             if (target.classList.contains('grade-input')) {
                 const studentId = target.dataset.studentId;
                 const assignmentId = target.dataset.assignmentId;
                 const category = target.dataset.cat;
-                
-                // 1. Normalize Input (Force Uppercase for logic)
-                const rawValue = target.value.trim().toUpperCase(); 
+                const rawValue = target.value.trim().toUpperCase();
 
-                // 2. Determine Storage Value (M, Number, or Null)
                 let storageValue;
-                if (rawValue === '') { 
-                    storageValue = null; 
-                } else if (rawValue === 'M') { 
-                    storageValue = 'M'; 
-                } else { 
+                if (rawValue === '') { storageValue = null; } 
+                else if (rawValue === 'M') { storageValue = 'M'; } 
+                else { 
                     storageValue = parseFloat(rawValue); 
                     if (isNaN(storageValue)) { storageValue = null; } 
                 }
 
                 if (studentId && assignmentId && classData?.students?.[studentId]) {
-                    // Ensure data structure exists
                     if (!classData.students[studentId].grades) classData.students[studentId].grades = {};
                     if (!classData.students[studentId].grades[assignmentId]) classData.students[studentId].grades[assignmentId] = {};
-
-                    // 3. Capture Previous Value (Needed for "Clear Row" logic)
+                    
                     let previousValue = null;
                     if (category) {
                         previousValue = classData.students[studentId].grades[assignmentId][category];
                     }
 
-                    // 4. Helper: Update UI and State for a single cell
                     const updateCell = (cat, val) => {
-                        // Update State
                         if (cat) { classData.students[studentId].grades[assignmentId][cat] = val; }
                         else { classData.students[studentId].grades[assignmentId].grade = val; }
 
-                        // Update UI
                         const selector = cat 
                             ? `.grade-input[data-student-id="${studentId}"][data-assignment-id="${assignmentId}"][data-cat="${cat}"]`
                             : `.grade-input[data-student-id="${studentId}"][data-assignment-id="${assignmentId}"]`;
                         
                         const inputEl = document.querySelector(selector);
                         if (inputEl) {
-                            // FORCE Uppercase 'M' in UI
-                            if (val === 'M' && inputEl.value !== 'M') {
-                                inputEl.value = 'M';
-                            }
-                            // Update other cells (e.g. row fill/clear), but don't interrupt typing numbers in current cell
-                            else if (inputEl !== target) {
-                                inputEl.value = val === null ? '' : val;
-                            }
+                            if (val === 'M' && inputEl.value !== 'M') inputEl.value = 'M';
+                            else if (inputEl !== target) inputEl.value = val === null ? '' : val;
                             
-                            // Color Logic: Instant Red Toggle
                             const parentTd = inputEl.closest('td');
                             if (parentTd) {
                                 if (val === 0 || val === 'M') parentTd.classList.add('missing-cell');
@@ -627,26 +632,20 @@ function setupEventListeners() {
                         }
                     };
 
-                    // 5. Logic Branching
                     if (category) {
-                        // CASE A: User entered 'M' -> Fill Row
                         if (storageValue === 'M') {
                             ['k', 't', 'c', 'a'].forEach(c => updateCell(c, 'M'));
                         } 
-                        // CASE B: User DELETED 'M' -> Clear Row (Only if it was M before)
                         else if (storageValue === null && previousValue === 'M') {
                             ['k', 't', 'c', 'a'].forEach(c => updateCell(c, null));
                         }
-                        // CASE C: Normal Single Cell Update
                         else {
                             updateCell(category, storageValue);
                         }
                     } else {
-                        // Final Mark (No categories)
                         updateCell(null, storageValue);
                     }
 
-                    // 6. Validation Styling (Red border for invalid numbers)
                     const unit = Object.values(classData.units || {}).find(u => u.assignments?.[assignmentId]);
                     const assignment = unit?.assignments?.[assignmentId];
                     let maxScore = Infinity;
@@ -721,22 +720,17 @@ function setupEventListeners() {
             }
         });
 
-        // --- UPDATED KEYDOWN LISTENER (Feature 2: Arrow Keys) ---
         contentWrapper.addEventListener('keydown', (e) => {
-            // 1. Default Enter behavior
             if (e.key === 'Enter' && e.target.classList.contains('grade-input')) {
                 e.preventDefault();
                 e.target.blur(); 
             }
-
-            // 2. Arrow Key Navigation
             if (e.target.classList.contains('grade-input') && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
                 e.preventDefault();
                 handleGradebookNavigation(e.key, e.target);
             }
         });
 
-        // ... (Drag and Drop listeners go here, keeping them as is) ...
         let draggedTab = null;
         contentWrapper.addEventListener('dragstart', (e) => {
             const target = e.target.closest('.tab-button');
@@ -793,8 +787,6 @@ function setupEventListeners() {
         }
     }
 
-
-    // LISTENER: Handle "Submitted" (Ungraded) Toggle in Header
     document.addEventListener('change', (e) => {
         if (e.target.classList.contains('assignment-status-toggle')) {
             const unitId = e.target.dataset.unitId;
@@ -803,11 +795,8 @@ function setupEventListeners() {
             const appState = getAppState();
             const activeClassId = appState.gradebook_data.activeClassId;
             
-            // Update State
             if (appState.gradebook_data.semesters[appState.gradebook_data.activeSemester].classes[activeClassId].units[unitId].assignments[asgId]) {
                 appState.gradebook_data.semesters[appState.gradebook_data.activeSemester].classes[activeClassId].units[unitId].assignments[asgId].isSubmitted = isChecked;
-                
-                // Save & Re-render
                 triggerAutoSave();
                 renderGradebook();
             }

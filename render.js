@@ -75,46 +75,74 @@ export function renderUnitFilter() {
     dropdown.innerHTML = optionsHtml;
 }
 
+export function updateClassStats() {
+    const classData = getActiveClassData();
+    const statsContainer = document.getElementById('class-stats-container');
+    if (!classData || !statsContainer) return;
+
+    const students = classData.students || {};
+    const totalStudents = Object.keys(students).length;
+    const iepCount = Object.values(students).filter(s => s.iep).length;
+
+    statsContainer.innerHTML = `
+        <span class="text-gray-600">Students: <strong class="text-gray-800">${totalStudents}</strong></span>
+        <span class="text-gray-300">|</span>
+        <span class="text-gray-600">IEP: <strong class="text-indigo-600">${iepCount}</strong></span>
+    `;
+}
+
 export function renderCategoryWeights() {
     const classData = getActiveClassData();
     const container = document.getElementById('category-weights-container');
     if (!classData || !container) return;
 
     classData.categoryWeights = classData.categoryWeights || {};
+    // Ensure category names object exists
+    classData.categoryNames = classData.categoryNames || { k: 'K', t: 'T', c: 'C', a: 'A' };
+    
     const defaults = { k: 25, t: 25, c: 25, a: 25 };
     const weights = { ...defaults, ...classData.categoryWeights };
+    const names = classData.categoryNames;
     classData.categoryWeights = weights;
 
-    container.innerHTML = `
-        <h3 class="text-lg font-semibold text-gray-700 mb-3">Category Weights</h3>
-        <div class="grid grid-cols-2 md:grid-cols-5 gap-4 items-center">
-            <div><label class="block text-sm font-medium text-gray-500">Knowledge %</label><input type="number" step="0.1" data-cat="k" class="cat-weight-input mt-1 p-2 border rounded-md w-full" value="${weights.k}"></div>
-            <div><label class="block text-sm font-medium text-gray-500">Thinking/Inquiry %</label><input type="number" step="0.1" data-cat="t" class="cat-weight-input mt-1 p-2 border rounded-md w-full" value="${weights.t}"></div>
-            <div><label class="block text-sm font-medium text-gray-500">Communication %</label><input type="number" step="0.1" data-cat="c" class="cat-weight-input mt-1 p-2 border rounded-md w-full" value="${weights.c}"></div>
-            <div><label class="block text-sm font-medium text-gray-500">Application %</label><input type="number" step="0.1" data-cat="a" class="cat-weight-input mt-1 p-2 border rounded-md w-full" value="${weights.a}"></div>
-            <div class="mt-5 text-center p-2 rounded-lg" id="cat-weight-total-container"><span class="text-xl font-bold" id="cat-weight-total"></span></div>
+    // Helper to generate input block
+    const makeInput = (key, label) => `
+        <div class="flex flex-col gap-1">
+            <label class="block text-xs font-medium text-gray-500 uppercase">${label} Name & %</label>
+            <div class="flex gap-2">
+                <input type="text" data-cat="${key}" class="cat-name-input p-2 border rounded-md w-full text-sm font-bold text-center" value="${names[key]}" placeholder="${key.toUpperCase()}">
+                <input type="number" step="0.1" data-cat="${key}" class="cat-weight-input p-2 border rounded-md w-20 text-center" value="${weights[key]}">
+            </div>
         </div>
     `;
 
-    const updateTotal = () => {
-        let total = 0;
-        container.querySelectorAll('.cat-weight-input').forEach(input => {
-            total += parseFloat(input.value) || 0;
-        });
-        const totalEl = document.getElementById('cat-weight-total');
-        const totalContainer = document.getElementById('cat-weight-total-container');
-        if(!totalEl || !totalContainer) return;
+    container.innerHTML = `
+        <div class="flex flex-col md:flex-row justify-between items-end gap-4">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 flex-grow">
+                ${makeInput('k', 'Knowledge')}
+                ${makeInput('t', 'Thinking')}
+                ${makeInput('c', 'Comm.')}
+                ${makeInput('a', 'App.')}
+            </div>
+            <div class="p-2 rounded-lg whitespace-nowrap" id="cat-weight-total-container">
+                <span class="text-xl font-bold" id="cat-weight-total"></span>
+            </div>
+        </div>
+    `;
 
-        totalEl.textContent = `Total: ${total}%`;
-        const isTotal100 = Math.round(total) === 100;
-        totalContainer.classList.toggle('bg-red-100', !isTotal100);
-        totalContainer.classList.toggle('text-red-700', !isTotal100);
-        totalContainer.classList.toggle('bg-green-100', isTotal100);
-        totalContainer.classList.toggle('text-green-700', isTotal100);
-    };
-    updateTotal();
+    // Recalculate total immediately for display
+    const inputs = container.querySelectorAll('.cat-weight-input');
+    let total = 0;
+    inputs.forEach(i => total += parseFloat(i.value) || 0);
+    const totalEl = document.getElementById('cat-weight-total');
+    const totalContainer = document.getElementById('cat-weight-total-container');
+    
+    totalEl.textContent = `Total: ${total}%`;
+    const isTotal100 = Math.round(total) === 100;
+    totalContainer.className = `p-2 rounded-lg whitespace-nowrap ${isTotal100 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`;
 }
 
+//
 export function renderGradebook() {
     const classData = getActiveClassData();
     const table = document.getElementById('gradebookTable');
@@ -123,13 +151,29 @@ export function renderGradebook() {
 
     if (!classData || !table || !classNameEl) return;
 
+    // --- APPLY ZOOM HERE ---
+    const savedZoom = appState.gradebook_data.zoomLevel || 1;
+    table.style.zoom = savedZoom;
+    const zoomText = document.getElementById('zoom-level-text');
+    if(zoomText) zoomText.textContent = `${Math.round(savedZoom * 100)}%`;
+    // -----------------------
+
+    // Update Stats Instantly
+    const students = classData.students || {};
+    const totalStudents = Object.keys(students).length;
+    const iepCount = Object.values(students).filter(s => s.iep).length;
+    const statsContainer = document.getElementById('class-stats-container');
+    if (statsContainer) {
+        statsContainer.innerHTML = `<span class="text-gray-600">Students: <strong class="text-gray-800">${totalStudents}</strong></span><span class="text-gray-300">|</span><span class="text-gray-600">IEP: <strong class="text-indigo-600">${iepCount}</strong></span>`;
+    }
+
     document.body.classList.toggle('has-final', classData.hasFinal);
     document.body.classList.toggle('no-final', !classData.hasFinal);
 
     classNameEl.textContent = classData.name;
-    const students = classData.students || {};
     const allUnits = classData.units || {};
     let activeUnitId = appState.gradebook_data?.activeUnitId;
+    const catNames = classData.categoryNames || { k: 'K', t: 'T', c: 'C', a: 'A' };
 
     let unitsToDisplay = allUnits;
     if (activeUnitId && activeUnitId !== 'all') {
@@ -141,22 +185,18 @@ export function renderGradebook() {
         }
     }
 
-    // --- Stats ---
-    const totalStudents = Object.keys(students).length;
-    const iepCount = Object.values(students).filter(s => s.iep).length;
-    const statsContainer = document.getElementById('class-stats-container');
-    if (statsContainer) {
-        statsContainer.innerHTML = `<span class="text-gray-600">Students: <strong class="text-gray-800">${totalStudents}</strong></span><span class="text-gray-300">|</span><span class="text-gray-600">IEP: <strong class="text-indigo-600">${iepCount}</strong></span>`;
-    }
-
     const studentInfoHeaders = `
         <th class="student-info-header p-3 text-left">Student Name</th>
         <th class="student-info-header p-3 text-center">IEP</th>
         <th class="student-info-header p-3 text-center">Overall</th>
+        <th class="student-info-header p-3 text-center">Term</th>
         <th class="student-info-header p-3 text-center">Midterm</th>
-        <th class="student-info-header p-3 text-center">Term Mark</th>
         ${classData.hasFinal ? `<th class="student-info-header p-3 text-center">Final</th>` : ''}
-        <th class="p-3 text-center">K%</th><th class="p-3 text-center">T%</th><th class="p-3 text-center">C%</th><th class="p-3 text-center">A%</th>`;
+        <th class="p-3 text-center">${catNames.k}%</th>
+        <th class="p-3 text-center">${catNames.t}%</th>
+        <th class="p-3 text-center">${catNames.c}%</th>
+        <th class="p-3 text-center">${catNames.a}%</th>`;
+        
     const studentInfoColCount = classData.hasFinal ? 6 : 5;
     const nonStickyColCount = 4;
 
@@ -181,17 +221,11 @@ export function renderGradebook() {
         } else {
             assignments.forEach(asg => {
                 const weightText = asg.weight && asg.weight !== 1 ? `<span class="text-xs font-normal text-gray-500">(x${asg.weight})</span>` : '';
-                
-                // --- SUBMISSION TOGGLE LOGIC ---
                 const isSubmitted = asg.isSubmitted || false;
                 const submittedClass = isSubmitted ? 'submitted-assignment-col' : '';
                 const checked = isSubmitted ? 'checked' : '';
                 
-                const toggleHtml = `
-                    <div class="mt-1 flex items-center justify-center gap-1">
-                        <input type="checkbox" class="assignment-status-toggle" data-unit-id="${unit.id}" data-assignment-id="${asg.id}" ${checked}>
-                        <label class="text-[9px] text-blue-600 font-bold uppercase cursor-pointer">Collected</label>
-                    </div>`;
+                const toggleHtml = `<div class="mt-1 flex items-center justify-center gap-1"><input type="checkbox" class="assignment-status-toggle" data-unit-id="${unit.id}" data-assignment-id="${asg.id}" ${checked}><label class="text-[9px] text-blue-600 font-bold uppercase cursor-pointer">Submitted</label></div>`;
 
                 if(unit.isFinal) {
                     headerHtml2 += `<th class="p-3 text-xs font-medium text-gray-500 tracking-wider text-center border-l-2 border-gray-400 ${submittedClass}">${asg.name}<br>${weightText}${toggleHtml}</th>`;
@@ -200,7 +234,7 @@ export function renderGradebook() {
                     headerHtml2 += `<th colspan="4" class="p-3 text-xs font-medium text-gray-500 tracking-wider text-center border-l-2 border-gray-400 ${submittedClass}">${asg.name}<br>${weightText}${toggleHtml}</th>`;
                     ['k','t','c','a'].forEach(cat => {
                         const borderClass = cat === 'k' ? 'border-l-2 border-gray-400' : 'border-l';
-                        headerHtml3 += `<th class="p-2 text-xs font-medium text-gray-500 uppercase tracking-wider text-center ${borderClass} assignment-header-cell ${submittedClass}">${cat.toUpperCase()}<br><span class="font-normal">${asg.categoryTotals?.[cat] || 0}</span></th>`;
+                        headerHtml3 += `<th class="p-2 text-xs font-medium text-gray-500 uppercase tracking-wider text-center ${borderClass} assignment-header-cell ${submittedClass}">${catNames[cat]}<br><span class="font-normal">${asg.categoryTotals?.[cat] || 0}</span></th>`;
                     });
                 }
             });
@@ -248,8 +282,8 @@ export function renderGradebook() {
                 </td>
                 <td class="p-3 text-center"><input type="checkbox" class="iep-checkbox h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" data-student-id="${studentId}" ${student.iep ? 'checked' : ''}></td>
                 <td class="p-3 text-center font-semibold student-overall">--%</td>
-                <td class="p-3 text-center font-semibold student-midterm">${midtermDisplayScore}</td>
                 <td class="p-3 text-center font-semibold student-term-mark">--%</td>
+                <td class="p-3 text-center font-semibold student-midterm">${midtermDisplayScore}</td>
                 ${classData.hasFinal ? `<td class="p-3 text-center font-semibold student-final">--%</td>` : ''}
                 <td class="p-3 text-center font-semibold student-cat-k">--%</td>
                 <td class="p-3 text-center font-semibold student-cat-t">--%</td>
@@ -264,8 +298,6 @@ export function renderGradebook() {
                     assignments.forEach(asg => {
                         const isSubmitted = asg.isSubmitted || false;
                         const subClass = isSubmitted ? 'submitted-assignment-col' : '';
-
-                        // Helper to check for Red Cell (M or 0)
                         const getCellClass = (val) => {
                              if (!val && val !== 0) return '';
                              const s = String(val).toUpperCase();
@@ -290,7 +322,7 @@ export function renderGradebook() {
     }
 
     const tfoot = table.querySelector('tfoot');
-    let footerCells = [`<td class="p-3 text-left">Class Average</td>`, `<td></td>`, `<td class="class-overall text-center">--%</td>`, `<td></td>`, `<td class="class-term-mark text-center">--%</td>`];
+    let footerCells = [`<td class="p-3 text-left">Class Average</td>`, `<td></td>`, `<td class="class-overall text-center">--%</td>`, `<td class="class-term-mark text-center">--%</td>`, `<td></td>`];
     if (classData.hasFinal) footerCells.push(`<td class="class-final text-center">--%</td>`);
     footerCells.push(`<td></td>`, `<td></td>`, `<td></td>`, `<td></td>`);
     let footerHtml = `<tr class="bg-gray-50 font-semibold">${footerCells.join('')}`;
@@ -302,7 +334,7 @@ export function renderGradebook() {
     });
     tfoot.innerHTML = footerHtml + `</tr>`;
 
-    // Re-enable/Update buttons... (same as before)
+    // Re-enable/Update buttons
     const recordMidtermsBtn = document.getElementById('recordMidtermsBtn');
     if (recordMidtermsBtn) {
         const recorded = !!classData.midtermsRecorded;
@@ -357,6 +389,7 @@ export function updateUIFromState() {
     }
 }
 
+//
 export function renderFullGradebookUI() {
     if (!contentWrapper) return;
     contentWrapper.innerHTML = `
@@ -418,6 +451,13 @@ export function renderFullGradebookUI() {
         <div class="my-2 flex flex-col sm:flex-row justify-between items-center gap-4">
             <div class="flex items-center gap-2 w-full sm:w-auto">
                 <div class="relative flex-grow sm:flex-grow-0"><input type="text" id="student-search-input" placeholder="Search students..." class="py-2 px-4 w-full border border-gray-300 rounded-md shadow-sm transition-all focus:outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-200"></div>
+                
+                <div class="flex items-center gap-1 bg-white rounded-lg border border-gray-300 px-2 py-1 shadow-sm mr-2">
+                    <button id="zoomOutBtn" class="text-gray-500 hover:text-gray-700 font-bold px-2 text-lg leading-none" title="Zoom Out">-</button>
+                    <span id="zoom-level-text" class="text-xs text-gray-600 font-medium w-10 text-center">100%</span>
+                    <button id="zoomInBtn" class="text-gray-500 hover:text-gray-700 font-bold px-2 text-lg leading-none" title="Zoom In">+</button>
+                </div>
+
                 <div id="class-stats-container" class="text-sm text-gray-500 font-medium flex items-center gap-3 px-2"></div>
 
                 <button id="addStudentBtn" class="bg-accent hover:bg-accent-dark text-white font-bold py-2 px-4 rounded-lg whitespace-nowrap">+ Add Student</button>
