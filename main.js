@@ -8,7 +8,7 @@ import * as actions from './actions.js'
 import { startTutorial } from './tutorial.js';
 
 // --- GLOBAL STATE & CONSTANTS ---
-const SUPABASE_URL = 'https://txpgjzplqumkayoybfoj.supabase.co';
+const SUPABASE_URL = 'https://pvwcdesafxxkosdrfjwa.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB2d2NkZXNhZnh4a29zZHJmandhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg0NzY3NDIsImV4cCI6MjA3NDA1Mjc0Mn0.qaSGzdLMCbYNO1KQPCZJrCrk0AEtesKvt2kHXJ_IVH8';
 const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000;
 
