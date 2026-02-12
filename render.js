@@ -150,7 +150,6 @@ export function renderCategoryWeights() {
 //
 //
 //
-//
 export function renderGradebook() {
     const classData = getActiveClassData();
     const table = document.getElementById('gradebookTable');
@@ -167,22 +166,15 @@ export function renderGradebook() {
     if(zoomText) zoomText.textContent = `${Math.round(savedZoom * 100)}%`;
 
     // 2. Stats & Basic UI
-    updateClassStats(); 
+    updateClassStats(); // Ensure this helper exists
     document.body.classList.toggle('has-final', classData.hasFinal);
     document.body.classList.toggle('no-final', !classData.hasFinal);
     classNameEl.textContent = classData.name;
 
     const students = classData.students || {};
     const allUnits = classData.units || {};
-    
-    // 3. Category Names
-    const catNames = classData.categoryNames || { k: 'Knowledge', t: 'Thinking', c: 'Communication', a: 'Application' };
-    const getLet = (key) => {
-        const name = catNames[key];
-        return (name && name.length > 0) ? name.trim().charAt(0).toUpperCase() : key.toUpperCase();
-    };
-
     let activeUnitId = appState.gradebook_data?.activeUnitId;
+
     let unitsToDisplay = allUnits;
     if (activeUnitId && activeUnitId !== 'all') {
         if (allUnits[activeUnitId]) {
@@ -193,47 +185,25 @@ export function renderGradebook() {
         }
     }
 
-    // --- STICKY COLUMN DEFINITIONS ---
-    // We hardcode widths to ensure the "Left" offsets align perfectly.
-    // Name: 220px | IEP: 50px | Overall: 80px
-    const stickyNameClass = "sticky left-0 z-20 w-[220px] min-w-[220px] max-w-[220px] border-r border-gray-300";
-    const stickyIepClass  = "sticky left-[220px] z-20 w-[50px] min-w-[50px] max-w-[50px] border-r border-gray-300";
-    // The last frozen column gets a shadow to separate it from the scrollable area
-    const stickyOverallClass = "sticky left-[270px] z-20 w-[80px] min-w-[80px] max-w-[80px] border-r-2 border-gray-400 shadow-[4px_0_5px_-2px_rgba(0,0,0,0.1)]";
-
-    const headerBg = "bg-gray-100"; // Slightly darker header for frozen cols
-    const bodyBg   = "bg-white";    // White background for body rows so text doesn't overlap
-
-    // 4. Build Headers
+    // 3. Headers
     const studentInfoHeaders = `
-        <th class="${stickyNameClass} ${headerBg} p-3 text-left z-30">Student Name</th>
-        <th class="${stickyIepClass} ${headerBg} p-3 text-center z-30">IEP</th>
-        <th class="${stickyOverallClass} ${headerBg} p-3 text-center z-30">Overall</th>
+        <th class="student-info-header p-3 text-left">Student Name</th>
+        <th class="student-info-header p-3 text-center">IEP</th>
+        <th class="student-info-header p-3 text-center">Overall</th>
         <th class="student-info-header p-3 text-center">Term</th>
         <th class="student-info-header p-3 text-center">Midterm</th>
         ${classData.hasFinal ? `<th class="student-info-header p-3 text-center">Final</th>` : ''}
-        <th class="p-3 text-center" title="${catNames.k}">${getLet('k')}%</th>
-        <th class="p-3 text-center" title="${catNames.t}">${getLet('t')}%</th>
-        <th class="p-3 text-center" title="${catNames.c}">${getLet('c')}%</th>
-        <th class="p-3 text-center" title="${catNames.a}">${getLet('a')}%</th>`;
+        <th class="p-3 text-center">K%</th>
+        <th class="p-3 text-center">T%</th>
+        <th class="p-3 text-center">C%</th>
+        <th class="p-3 text-center">A%</th>`;
         
     const studentInfoColCount = classData.hasFinal ? 6 : 5;
-    const nonStickyColCount = 4; // K, T, C, A
+    const nonStickyColCount = 4;
 
     const thead = table.querySelector('thead');
-    
-    // Top Row (Blank over frozen cols)
-    let headerHtml1 = `<tr class="bg-gray-50">
-        <th class="${stickyNameClass} ${headerBg} z-30" rowspan="2"></th>
-        <th class="${stickyIepClass} ${headerBg} z-30" rowspan="2"></th>
-        <th class="${stickyOverallClass} ${headerBg} z-30" rowspan="2"></th>
-        <th class="student-info-header-blank" colspan="${studentInfoColCount - 3}"></th>
-        <th colspan="${nonStickyColCount}"></th>`;
-        
-    let headerHtml2 = `<tr>
-        <th class="student-info-header-blank" colspan="${studentInfoColCount - 3}"></th>
-        <th colspan="${nonStickyColCount}"></th>`;
-        
+    let headerHtml1 = `<tr class="bg-gray-50"><th class="student-info-header-blank" colspan="${studentInfoColCount}"></th><th colspan="${nonStickyColCount}"></th>`;
+    let headerHtml2 = `<tr><th class="student-info-header-blank" colspan="${studentInfoColCount}"></th><th colspan="${nonStickyColCount}"></th>`;
     let headerHtml3 = `<tr class="bg-gray-50">${studentInfoHeaders}`;
 
     Object.values(unitsToDisplay).sort((a,b) => a.order - b.order).forEach(unit => {
@@ -263,10 +233,12 @@ export function renderGradebook() {
                     headerHtml3 += `<th class="p-2 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border-l-2 border-gray-400 assignment-header-cell ${submittedClass}">Score<br><input type="number" class="assignment-total-input font-normal w-12 text-center bg-transparent border-b border-transparent hover:border-gray-400 focus:border-blue-500 p-0" data-unit-id="${unit.id}" data-assignment-id="${asg.id}" value="${asg.total || 0}"></th>`;
                 } else {
                     headerHtml2 += `<th colspan="4" class="p-3 text-xs font-medium text-gray-500 tracking-wider text-center border-l-2 border-gray-400 ${submittedClass}">${asg.name}<br>${weightText}${toggleHtml}</th>`;
+                    
+                    // UPDATED: Now uses inputs for K, T, C, A totals
                     ['k','t','c','a'].forEach(cat => {
                         const borderClass = cat === 'k' ? 'border-l-2 border-gray-400' : 'border-l';
                         const catTotal = asg.categoryTotals?.[cat] || 0;
-                        headerHtml3 += `<th class="p-2 text-xs font-medium text-gray-500 uppercase tracking-wider text-center ${borderClass} assignment-header-cell ${submittedClass}" title="${catNames[cat]}">${getLet(cat)}<br><input type="number" class="assignment-total-input font-normal w-10 text-center bg-transparent border-b border-transparent hover:border-gray-400 focus:border-blue-500 p-0 text-xs" data-unit-id="${unit.id}" data-assignment-id="${asg.id}" data-cat="${cat}" value="${catTotal}"></th>`;
+                        headerHtml3 += `<th class="p-2 text-xs font-medium text-gray-500 uppercase tracking-wider text-center ${borderClass} assignment-header-cell ${submittedClass}">${cat.toUpperCase()}<br><input type="number" class="assignment-total-input font-normal w-10 text-center bg-transparent border-b border-transparent hover:border-gray-400 focus:border-blue-500 p-0 text-xs" data-unit-id="${unit.id}" data-assignment-id="${asg.id}" data-cat="${cat}" value="${catTotal}"></th>`;
                     });
                 }
             });
@@ -274,6 +246,7 @@ export function renderGradebook() {
     });
     thead.innerHTML = headerHtml1 + '</tr>' + headerHtml2 + '</tr>' + headerHtml3 + '</tr>';
 
+    // Body & Footer (Standard Logic)
     const tbody = table.querySelector('tbody');
     const searchTerm = document.getElementById('student-search-input')?.value.toLowerCase() || '';
     const studentIds = Object.keys(students).filter(id => {
@@ -301,21 +274,19 @@ export function renderGradebook() {
             const hasNotes = student.generalNotes && student.generalNotes.trim().length > 0;
             const noteIndicator = hasNotes ? `<span class="text-accent text-xl leading-none ml-1 relative top-1" title="Has General Note">*</span>` : '';
 
-            // --- BUILD ROW ---
-            let rowHtml = `<tr class="student-row hover:bg-gray-50 transition-colors" data-student-id="${studentId}">
-                <td class="${stickyNameClass} ${bodyBg} p-0 border-t border-gray-200">
+            let rowHtml = `<tr class="student-row" data-student-id="${studentId}">
+                <td class="p-0 border-t border-gray-200">
                     <div class="flex items-center pl-2 h-full">
                         <button class="delete-btn text-gray-400 hover:text-red-600 hover:bg-red-50 p-1 mr-2 rounded transition-colors" title="Delete Student" style="background: none; width: auto; height: auto;">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                         </button>
-                        <button class="student-name-btn flex items-center p-2 flex-grow text-left hover:bg-gray-50 rounded truncate">
-                            ${profilePicHtml}<span class="font-medium text-gray-700 truncate">${student.lastName}, ${student.firstName}</span>${noteIndicator}
+                        <button class="student-name-btn flex items-center p-2 flex-grow text-left hover:bg-gray-50 rounded">
+                            ${profilePicHtml}<span class="font-medium text-gray-700">${student.lastName}, ${student.firstName}</span>${noteIndicator}
                         </button>
                     </div>
                 </td>
-                <td class="${stickyIepClass} ${bodyBg} p-3 text-center"><input type="checkbox" class="iep-checkbox h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" data-student-id="${studentId}" ${student.iep ? 'checked' : ''}></td>
-                <td class="${stickyOverallClass} ${bodyBg} p-3 text-center font-bold text-gray-800 student-overall">--%</td>
-                
+                <td class="p-3 text-center"><input type="checkbox" class="iep-checkbox h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" data-student-id="${studentId}" ${student.iep ? 'checked' : ''}></td>
+                <td class="p-3 text-center font-semibold student-overall">--%</td>
                 <td class="p-3 text-center font-semibold student-term-mark">--%</td>
                 <td class="p-3 text-center font-semibold student-midterm">${midtermDisplayScore}</td>
                 ${classData.hasFinal ? `<td class="p-3 text-center font-semibold student-final">--%</td>` : ''}
@@ -356,16 +327,7 @@ export function renderGradebook() {
     }
 
     const tfoot = table.querySelector('tfoot');
-    
-    // Footer Cells need the same Sticky treatment
-    let footerCells = [
-        `<td class="${stickyNameClass} ${headerBg} p-3 text-left font-bold z-20">Class Average</td>`,
-        `<td class="${stickyIepClass} ${headerBg} z-20"></td>`,
-        `<td class="${stickyOverallClass} ${headerBg} class-overall text-center font-bold z-20">--%</td>`,
-        `<td class="class-term-mark text-center">--%</td>`, 
-        `<td></td>`
-    ];
-
+    let footerCells = [`<td class="p-3 text-left">Class Average</td>`, `<td></td>`, `<td class="class-overall text-center">--%</td>`, `<td class="class-term-mark text-center">--%</td>`, `<td></td>`];
     if (classData.hasFinal) footerCells.push(`<td class="class-final text-center">--%</td>`);
     footerCells.push(`<td></td>`, `<td></td>`, `<td></td>`, `<td></td>`);
     let footerHtml = `<tr class="bg-gray-50 font-semibold">${footerCells.join('')}`;
@@ -377,7 +339,7 @@ export function renderGradebook() {
     });
     tfoot.innerHTML = footerHtml + `</tr>`;
 
-    // Removed old adjustStickyHeaders call since we handle it natively now
+    adjustStickyHeaders();
     recalculateAndRenderAverages();
 }
 
