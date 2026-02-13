@@ -3,7 +3,7 @@ import { setupAuthListener, handleAuthSubmit, signOut } from './auth.js';
 import { showModal, updateSaveStatus } from './ui.js';
 import { setAppState, setCurrentUser, getAppState, getCurrentUser, getActiveClassData, getActiveSemesterData } from './state.js';
 import { recalculateAndRenderAverages } from './calculations.js';
-import { renderFullGradebookUI, renderFullGradebookUI, renderAnalyticsModal, updateUIFromState, renderGradebook, renderClassTabs, renderAccountPage, renderAttendanceSheet, renderStudentProfileModal,updateClassStats } from './render.js';
+import { renderFullGradebookUI, renderAnalyticsModal, updateUIFromState, renderGradebook, renderClassTabs, renderAccountPage, renderAttendanceSheet, renderStudentProfileModal,updateClassStats } from './render.js';
 import * as actions from './actions.js'
 import { startTutorial } from './tutorial.js';
 
