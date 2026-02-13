@@ -32,122 +32,7 @@ export function switchActiveClass(classId) {
     triggerAutoSave();
 }
 
-export function addClass() {
-    const appState = getAppState();
-    // Ensure presets object exists
-    if (!appState.gradebook_data.presets) appState.gradebook_data.presets = {};
-    
-    const presets = appState.gradebook_data.presets;
-    const presetOptions = Object.keys(presets).length > 0 
-        ? Object.keys(presets).map(id => `<option value="${id}">${presets[id].name}</option>`).join('')
-        : '<option value="" disabled>No presets saved yet</option>';
 
-    showModal({
-        title: 'Add New Class',
-        content: `
-            <div class="space-y-4">
-                <div>
-                    <label for="class-name-input" class="block text-sm font-medium">Class Name</label>
-                    <input type="text" id="class-name-input" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="e.g., Grade 10 Math">
-                </div>
-                <div>
-                    <label for="class-preset-select" class="block text-sm font-medium">Use a Preset (Optional)</label>
-                    <select id="class-preset-select" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
-                        <option value="">Start from scratch</option>
-                        ${presetOptions}
-                    </select>
-                </div>
-            </div>`,
-        confirmText: 'Add Class',
-        confirmClasses: 'bg-primary hover:bg-primary-dark',
-        onConfirm: () => {
-            const newClassName = document.getElementById('class-name-input').value.trim();
-            const presetId = document.getElementById('class-preset-select').value;
-            
-            if (newClassName && appState.gradebook_data) {
-                const newClassId = `class_${Date.now()}`;
-                const activeSemester = appState.gradebook_data.activeSemester;
-                
-                // Ensure semester structure exists
-                if (!appState.gradebook_data.semesters[activeSemester]) {
-                    appState.gradebook_data.semesters[activeSemester] = { classes: {} };
-                }
-                const semesterClasses = appState.gradebook_data.semesters[activeSemester].classes;
-                const newOrder = Object.keys(semesterClasses).length;
-
-                let newClassData;
-
-                if (presetId && presets[presetId]) {
-                    // LOAD PRESET LOGIC
-                    const preset = presets[presetId];
-                    
-                    // Deep copy the preset to avoid reference issues
-                    newClassData = JSON.parse(JSON.stringify(preset));
-                    
-                    // Overwrite unique fields
-                    newClassData.id = newClassId;
-                    newClassData.name = newClassName;
-                    newClassData.order = newOrder;
-                    newClassData.students = {}; // Always start with empty students
-                    newClassData.attendance = {};
-                    
-                    // Reset Unit IDs so they are unique to this class
-                    // (Otherwise editing units in one class might affect another if they shared IDs)
-                    const oldUnits = newClassData.units || {};
-                    newClassData.units = {};
-                    Object.values(oldUnits).forEach(u => {
-                        const newUnitId = `unit_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
-                        newClassData.units[newUnitId] = {
-                            ...u,
-                            id: newUnitId,
-                            assignments: {} // assignments are templates, but we usually want fresh copies or empty? 
-                            // Let's keep the assignments structure but give them new IDs too if we want a true template.
-                            // For simplicity V1: Keep the units/weights, but clear assignments? 
-                            // Usually teachers want the assignments structure too. Let's keep assignments but regen IDs.
-                        };
-                        
-                        // Deep copy assignments and give new IDs
-                        const oldAsgs = u.assignments || {};
-                        newClassData.units[newUnitId].assignments = {};
-                        Object.values(oldAsgs).forEach(a => {
-                            const newAsgId = `asg_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
-                            newClassData.units[newUnitId].assignments[newAsgId] = {
-                                ...a,
-                                id: newAsgId
-                            };
-                        });
-                    });
-
-                } else {
-                    // START FROM SCRATCH LOGIC
-                    const units = {};
-                    for (let i = 1; i <= 5; i++) {
-                        const unitId = `unit_${Date.now()}_${i}`;
-                        units[unitId] = { id: unitId, order: i, title: ``, subtitle: '', weight: 20, assignments: {} };
-                    }
-                    newClassData = {
-                        id: newClassId, 
-                        name: newClassName, 
-                        hasFinal: false, 
-                        finalWeight: 30, 
-                        midtermsRecorded: false,
-                        order: newOrder, 
-                        isArchived: false, 
-                        attendance: {},
-                        categoryWeights: { k: 25, t: 25, c: 25, a: 25 }, 
-                        units, 
-                        students: {}
-                    };
-                }
-                
-                appState.gradebook_data.semesters[activeSemester].classes[newClassId] = newClassData;
-                appState.gradebook_data.activeClassId = newClassId;
-                updateUIFromState();
-                triggerAutoSave();
-            }
-        }
-    });
-}
 
 export function archiveClass() {
     const classData = getActiveClassData();
@@ -657,6 +542,125 @@ export function manageAssignments() {
 }
 
 // --- General Actions ---
+
+//
+
+export function addClass() {
+    const appState = getAppState();
+    // Ensure presets object exists
+    if (!appState.gradebook_data.presets) appState.gradebook_data.presets = {};
+    
+    const presets = appState.gradebook_data.presets;
+    const presetOptions = Object.keys(presets).length > 0 
+        ? Object.keys(presets).map(id => `<option value="${id}">${presets[id].name}</option>`).join('')
+        : '<option value="" disabled>No presets saved yet</option>';
+
+    showModal({
+        title: 'Add New Class',
+        content: `
+            <div class="space-y-4">
+                <div>
+                    <label for="class-name-input" class="block text-sm font-medium">Class Name</label>
+                    <input type="text" id="class-name-input" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="e.g., Grade 10 Math">
+                </div>
+                <div>
+                    <label for="class-preset-select" class="block text-sm font-medium">Use a Preset (Optional)</label>
+                    <select id="class-preset-select" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                        <option value="">Start from scratch</option>
+                        ${presetOptions}
+                    </select>
+                </div>
+            </div>`,
+        confirmText: 'Add Class',
+        confirmClasses: 'bg-primary hover:bg-primary-dark',
+        onConfirm: () => {
+            const newClassName = document.getElementById('class-name-input').value.trim();
+            const presetId = document.getElementById('class-preset-select').value;
+            
+            if (newClassName && appState.gradebook_data) {
+                const newClassId = `class_${Date.now()}`;
+                const activeSemester = appState.gradebook_data.activeSemester;
+                
+                // Ensure semester structure exists
+                if (!appState.gradebook_data.semesters[activeSemester]) {
+                    appState.gradebook_data.semesters[activeSemester] = { classes: {} };
+                }
+                const semesterClasses = appState.gradebook_data.semesters[activeSemester].classes;
+                const newOrder = Object.keys(semesterClasses).length;
+
+                let newClassData;
+
+                if (presetId && presets[presetId]) {
+                    // LOAD PRESET LOGIC
+                    const preset = presets[presetId];
+                    
+                    // Deep copy the preset to avoid reference issues
+                    newClassData = JSON.parse(JSON.stringify(preset));
+                    
+                    // Overwrite unique fields
+                    newClassData.id = newClassId;
+                    newClassData.name = newClassName;
+                    newClassData.order = newOrder;
+                    newClassData.students = {}; // Always start with empty students
+                    newClassData.attendance = {};
+                    
+                    // Reset Unit IDs so they are unique to this class
+                    // (Otherwise editing units in one class might affect another if they shared IDs)
+                    const oldUnits = newClassData.units || {};
+                    newClassData.units = {};
+                    Object.values(oldUnits).forEach(u => {
+                        const newUnitId = `unit_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+                        newClassData.units[newUnitId] = {
+                            ...u,
+                            id: newUnitId,
+                            assignments: {} // assignments are templates, but we usually want fresh copies or empty? 
+                            // Let's keep the assignments structure but give them new IDs too if we want a true template.
+                            // For simplicity V1: Keep the units/weights, but clear assignments? 
+                            // Usually teachers want the assignments structure too. Let's keep assignments but regen IDs.
+                        };
+                        
+                        // Deep copy assignments and give new IDs
+                        const oldAsgs = u.assignments || {};
+                        newClassData.units[newUnitId].assignments = {};
+                        Object.values(oldAsgs).forEach(a => {
+                            const newAsgId = `asg_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+                            newClassData.units[newUnitId].assignments[newAsgId] = {
+                                ...a,
+                                id: newAsgId
+                            };
+                        });
+                    });
+
+                } else {
+                    // START FROM SCRATCH LOGIC
+                    const units = {};
+                    for (let i = 1; i <= 5; i++) {
+                        const unitId = `unit_${Date.now()}_${i}`;
+                        units[unitId] = { id: unitId, order: i, title: ``, subtitle: '', weight: 20, assignments: {} };
+                    }
+                    newClassData = {
+                        id: newClassId, 
+                        name: newClassName, 
+                        hasFinal: false, 
+                        finalWeight: 30, 
+                        midtermsRecorded: false,
+                        order: newOrder, 
+                        isArchived: false, 
+                        attendance: {},
+                        categoryWeights: { k: 25, t: 25, c: 25, a: 25 }, 
+                        units, 
+                        students: {}
+                    };
+                }
+                
+                appState.gradebook_data.semesters[activeSemester].classes[newClassId] = newClassData;
+                appState.gradebook_data.activeClassId = newClassId;
+                updateUIFromState();
+                triggerAutoSave();
+            }
+        }
+    });
+}
 
 export function saveClassAsPreset() {
     const classData = getActiveClassData();
