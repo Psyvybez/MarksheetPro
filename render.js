@@ -148,8 +148,7 @@ export function renderCategoryWeights() {
 }
 
 //
-//
-//
+
 //
 export function renderGradebook() {
     const classData = getActiveClassData();
@@ -193,17 +192,24 @@ export function renderGradebook() {
         }
     }
 
-    // --- STICKY CONFIGURATION ---
-    // We use your exact rem widths: Name (15rem), IEP (4rem), Overall (6rem)
+    // --- RESPONSIVE STICKY CONFIGURATION ---
     const headerBg = "bg-gray-100"; 
     const bodyBg   = "bg-white";    
     
-    // Col 1: Name (Left 0)
-    const stickyName = "sticky left-0 z-20 w-[15rem] min-w-[15rem] max-w-[15rem] border-r border-gray-300";
-    // Col 2: IEP (Left 15rem)
-    const stickyIep = "sticky left-[15rem] z-20 w-[4rem] min-w-[4rem] max-w-[4rem] border-r border-gray-300";
-    // Col 3: Overall (Left 19rem) -> Adds shadow
-    const stickyOverall = "sticky left-[19rem] z-20 w-[6rem] min-w-[6rem] max-w-[6rem] border-r-2 border-gray-400 shadow-[4px_0_5px_-2px_rgba(0,0,0,0.1)]";
+    // 1. Name Column
+    // Mobile: Sticky, 10rem wide, HAS shadow.
+    // Desktop (md): Sticky, 15rem wide, NO shadow (merges with IEP).
+    const stickyName = "sticky left-0 z-20 border-r border-gray-300 w-[10rem] min-w-[10rem] max-w-[10rem] md:w-[15rem] md:min-w-[15rem] md:max-w-[15rem] shadow-[4px_0_5px_-2px_rgba(0,0,0,0.1)] md:shadow-none";
+
+    // 2. IEP Column
+    // Mobile: NOT sticky, 3rem wide.
+    // Desktop (md): Sticky at 15rem, 4rem wide.
+    const stickyIep = "z-10 md:z-20 border-r border-gray-300 w-[3rem] min-w-[3rem] max-w-[3rem] md:w-[4rem] md:min-w-[4rem] md:max-w-[4rem] md:sticky md:left-[15rem]";
+
+    // 3. Overall Column
+    // Mobile: NOT sticky, 5rem wide, HAS border.
+    // Desktop (md): Sticky at 19rem, 6rem wide, HAS shadow.
+    const stickyOverall = "z-10 md:z-20 border-r-2 border-gray-400 w-[5rem] min-w-[5rem] max-w-[5rem] md:w-[6rem] md:min-w-[6rem] md:max-w-[6rem] md:sticky md:left-[19rem] md:shadow-[4px_0_5px_-2px_rgba(0,0,0,0.1)]";
 
     // 4. Build Headers
     const studentInfoHeaders = `
