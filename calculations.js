@@ -123,6 +123,85 @@ export function calculateClassAverages(classData) {
     return {}; 
 }
 
+export function calculateClassStats(classData) {
+    if (!classData || !classData.students) return null;
+
+    const students = Object.values(classData.students);
+    if (students.length === 0) return null;
+
+    // 1. Grade Distribution
+    const distribution = { 'Level 4 (80-100)': 0, 'Level 3 (70-79)': 0, 'Level 2 (60-69)': 0, 'Level 1 (50-59)': 0, 'R (<50)': 0 };
+    
+    // 2. Category Averages
+    const catSums = { k: 0, t: 0, c: 0, a: 0 };
+    const catCounts = { k: 0, t: 0, c: 0, a: 0 };
+
+    // 3. Unit Averages
+    const unitSums = {};
+    const unitCounts = {};
+
+    students.forEach(student => {
+        const avgs = calculateStudentAverages(student, classData);
+
+        // Distribution
+        if (avgs.overallGrade !== null) {
+            if (avgs.overallGrade >= 80) distribution['Level 4 (80-100)']++;
+            else if (avgs.overallGrade >= 70) distribution['Level 3 (70-79)']++;
+            else if (avgs.overallGrade >= 60) distribution['Level 2 (60-69)']++;
+            else if (avgs.overallGrade >= 50) distribution['Level 1 (50-59)']++;
+            else distribution['R (<50)']++;
+        }
+
+        // Categories
+        ['k', 't', 'c', 'a'].forEach(cat => {
+            if (avgs.categories[cat] !== null) {
+                catSums[cat] += avgs.categories[cat];
+                catCounts[cat]++;
+            }
+        });
+
+        // Units
+        // We need to calculate raw unit averages again for the class stats
+        // (Re-using logic from calculateStudentAverages roughly)
+        Object.values(classData.units || {}).forEach(unit => {
+            if (unit.isFinal) return;
+            const assignments = Object.values(unit.assignments || {});
+            let uSum = 0;
+            let uWeight = 0;
+            
+            assignments.forEach(asg => {
+                if(asg.isSubmitted) return;
+                const gradeEntry = student.grades?.[asg.id];
+                if (!gradeEntry) return;
+
+                // Simple weighted avg for unit stat approximation
+                ['k', 't', 'c', 'a'].forEach(cat => {
+                    const score = parseFloat(gradeEntry[cat]);
+                    const total = parseFloat(asg.categoryTotals?.[cat]);
+                    if(!isNaN(score) && total > 0) {
+                        const w = (parseFloat(asg.weight) || 1) * 0.25; // simplified assumption or requires deeper import
+                        // Actually, let's just use the unit average calculated per student if we stored it, 
+                        // but since we don't, we'll skip complex unit-logic here and stick to Categories/Overall for V1
+                        // OR: Just aggregate Unit Totals if we had them.
+                    }
+                });
+            });
+            // Simplified: Just use student's grades if calculated. 
+            // For robust stats, let's stick to Distribution and Categories first, 
+            // and maybe Unit *Assignment* averages?
+        });
+    });
+
+    const catAverages = {
+        k: catCounts.k ? (catSums.k / catCounts.k) : 0,
+        t: catCounts.t ? (catSums.t / catCounts.t) : 0,
+        c: catCounts.c ? (catSums.c / catCounts.c) : 0,
+        a: catCounts.a ? (catSums.a / catCounts.a) : 0,
+    };
+
+    return { distribution, catAverages };
+}
+
 export function recalculateAndRenderAverages() {
     // FIX: Using imported getActiveClassData instead of require()
     const classData = getActiveClassData();

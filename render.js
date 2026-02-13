@@ -1,5 +1,5 @@
 import { getAppState, getActiveSemesterData, getActiveClassData } from './state.js';
-import { recalculateAndRenderAverages, calculateStudentAverages, calculateClassAverages } from './calculations.js';
+import { recalculateAndRenderAverages, calculateStudentAverages, calculateClassAverages, calculateClassStats } from './calculations.js';
 import { getProfilePictureUrl, uploadProfilePicture } from './api.js';
 import { showModal } from './ui.js';
 import { triggerAutoSave } from './main.js';
@@ -514,6 +514,11 @@ export function renderFullGradebookUI() {
                     <button id="savePresetBtn" class="bg-secondary hover:bg-secondary-dark text-white font-bold py-2 px-4 rounded-lg">Save Class as Preset</button>
                     <button id="importStudentsBtn" class="bg-secondary hover:bg-secondary-dark text-white font-bold py-2 px-4 rounded-lg">Import Students</button>
                     <button id="recordMidtermsBtn" class="bg-primary hover:bg-primary-dark text-white font-bold py-2 px-4 rounded-lg">Record Midterms</button>
+
+                    <button id="analyticsBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+                        Analytics
+                    </button>
                     
                     <button id="moveClassBtn" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg">Move to Sem ${targetSem}</button>
                     
@@ -875,4 +880,107 @@ export async function renderStudentProfileModal(studentId) {
             reader.readAsDataURL(file);
         }
     });
+}
+
+export function renderAnalyticsModal() {
+    const classData = getActiveClassData();
+    if (!classData) return;
+
+    const stats = calculateClassStats(classData);
+    if (!stats) {
+        showModal({ title: 'No Data', content: '<p>Add students and grades to see analytics.</p>', confirmText: null, cancelText: 'Close', modalWidth: 'max-w-sm' });
+        return;
+    }
+
+    const content = `
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-gray-50 p-4 rounded-lg border">
+                <h4 class="text-sm font-bold text-gray-500 uppercase mb-4 text-center">Grade Distribution</h4>
+                <div class="relative h-64 w-full">
+                    <canvas id="chart-distribution"></canvas>
+                </div>
+            </div>
+            <div class="bg-gray-50 p-4 rounded-lg border">
+                <h4 class="text-sm font-bold text-gray-500 uppercase mb-4 text-center">Category Performance</h4>
+                <div class="relative h-64 w-full">
+                    <canvas id="chart-categories"></canvas>
+                </div>
+            </div>
+        </div>
+    `;
+
+    showModal({
+        title: `Class Analytics: ${classData.name}`,
+        content: content,
+        modalWidth: 'max-w-5xl',
+        confirmText: null,
+        cancelText: 'Close',
+    });
+
+    // Wait for DOM to update, then render charts
+    setTimeout(() => {
+        // 1. Distribution Chart
+        const ctxDist = document.getElementById('chart-distribution').getContext('2d');
+        new Chart(ctxDist, {
+            type: 'bar',
+            data: {
+                labels: Object.keys(stats.distribution),
+                datasets: [{
+                    label: '# of Students',
+                    data: Object.values(stats.distribution),
+                    backgroundColor: [
+                        'rgba(34, 197, 94, 0.6)',  // Green (L4)
+                        'rgba(234, 179, 8, 0.6)',   // Yellow (L3)
+                        'rgba(249, 115, 22, 0.6)',  // Orange (L2)
+                        'rgba(239, 68, 68, 0.6)',   // Red (L1)
+                        'rgba(153, 27, 27, 0.6)'    // Dark Red (R)
+                    ],
+                    borderColor: [
+                        'rgba(34, 197, 94, 1)',
+                        'rgba(234, 179, 8, 1)',
+                        'rgba(249, 115, 22, 1)',
+                        'rgba(239, 68, 68, 1)',
+                        'rgba(153, 27, 27, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true, ticks: { stepSize: 1 } }
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+
+        // 2. Category Radar Chart
+        const ctxCat = document.getElementById('chart-categories').getContext('2d');
+        new Chart(ctxCat, {
+            type: 'radar',
+            data: {
+                labels: ['Knowledge', 'Thinking', 'Communication', 'Application'],
+                datasets: [{
+                    label: 'Class Average %',
+                    data: [stats.catAverages.k, stats.catAverages.t, stats.catAverages.c, stats.catAverages.a],
+                    backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                    borderColor: 'rgba(59, 130, 246, 1)',
+                    pointBackgroundColor: 'rgba(59, 130, 246, 1)',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    r: {
+                        angleLines: { display: true },
+                        suggestedMin: 50,
+                        suggestedMax: 100
+                    }
+                }
+            }
+        });
+    }, 100);
 }

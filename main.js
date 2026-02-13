@@ -3,7 +3,7 @@ import { setupAuthListener, handleAuthSubmit, signOut } from './auth.js';
 import { showModal, updateSaveStatus } from './ui.js';
 import { setAppState, setCurrentUser, getAppState, getCurrentUser, getActiveClassData, getActiveSemesterData } from './state.js';
 import { recalculateAndRenderAverages } from './calculations.js';
-import { renderFullGradebookUI, updateUIFromState, renderGradebook, renderClassTabs, renderAccountPage, renderAttendanceSheet, renderStudentProfileModal,updateClassStats } from './render.js';
+import { renderFullGradebookUI, renderFullGradebookUI, renderAnalyticsModal, updateUIFromState, renderGradebook, renderClassTabs, renderAccountPage, renderAttendanceSheet, renderStudentProfileModal,updateClassStats } from './render.js';
 import * as actions from './actions.js'
 import { startTutorial } from './tutorial.js';
 
@@ -496,6 +496,7 @@ function setupEventListeners() {
                 'addAssignmentBtn': actions.manageAssignments,
                 'editUnitsBtn': actions.editUnits,
                 'recordMidtermsBtn': actions.recordMidterms,
+                'analyticsBtn': renderAnalyticsModal,
                 'attendanceBtn': () => renderAttendanceSheet(new Date().toISOString().slice(0, 10)),
                 'savePresetBtn': actions.saveClassAsPreset,
                 'exportMenuBtn': () => document.getElementById('exportMenuDropdown')?.classList.toggle('hidden'),
@@ -504,7 +505,6 @@ function setupEventListeners() {
                 'exportBlankPdfBtn': () => { actions.exportBlankMarksheet(); document.getElementById('exportMenuDropdown')?.classList.add('hidden'); },
                 'exportStudentListBtn': () => { actions.exportStudentListPDF(); document.getElementById('exportMenuDropdown')?.classList.add('hidden'); },
                 'exportContactListBtn': () => { actions.exportContactListPDF(); document.getElementById('exportMenuDropdown')?.classList.add('hidden'); },
-                // --- NEW ACTION MAPPED HERE ---
                 'moveClassBtn': actions.moveClassToSemester 
             };
 
