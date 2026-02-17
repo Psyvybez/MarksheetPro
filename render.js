@@ -150,6 +150,8 @@ export function renderCategoryWeights() {
 //
 
 //
+//
+
 export function renderGradebook() {
     const classData = getActiveClassData();
     const table = document.getElementById('gradebookTable');
@@ -195,20 +197,8 @@ export function renderGradebook() {
     // --- RESPONSIVE STICKY CONFIGURATION ---
     const headerBg = "bg-gray-100"; 
     const bodyBg   = "bg-white";    
-    
-    // 1. Name Column
-    // Mobile: Sticky, 10rem wide, HAS shadow.
-    // Desktop (md): Sticky, 15rem wide, NO shadow (merges with IEP).
     const stickyName = "sticky left-0 z-20 border-r border-gray-300 w-[10rem] min-w-[10rem] max-w-[10rem] md:w-[15rem] md:min-w-[15rem] md:max-w-[15rem] shadow-[4px_0_5px_-2px_rgba(0,0,0,0.1)] md:shadow-none";
-
-    // 2. IEP Column
-    // Mobile: NOT sticky, 3rem wide.
-    // Desktop (md): Sticky at 15rem, 4rem wide.
     const stickyIep = "z-10 md:z-20 border-r border-gray-300 w-[3rem] min-w-[3rem] max-w-[3rem] md:w-[4rem] md:min-w-[4rem] md:max-w-[4rem] md:sticky md:left-[15rem]";
-
-    // 3. Overall Column
-    // Mobile: NOT sticky, 5rem wide, HAS border.
-    // Desktop (md): Sticky at 19rem, 6rem wide, HAS shadow.
     const stickyOverall = "z-10 md:z-20 border-r-2 border-gray-400 w-[5rem] min-w-[5rem] max-w-[5rem] md:w-[6rem] md:min-w-[6rem] md:max-w-[6rem] md:sticky md:left-[19rem] md:shadow-[4px_0_5px_-2px_rgba(0,0,0,0.1)]";
 
     // 4. Build Headers
@@ -229,7 +219,6 @@ export function renderGradebook() {
 
     const thead = table.querySelector('thead');
     
-    // Top Row (Blank over frozen cols need explicit sticky classes too)
     let headerHtml1 = `<tr class="bg-gray-50">
         <th class="${stickyName} ${headerBg} z-30" rowspan="2"></th>
         <th class="${stickyIep} ${headerBg} z-30" rowspan="2"></th>
@@ -246,10 +235,7 @@ export function renderGradebook() {
     Object.values(unitsToDisplay).sort((a,b) => a.order - b.order).forEach(unit => {
         const assignments = Object.values(unit.assignments || {}).sort((a, b) => a.order - b.order);
         const colspan = unit.isFinal ? assignments.length : assignments.length * 4;
-        
-        const titleText = unit.title ? `: ${unit.title}` : '';
-        const subtitleText = unit.subtitle ? ` - ${unit.subtitle}` : '';
-        const displayTitle = unit.isFinal ? 'Final Assessment' : `Unit ${unit.order}${titleText}${subtitleText}`;
+        const displayTitle = unit.isFinal ? 'Final Assessment' : `Unit ${unit.order}${unit.title ? ': ' + unit.title : ''}`;
 
         headerHtml1 += `<th colspan="${colspan || 1}" class="p-3 text-sm font-semibold tracking-wide text-center border-l-2 border-gray-400">${displayTitle}</th>`;
 
@@ -290,8 +276,7 @@ export function renderGradebook() {
     });
 
     if (studentIds.length === 0) {
-        const message = Object.keys(students).length === 0 ? "No students yet. Click '+ Add Student' to get started." : "No students match your search.";
-        tbody.innerHTML = `<tr><td colspan="100%" class="text-center p-8 text-gray-500">${message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="100%" class="text-center p-8 text-gray-500">No students found.</td></tr>`;
     } else {
         tbody.innerHTML = studentIds.sort((a, b) => {
             const lastNameA = String(students[a]?.lastName || '');
@@ -299,8 +284,6 @@ export function renderGradebook() {
             return lastNameA.localeCompare(lastNameB);
         }).map(studentId => {
             const student = students[studentId];
-            const midtermDisplayValue = (student.midtermGrade !== null && student.midtermGrade !== undefined) ? student.midtermGrade.toFixed(1) : '';
-            const midtermDisplayScore = midtermDisplayValue !== '' ? `${midtermDisplayValue}%` : '--';
             const profilePicUrl = student.profilePicturePath ? getProfilePictureUrl(student.profilePicturePath) : null;
             const profilePicHtml = profilePicUrl
                 ? `<img src="${profilePicUrl}" class="w-8 h-8 rounded-full mr-2 object-cover">`
@@ -308,7 +291,23 @@ export function renderGradebook() {
             const hasNotes = student.generalNotes && student.generalNotes.trim().length > 0;
             const noteIndicator = hasNotes ? `<span class="text-accent text-xl leading-none ml-1 relative top-1" title="Has General Note">*</span>` : '';
 
-            // --- BUILD ROW (With Sticky Classes) ---
+            // --- COLOR LOGIC HELPER ---
+            const getCellClass = (val) => {
+                if (val === null || val === undefined || val === '') return '';
+                const s = String(val).toUpperCase();
+                const num = parseFloat(val);
+                
+                // Red (Missing or < 50)
+                if (s === 'M' || (!isNaN(num) && num < 50)) return 'bg-red-200 text-red-900 font-bold';
+                
+                if (num >= 80) return 'bg-green-200 text-green-900 font-bold';
+                if (num >= 70) return 'bg-indigo-100 text-indigo-900 font-bold';
+                if (num >= 60) return 'bg-yellow-200 text-yellow-900 font-bold';
+                if (num >= 50) return 'bg-orange-200 text-orange-900 font-bold';
+                
+                return '';
+            };
+
             let rowHtml = `<tr class="student-row hover:bg-gray-50 transition-colors" data-student-id="${studentId}">
                 <td class="${stickyName} ${bodyBg} p-0 border-t border-gray-200">
                     <div class="flex items-center pl-2 h-full">
@@ -322,9 +321,8 @@ export function renderGradebook() {
                 </td>
                 <td class="${stickyIep} ${bodyBg} p-3 text-center"><input type="checkbox" class="iep-checkbox h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" data-student-id="${studentId}" ${student.iep ? 'checked' : ''}></td>
                 <td class="${stickyOverall} ${bodyBg} p-3 text-center font-bold text-gray-800 student-overall">--%</td>
-                
                 <td class="p-3 text-center font-semibold student-term-mark">--%</td>
-                <td class="p-3 text-center font-semibold student-midterm">${midtermDisplayScore}</td>
+                <td class="p-3 text-center font-semibold student-midterm">--%</td>
                 ${classData.hasFinal ? `<td class="p-3 text-center font-semibold student-final">--%</td>` : ''}
                 <td class="p-3 text-center font-semibold student-cat-k">--%</td>
                 <td class="p-3 text-center font-semibold student-cat-t">--%</td>
@@ -339,20 +337,16 @@ export function renderGradebook() {
                     assignments.forEach(asg => {
                         const isSubmitted = asg.isSubmitted || false;
                         const subClass = isSubmitted ? 'submitted-assignment-col' : '';
-                        const getCellClass = (val) => {
-                             if (!val && val !== 0) return '';
-                             const s = String(val).toUpperCase();
-                             return (s === 'M' || s === '0') ? 'missing-cell' : '';
-                        };
+                        const getCellClassStr = (val) => getCellClass(val); // Use local helper
 
                         if (unit.isFinal) {
                             const score = student.grades?.[asg.id]?.grade ?? '';
-                            rowHtml += `<td class="p-0 border-l-2 border-gray-400 ${subClass} ${getCellClass(score)}"><input type="text" class="grade-input" data-student-id="${studentId}" data-assignment-id="${asg.id}" value="${score}"></td>`;
+                            rowHtml += `<td class="p-0 border-l-2 border-gray-400 ${subClass} ${getCellClassStr(score)}"><input type="text" class="grade-input" data-student-id="${studentId}" data-assignment-id="${asg.id}" value="${score}"></td>`;
                         } else {
                             ['k','t','c','a'].forEach(cat => {
                                 const score = student.grades?.[asg.id]?.[cat] ?? '';
                                 const borderClass = cat === 'k' ? 'border-l-2 border-gray-400' : 'border-l';
-                                rowHtml += `<td class="p-0 ${borderClass} ${subClass} ${getCellClass(score)}"><input type="text" class="grade-input" data-student-id="${studentId}" data-assignment-id="${asg.id}" data-cat="${cat}" value="${score}"></td>`;
+                                rowHtml += `<td class="p-0 ${borderClass} ${subClass} ${getCellClassStr(score)}"><input type="text" class="grade-input" data-student-id="${studentId}" data-assignment-id="${asg.id}" data-cat="${cat}" value="${score}"></td>`;
                             });
                         }
                     });
@@ -364,7 +358,6 @@ export function renderGradebook() {
 
     const tfoot = table.querySelector('tfoot');
     
-    // Footer Locked Cells
     let footerCells = [
         `<td class="${stickyName} ${headerBg} p-3 text-left font-bold z-20">Class Average</td>`,
         `<td class="${stickyIep} ${headerBg} z-20"></td>`,
