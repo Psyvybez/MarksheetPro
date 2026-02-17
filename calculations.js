@@ -202,8 +202,9 @@ export function calculateClassStats(classData) {
     return { distribution, catAverages };
 }
 
+//
+
 export function recalculateAndRenderAverages() {
-    // FIX: Using imported getActiveClassData instead of require()
     const classData = getActiveClassData();
     if (!classData) return;
 
@@ -222,15 +223,37 @@ export function recalculateAndRenderAverages() {
         if (row) {
             const fmt = (v) => v !== null ? `${v.toFixed(1)}%` : '--%';
             
-            // Color coding helper
+            // --- UPDATED COLOR LOGIC ---
             const colorize = (el, val) => {
-                el.classList.remove('bg-green-100', 'text-green-800', 'bg-yellow-100', 'text-yellow-800', 'bg-red-100', 'text-red-800', 'font-bold');
+                // 1. Clear all possible color classes first
+                el.classList.remove(
+                    'font-bold', 
+                    'bg-green-100', 'text-green-800', 'bg-green-200', 'text-green-900',
+                    'bg-blue-100', 'text-blue-800', 'bg-indigo-100', 'text-indigo-900',
+                    'bg-yellow-100', 'text-yellow-800', 'bg-yellow-200', 'text-yellow-900',
+                    'bg-orange-100', 'text-orange-800', 'bg-orange-200', 'text-orange-900',
+                    'bg-red-100', 'text-red-800', 'bg-red-200', 'text-red-900', 'text-rose-800'
+                );
+
                 if (val !== null) {
                     el.classList.add('font-bold');
-                    if (val >= 80) el.classList.add('bg-green-200', 'text-lime-400');
-                    else if (val >= 70) el.classList.add('bg-yellow-200', 'text-yellow-800'); // B Level
-                    else if (val >= 60) el.classList.add('bg-yellow-200', 'text-yellow-800'); // C Level
-                    else if (val < 50) el.classList.add('bg-red-200', 'text-rose-800');
+                    
+                    if (val >= 80) {
+                        // Level 4: Strong Green
+                        el.classList.add('bg-green-200', 'text-green-900'); 
+                    } else if (val >= 70) {
+                        // Level 3: Distinct Blue (Easier to distinguish from Level 4)
+                        el.classList.add('bg-indigo-100', 'text-indigo-900');
+                    } else if (val >= 60) {
+                        // Level 2: Stronger Yellow
+                        el.classList.add('bg-yellow-200', 'text-yellow-900');
+                    } else if (val >= 50) {
+                        // Level 1: Orange (Was missing previously)
+                        el.classList.add('bg-orange-200', 'text-orange-900');
+                    } else {
+                        // R: Strong Red
+                        el.classList.add('bg-red-200', 'text-red-900');
+                    }
                 }
             };
 
