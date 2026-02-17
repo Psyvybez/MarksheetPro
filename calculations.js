@@ -227,10 +227,10 @@ export function recalculateAndRenderAverages() {
                 el.classList.remove('bg-green-100', 'text-green-800', 'bg-yellow-100', 'text-yellow-800', 'bg-red-100', 'text-red-800', 'font-bold');
                 if (val !== null) {
                     el.classList.add('font-bold');
-                    if (val >= 80) el.classList.add('bg-green-100', 'text-green-800');
-                    else if (val >= 70) el.classList.add('bg-yellow-100', 'text-yellow-800'); // B Level
-                    else if (val >= 60) el.classList.add('bg-yellow-100', 'text-yellow-800'); // C Level
-                    else if (val < 50) el.classList.add('bg-red-100', 'text-red-800');
+                    if (val >= 80) el.classList.add('bg-green-200', 'text-lime-400');
+                    else if (val >= 70) el.classList.add('bg-yellow-200', 'text-yellow-800'); // B Level
+                    else if (val >= 60) el.classList.add('bg-yellow-200', 'text-yellow-800'); // C Level
+                    else if (val < 50) el.classList.add('bg-red-200', 'text-rose-800');
                 }
             };
 

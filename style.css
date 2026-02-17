@@ -145,10 +145,10 @@ body.modal-open { overflow: hidden; }
 
 /* Missing or Zero Grade (Red) */
 .missing-cell {
-    background-color: #fee2e2 !important; /* Red background */
+    background-color: #fcb5b5 !important; /* Red background */
 }
 .missing-cell input {
-    color: #b91c1c; /* Dark red text */
+    color: #ff2020; /* Dark red text */
     font-weight: bold;
 }
 
