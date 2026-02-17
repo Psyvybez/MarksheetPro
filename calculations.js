@@ -2,6 +2,8 @@
 import { getAppState, getActiveClassData } from './state.js';
 
 // NEW: Centralized color logic for use in Render and Main
+//
+
 export function getGradeColorClass(value, max = 100) {
     if (value === null || value === undefined || value === '') return '';
     
@@ -15,11 +17,12 @@ export function getGradeColorClass(value, max = 100) {
     
     const pct = (num / maxNum) * 100;
     
-    if (pct >= 80) return 'bg-green-200 text-green-900';
-    if (pct >= 70) return 'bg-indigo-100 text-indigo-900';
-    if (pct >= 60) return 'bg-yellow-200 text-yellow-900';
-    if (pct >= 50) return 'bg-orange-200 text-orange-900';
-    return 'bg-red-200 text-red-900';
+    // Added '!' to force override table striping
+    if (pct >= 80) return '!bg-green-200 !text-green-900';
+    if (pct >= 70) return '!bg-indigo-100 !text-indigo-900';
+    if (pct >= 60) return '!bg-yellow-200 !text-yellow-900';
+    if (pct >= 50) return '!bg-orange-200 !text-orange-900';
+    return '!bg-red-200 !text-red-900';
 }
 
 export function calculateStudentAverages(student, classData) {
