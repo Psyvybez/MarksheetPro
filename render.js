@@ -1,5 +1,6 @@
+//
 import { getAppState, getActiveSemesterData, getActiveClassData } from './state.js';
-import { recalculateAndRenderAverages, calculateStudentAverages, calculateClassAverages, calculateClassStats } from './calculations.js';
+import { recalculateAndRenderAverages, calculateStudentAverages, calculateClassAverages, calculateClassStats, getGradeColorClass } from './calculations.js';
 import { getProfilePictureUrl, uploadProfilePicture } from './api.js';
 import { showModal } from './ui.js';
 import { triggerAutoSave } from './main.js';
@@ -91,11 +92,6 @@ export function updateClassStats() {
     `;
 }
 
-//
-//
-//
-//
-//
 export function renderCategoryWeights() {
     const classData = getActiveClassData();
     const container = document.getElementById('category-weights-container');
@@ -147,11 +143,6 @@ export function renderCategoryWeights() {
     updateTotal();
 }
 
-//
-
-//
-//
-
 export function renderGradebook() {
     const classData = getActiveClassData();
     const table = document.getElementById('gradebookTable');
@@ -160,14 +151,12 @@ export function renderGradebook() {
 
     if (!classData || !table || !classNameEl) return;
 
-    // 1. APPLY ZOOM
     const savedZoom = appState.gradebook_data.zoomLevel || 0.8; 
     const contentArea = document.getElementById('main-content-area');
     if (contentArea) contentArea.style.zoom = savedZoom;
     const zoomText = document.getElementById('zoom-level-text');
     if(zoomText) zoomText.textContent = `${Math.round(savedZoom * 100)}%`;
 
-    // 2. Stats & Basic UI
     updateClassStats(); 
     document.body.classList.toggle('has-final', classData.hasFinal);
     document.body.classList.toggle('no-final', !classData.hasFinal);
@@ -176,7 +165,6 @@ export function renderGradebook() {
     const students = classData.students || {};
     const allUnits = classData.units || {};
     
-    // 3. Category Names
     const catNames = classData.categoryNames || { k: 'Knowledge', t: 'Thinking', c: 'Communication', a: 'Application' };
     const getLet = (key) => {
         const name = catNames[key];
@@ -194,14 +182,13 @@ export function renderGradebook() {
         }
     }
 
-    // --- RESPONSIVE STICKY CONFIGURATION ---
     const headerBg = "bg-gray-100"; 
     const bodyBg   = "bg-white";    
+    
     const stickyName = "sticky left-0 z-20 border-r border-gray-300 w-[10rem] min-w-[10rem] max-w-[10rem] md:w-[15rem] md:min-w-[15rem] md:max-w-[15rem] shadow-[4px_0_5px_-2px_rgba(0,0,0,0.1)] md:shadow-none";
     const stickyIep = "z-10 md:z-20 border-r border-gray-300 w-[3rem] min-w-[3rem] max-w-[3rem] md:w-[4rem] md:min-w-[4rem] md:max-w-[4rem] md:sticky md:left-[15rem]";
     const stickyOverall = "z-10 md:z-20 border-r-2 border-gray-400 w-[5rem] min-w-[5rem] max-w-[5rem] md:w-[6rem] md:min-w-[6rem] md:max-w-[6rem] md:sticky md:left-[19rem] md:shadow-[4px_0_5px_-2px_rgba(0,0,0,0.1)]";
 
-    // 4. Build Headers
     const studentInfoHeaders = `
         <th class="${stickyName} ${headerBg} p-3 text-left z-30">Student Name</th>
         <th class="${stickyIep} ${headerBg} p-3 text-center z-30">IEP</th>
@@ -235,7 +222,10 @@ export function renderGradebook() {
     Object.values(unitsToDisplay).sort((a,b) => a.order - b.order).forEach(unit => {
         const assignments = Object.values(unit.assignments || {}).sort((a, b) => a.order - b.order);
         const colspan = unit.isFinal ? assignments.length : assignments.length * 4;
-        const displayTitle = unit.isFinal ? 'Final Assessment' : `Unit ${unit.order}${unit.title ? ': ' + unit.title : ''}`;
+        
+        const titleText = unit.title ? `: ${unit.title}` : '';
+        const subtitleText = unit.subtitle ? ` - ${unit.subtitle}` : '';
+        const displayTitle = unit.isFinal ? 'Final Assessment' : `Unit ${unit.order}${titleText}${subtitleText}`;
 
         headerHtml1 += `<th colspan="${colspan || 1}" class="p-3 text-sm font-semibold tracking-wide text-center border-l-2 border-gray-400">${displayTitle}</th>`;
 
@@ -276,7 +266,8 @@ export function renderGradebook() {
     });
 
     if (studentIds.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="100%" class="text-center p-8 text-gray-500">No students found.</td></tr>`;
+        const message = Object.keys(students).length === 0 ? "No students yet. Click '+ Add Student' to get started." : "No students match your search.";
+        tbody.innerHTML = `<tr><td colspan="100%" class="text-center p-8 text-gray-500">${message}</td></tr>`;
     } else {
         tbody.innerHTML = studentIds.sort((a, b) => {
             const lastNameA = String(students[a]?.lastName || '');
@@ -284,29 +275,14 @@ export function renderGradebook() {
             return lastNameA.localeCompare(lastNameB);
         }).map(studentId => {
             const student = students[studentId];
+            const midtermDisplayValue = (student.midtermGrade !== null && student.midtermGrade !== undefined) ? student.midtermGrade.toFixed(1) : '';
+            const midtermDisplayScore = midtermDisplayValue !== '' ? `${midtermDisplayValue}%` : '--';
             const profilePicUrl = student.profilePicturePath ? getProfilePictureUrl(student.profilePicturePath) : null;
             const profilePicHtml = profilePicUrl
                 ? `<img src="${profilePicUrl}" class="w-8 h-8 rounded-full mr-2 object-cover">`
                 : `<div class="w-8 h-8 rounded-full mr-2 bg-gray-300 flex items-center justify-center text-white font-bold">${student.firstName.charAt(0)}${student.lastName.charAt(0)}</div>`;
             const hasNotes = student.generalNotes && student.generalNotes.trim().length > 0;
             const noteIndicator = hasNotes ? `<span class="text-accent text-xl leading-none ml-1 relative top-1" title="Has General Note">*</span>` : '';
-
-            // --- COLOR LOGIC HELPER ---
-            const getCellClass = (val) => {
-                if (val === null || val === undefined || val === '') return '';
-                const s = String(val).toUpperCase();
-                const num = parseFloat(val);
-                
-                // Red (Missing or < 50)
-                if (s === 'M' || (!isNaN(num) && num < 50)) return 'bg-red-200 text-red-900 font-bold';
-                
-                if (num >= 80) return 'bg-green-200 text-green-900 font-bold';
-                if (num >= 70) return 'bg-indigo-100 text-indigo-900 font-bold';
-                if (num >= 60) return 'bg-yellow-200 text-yellow-900 font-bold';
-                if (num >= 50) return 'bg-orange-200 text-orange-900 font-bold';
-                
-                return '';
-            };
 
             let rowHtml = `<tr class="student-row hover:bg-gray-50 transition-colors" data-student-id="${studentId}">
                 <td class="${stickyName} ${bodyBg} p-0 border-t border-gray-200">
@@ -321,8 +297,9 @@ export function renderGradebook() {
                 </td>
                 <td class="${stickyIep} ${bodyBg} p-3 text-center"><input type="checkbox" class="iep-checkbox h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" data-student-id="${studentId}" ${student.iep ? 'checked' : ''}></td>
                 <td class="${stickyOverall} ${bodyBg} p-3 text-center font-bold text-gray-800 student-overall">--%</td>
+                
                 <td class="p-3 text-center font-semibold student-term-mark">--%</td>
-                <td class="p-3 text-center font-semibold student-midterm">--%</td>
+                <td class="p-3 text-center font-semibold student-midterm">${midtermDisplayScore}</td>
                 ${classData.hasFinal ? `<td class="p-3 text-center font-semibold student-final">--%</td>` : ''}
                 <td class="p-3 text-center font-semibold student-cat-k">--%</td>
                 <td class="p-3 text-center font-semibold student-cat-t">--%</td>
@@ -337,16 +314,19 @@ export function renderGradebook() {
                     assignments.forEach(asg => {
                         const isSubmitted = asg.isSubmitted || false;
                         const subClass = isSubmitted ? 'submitted-assignment-col' : '';
-                        const getCellClassStr = (val) => getCellClass(val); // Use local helper
 
                         if (unit.isFinal) {
                             const score = student.grades?.[asg.id]?.grade ?? '';
-                            rowHtml += `<td class="p-0 border-l-2 border-gray-400 ${subClass} ${getCellClassStr(score)}"><input type="text" class="grade-input" data-student-id="${studentId}" data-assignment-id="${asg.id}" value="${score}"></td>`;
+                            // NEW: Apply color based on score and max (total)
+                            const colorClass = getGradeColorClass(score, asg.total || 0);
+                            rowHtml += `<td class="p-0 border-l-2 border-gray-400 ${subClass} ${colorClass}"><input type="text" class="grade-input" data-student-id="${studentId}" data-assignment-id="${asg.id}" value="${score}"></td>`;
                         } else {
                             ['k','t','c','a'].forEach(cat => {
                                 const score = student.grades?.[asg.id]?.[cat] ?? '';
                                 const borderClass = cat === 'k' ? 'border-l-2 border-gray-400' : 'border-l';
-                                rowHtml += `<td class="p-0 ${borderClass} ${subClass} ${getCellClassStr(score)}"><input type="text" class="grade-input" data-student-id="${studentId}" data-assignment-id="${asg.id}" data-cat="${cat}" value="${score}"></td>`;
+                                // NEW: Apply color based on score and max (category total)
+                                const colorClass = getGradeColorClass(score, asg.categoryTotals?.[cat] || 0);
+                                rowHtml += `<td class="p-0 ${borderClass} ${subClass} ${colorClass}"><input type="text" class="grade-input" data-student-id="${studentId}" data-assignment-id="${asg.id}" data-cat="${cat}" value="${score}"></td>`;
                             });
                         }
                     });
@@ -380,8 +360,6 @@ export function renderGradebook() {
     recalculateAndRenderAverages();
 }
 
-//
-
 export function updateUIFromState() {
     const appState = getAppState();
     if(!appState.gradebook_data) return;
@@ -399,14 +377,11 @@ export function updateUIFromState() {
     const semesterData = getActiveSemesterData();
     const hasClasses = Object.keys(semesterData.classes || {}).length > 0;
 
-    // 1. Update Semester Tabs
     semesterBtn1.classList.toggle('active', activeSemester === '1');
     semesterBtn2.classList.toggle('active', activeSemester === '2');
     
-    // 2. DYNAMIC LABEL FIX: Update button text based on CURRENT active semester
     const moveClassBtn = document.getElementById('moveClassBtn');
     if (moveClassBtn) {
-        // If we are in Sem 1, target is 2. If in Sem 2, target is 1.
         const targetSem = activeSemester === '1' ? '2' : '1';
         moveClassBtn.textContent = `Move to Sem ${targetSem}`;
     }
@@ -428,12 +403,9 @@ export function updateUIFromState() {
     }
 }
 
-//
-
 export function renderFullGradebookUI() {
     if (!contentWrapper) return;
 
-    // Calculate initial target semester for the Move button
     const appState = getAppState();
     const currentSem = appState.gradebook_data?.activeSemester || '1';
     const targetSem = currentSem === '1' ? '2' : '1';
@@ -570,7 +542,6 @@ export function renderFullGradebookUI() {
 }
 
 export function renderAccountPage(isSetupMode = false) {
-    // ... (No changes here)
     const appState = getAppState();
     if(!contentWrapper) return;
 
@@ -628,7 +599,6 @@ export function renderAccountPage(isSetupMode = false) {
 }
 
 export function renderAttendanceSheet(dateString) {
-    // ... (No changes here)
     const classData = getActiveClassData();
     if (!classData) return;
 
@@ -644,7 +614,6 @@ export function renderAttendanceSheet(dateString) {
         const status = studentAttendance.status;
         const notes = studentAttendance.notes || '';
 
-        // Calculate Term Summary
         let lateCount = 0;
         let absentCount = 0;
         Object.values(classData.attendance || {}).forEach(dateData => {
@@ -770,7 +739,6 @@ export async function renderStudentProfileModal(studentId) {
         title: 'Edit Student Profile',
         modalWidth: 'max-w-3xl',
         content: modalContent,
-        // Added Delete Button to Footer
         footerContent: `<button id="modal-delete-student-btn" class="text-red-600 hover:text-red-800 font-medium text-sm px-3 py-2 border border-transparent hover:border-red-200 rounded transition-colors">Delete Student</button>`,
         confirmText: 'Save Changes',
         confirmClasses: 'bg-primary hover:bg-primary-dark',
@@ -805,11 +773,9 @@ export async function renderStudentProfileModal(studentId) {
 
     const modalElement = document.getElementById('custom-modal');
 
-    // Listener for the new Delete button in the modal
     const modalDeleteBtn = document.getElementById('modal-delete-student-btn');
     if (modalDeleteBtn) {
         modalDeleteBtn.addEventListener('click', () => {
-            // Trigger the delete action (which opens a confirmation modal)
             deleteStudent(student.id);
         });
     }
@@ -916,9 +882,7 @@ export function renderAnalyticsModal() {
         cancelText: 'Close',
     });
 
-    // Wait for DOM to update, then render charts
     setTimeout(() => {
-        // 1. Distribution Chart
         const ctxDist = document.getElementById('chart-distribution').getContext('2d');
         new Chart(ctxDist, {
             type: 'bar',
@@ -928,11 +892,11 @@ export function renderAnalyticsModal() {
                     label: '# of Students',
                     data: Object.values(stats.distribution),
                     backgroundColor: [
-                        'rgba(34, 197, 94, 0.6)',  // Green (L4)
-                        'rgba(234, 179, 8, 0.6)',   // Yellow (L3)
-                        'rgba(249, 115, 22, 0.6)',  // Orange (L2)
-                        'rgba(239, 68, 68, 0.6)',   // Red (L1)
-                        'rgba(153, 27, 27, 0.6)'    // Dark Red (R)
+                        'rgba(34, 197, 94, 0.6)', 
+                        'rgba(234, 179, 8, 0.6)', 
+                        'rgba(249, 115, 22, 0.6)', 
+                        'rgba(239, 68, 68, 0.6)', 
+                        'rgba(153, 27, 27, 0.6)'  
                     ],
                     borderColor: [
                         'rgba(34, 197, 94, 1)',
@@ -954,7 +918,6 @@ export function renderAnalyticsModal() {
             }
         });
 
-        // 2. Category Radar Chart
         const ctxCat = document.getElementById('chart-categories').getContext('2d');
         new Chart(ctxCat, {
             type: 'radar',
