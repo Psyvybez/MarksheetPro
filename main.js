@@ -576,7 +576,6 @@ function setupEventListeners() {
                 const category = target.dataset.cat;
                 const rawValue = target.value.trim().toUpperCase();
                 
-                // 1. Get Unit/Assignment Data FIRST (Moved up so we can use it for max scores)
                 const unit = Object.values(classData.units || {}).find(u => u.assignments?.[assignmentId]);
                 const assignment = unit?.assignments?.[assignmentId];
 
@@ -595,13 +594,10 @@ function setupEventListeners() {
                     let previousValue = null;
                     if (category) { previousValue = classData.students[studentId].grades[assignmentId][category]; }
                     
-                    // Helper to update DOM and Data
                     const updateCell = (cat, val) => {
-                        // A. Update Data
                         if (cat) { classData.students[studentId].grades[assignmentId][cat] = val; }
                         else { classData.students[studentId].grades[assignmentId].grade = val; }
                         
-                        // B. Update DOM Input
                         const selector = cat 
                             ? `.grade-input[data-student-id="${studentId}"][data-assignment-id="${assignmentId}"][data-cat="${cat}"]`
                             : `.grade-input[data-student-id="${studentId}"][data-assignment-id="${assignmentId}"]`;
@@ -611,29 +607,24 @@ function setupEventListeners() {
                             if (val === 'M' && inputEl.value !== 'M') inputEl.value = 'M';
                             else if (inputEl !== target) inputEl.value = val === null ? '' : val;
                             
-                            // C. Update DOM Cell Color (Parent TD)
                             const parentTd = inputEl.closest('td');
                             if (parentTd) {
-                                // 1. Handle Missing
-                                if (val === 0 || val === 'M') parentTd.classList.add('missing-cell');
-                                else parentTd.classList.remove('missing-cell');
-
-                                // 2. Handle Color Grades
-                                // Determine max score for this specific cell
-                                let max = 0;
-                                if (unit.isFinal) max = assignment.total || 0;
-                                else if (cat) max = assignment.categoryTotals?.[cat] || 0;
-
-                                // Get color class
-                                const colorClass = getGradeColorClass(val, max);
-
-                                // Remove OLD color classes (Tailwind bg/text colors)
+                                // 1. Remove all potential color classes
                                 parentTd.className = parentTd.className.replace(/\b(!?bg-\S+|!?text-\S+)\b/g, '').trim();
-                                
-                                // Add NEW color class
-                                if (colorClass) {
-                                    // Split in case it returns multiple classes (bg + text)
-                                    colorClass.split(' ').forEach(c => parentTd.classList.add(c));
+
+                                // 2. Determine if we should apply Red (0 or M)
+                                // Note: 'val' here is the cleaned storageValue (number or 'M' or null)
+                                let isZeroOrMissing = false;
+                                if (val === 0 || val === 'M') isZeroOrMissing = true;
+
+                                // 3. Apply styles
+                                if (isZeroOrMissing) {
+                                    parentTd.classList.add('!bg-red-300', '!text-red-900');
+                                    // missing-cell is strictly red background in CSS, but !bg-red-300 overrides it nicely.
+                                    // If you want to keep using 'missing-cell' class for other logic:
+                                    parentTd.classList.add('missing-cell');
+                                } else {
+                                    parentTd.classList.remove('missing-cell');
                                 }
                             }
                         }

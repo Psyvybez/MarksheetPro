@@ -328,9 +328,9 @@ export function renderGradebook() {
                         if (unit.isFinal) {
                             const score = student.grades?.[asg.id]?.grade ?? '';
                             
-                            // UPDATED: Apply color class immediately on render
-                            const max = asg.total || 0;
-                            const colorClass = getGradeColorClass(score, max);
+                            // UPDATED LOGIC: Only color if 0 or M
+                            const isZeroOrMissing = score === 0 || String(score).toUpperCase() === 'M';
+                            const colorClass = isZeroOrMissing ? '!bg-red-300 !text-red-900' : '';
                             
                             rowHtml += `<td class="p-0 border-l-2 border-gray-400 ${subClass} ${colorClass}"><input type="text" class="grade-input" data-student-id="${studentId}" data-assignment-id="${asg.id}" value="${score}"></td>`;
                         } else {
@@ -338,9 +338,9 @@ export function renderGradebook() {
                                 const score = student.grades?.[asg.id]?.[cat] ?? '';
                                 const borderClass = cat === 'k' ? 'border-l-2 border-gray-400' : 'border-l';
                                 
-                                // UPDATED: Apply color class immediately on render
-                                const max = asg.categoryTotals?.[cat] || 0;
-                                const colorClass = getGradeColorClass(score, max);
+                                // UPDATED LOGIC: Only color if 0 or M
+                                const isZeroOrMissing = score === 0 || String(score).toUpperCase() === 'M';
+                                const colorClass = isZeroOrMissing ? '!bg-red-300 !text-red-900' : '';
                                 
                                 rowHtml += `<td class="p-0 ${borderClass} ${subClass} ${colorClass}"><input type="text" class="grade-input" data-student-id="${studentId}" data-assignment-id="${asg.id}" data-cat="${cat}" value="${score}"></td>`;
                             });
