@@ -76,6 +76,8 @@ body.modal-open { overflow: hidden; }
 
 #gradebookTable thead .student-info-header, #gradebookTable thead .student-info-header-blank { z-index: 35 !important; }
 
+/* */
+
 /* Table Body Styling */
 #gradebookTable tbody td { background-color: white; }
 #gradebookTable tbody tr.student-row:nth-child(even) td { background-color: #e6eff8; }
