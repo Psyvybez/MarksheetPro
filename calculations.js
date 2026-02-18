@@ -15,11 +15,11 @@ export function getGradeColorClass(value, max = 100) {
     
     // Using 300 scale for brighter backgrounds
     // Using ! to override style.css white background
-    if (pct >= 80) return '!bg-green-300 !text-green-900';   // Level 4
-    if (pct >= 70) return '!bg-blue-300 !text-blue-900';     // Level 3
-    if (pct >= 60) return '!bg-yellow-300 !text-yellow-900'; // Level 2
-    if (pct >= 50) return '!bg-orange-300 !text-orange-900'; // Level 1
-    return '!bg-red-300 !text-red-900';                      // R
+    if (pct >= 80) return '!bg-green-200 !text-lime-600';   // Level 4
+    if (pct >= 70) return '!bg-blue-200 !text-blue 600';     // Level 3
+    if (pct >= 60) return '!bg-yellow-200 !text-amber-500'; // Level 2
+    if (pct >= 50) return '!bg-orange-200 !text-orange-600'; // Level 1
+    return '!bg-red-200 !text-red-600';                      // R
 }
 
 export function calculateStudentAverages(student, classData) {
