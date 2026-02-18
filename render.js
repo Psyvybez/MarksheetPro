@@ -555,7 +555,7 @@ export function renderFullGradebookUI() {
             </div>
         </div>
                 
-            <div id="table-wrapper" class="bg-white rounded-lg shadow-md"><table id="gradebookTable" class="w-full text-sm text-gray-500"><thead></thead><tbody></tbody><tfoot></tfoot></table></div>
+            <div id="table-wrapper" class="bg-white rounded-lg shadow-md"><table id="gradebookTable" class="w-full text-md text-gray-500"><thead></thead><tbody></tbody><tfoot></tfoot></table></div>
         </div>
     `;
     updateUIFromState();
