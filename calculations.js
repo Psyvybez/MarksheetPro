@@ -15,10 +15,10 @@ export function getGradeColorClass(value, max = 100) {
     
     // Using 300 scale for brighter backgrounds
     // Using ! to override style.css white background
-    if (pct >= 80) return '!bg-green-100 !text-lime-800';   // Level 4
+    if (pct >= 80) return '!bg-green-100 !text-green-800';   // Level 4
     if (pct >= 70) return '!bg-blue-100 !text-blue 800';     // Level 3
     if (pct >= 60) return '!bg-yellow-100 !text-yellow-800'; // Level 2
-    if (pct >= 50) return '!bg-orange-100 !text-orange-800'; // Level 1
+    if (pct >= 50) return '!bg-orange-100 !text-orange-700'; // Level 1
     return '!bg-red-100 !text-red-800';                      // R
 }
 
