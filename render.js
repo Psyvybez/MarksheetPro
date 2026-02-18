@@ -91,11 +91,6 @@ export function updateClassStats() {
     `;
 }
 
-//
-//
-//
-//
-//
 export function renderCategoryWeights() {
     const classData = getActiveClassData();
     const container = document.getElementById('category-weights-container');
