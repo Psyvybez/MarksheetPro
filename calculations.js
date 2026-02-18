@@ -1,5 +1,27 @@
 import { getAppState, getActiveClassData } from './state.js';
 
+export function getGradeColorClass(value, max = 100) {
+    if (value === null || value === undefined || value === '') return '';
+    
+    const s = String(value).toUpperCase();
+    if (s === 'M' || s === '0') return 'missing-cell'; // Handled by CSS
+    
+    const num = parseFloat(value);
+    const maxNum = parseFloat(max);
+    
+    if (isNaN(num) || isNaN(maxNum) || maxNum === 0) return '';
+    
+    const pct = (num / maxNum) * 100;
+    
+    // Using 300 scale for brighter backgrounds
+    // Using ! to override style.css white background
+    if (pct >= 80) return '!bg-green-300 !text-green-900';   // Level 4
+    if (pct >= 70) return '!bg-blue-300 !text-blue-900';     // Level 3
+    if (pct >= 60) return '!bg-yellow-300 !text-yellow-900'; // Level 2
+    if (pct >= 50) return '!bg-orange-300 !text-orange-900'; // Level 1
+    return '!bg-red-300 !text-red-900';                      // R
+}
+
 export function calculateStudentAverages(student, classData) {
     const units = classData.units || {};
     const catWeights = classData.categoryWeights || { k: 25, t: 25, c: 25, a: 25 };

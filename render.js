@@ -1,5 +1,5 @@
 import { getAppState, getActiveSemesterData, getActiveClassData } from './state.js';
-import { recalculateAndRenderAverages, calculateStudentAverages, calculateClassAverages, calculateClassStats } from './calculations.js';
+import { recalculateAndRenderAverages, calculateStudentAverages, calculateClassAverages, calculateClassStats, getGradeColorClass } from './calculations.js';
 import { getProfilePictureUrl, uploadProfilePicture } from './api.js';
 import { showModal } from './ui.js';
 import { triggerAutoSave } from './main.js';
@@ -158,14 +158,13 @@ export function renderGradebook() {
 
     if (!classData || !table || !classNameEl) return;
 
-    // 1. APPLY ZOOM
+    // ... (Keep Zoom and Basic UI logic) ...
     const savedZoom = appState.gradebook_data.zoomLevel || 0.8; 
     const contentArea = document.getElementById('main-content-area');
     if (contentArea) contentArea.style.zoom = savedZoom;
     const zoomText = document.getElementById('zoom-level-text');
     if(zoomText) zoomText.textContent = `${Math.round(savedZoom * 100)}%`;
 
-    // 2. Stats & Basic UI
     updateClassStats(); 
     document.body.classList.toggle('has-final', classData.hasFinal);
     document.body.classList.toggle('no-final', !classData.hasFinal);
@@ -174,7 +173,6 @@ export function renderGradebook() {
     const students = classData.students || {};
     const allUnits = classData.units || {};
     
-    // 3. Category Names
     const catNames = classData.categoryNames || { k: 'Knowledge', t: 'Thinking', c: 'Communication', a: 'Application' };
     const getLet = (key) => {
         const name = catNames[key];
@@ -192,26 +190,14 @@ export function renderGradebook() {
         }
     }
 
-    // --- RESPONSIVE STICKY CONFIGURATION ---
     const headerBg = "bg-gray-100"; 
     const bodyBg   = "bg-white";    
     
-    // 1. Name Column
-    // Mobile: Sticky, 10rem wide, HAS shadow.
-    // Desktop (md): Sticky, 15rem wide, NO shadow (merges with IEP).
+    // ... (Keep Sticky Column Definitions) ...
     const stickyName = "sticky left-0 z-20 border-r border-gray-300 w-[10rem] min-w-[10rem] max-w-[10rem] md:w-[15rem] md:min-w-[15rem] md:max-w-[15rem] shadow-[4px_0_5px_-2px_rgba(0,0,0,0.1)] md:shadow-none";
-
-    // 2. IEP Column
-    // Mobile: NOT sticky, 3rem wide.
-    // Desktop (md): Sticky at 15rem, 4rem wide.
     const stickyIep = "z-10 md:z-20 border-r border-gray-300 w-[3rem] min-w-[3rem] max-w-[3rem] md:w-[4rem] md:min-w-[4rem] md:max-w-[4rem] md:sticky md:left-[15rem]";
-
-    // 3. Overall Column
-    // Mobile: NOT sticky, 5rem wide, HAS border.
-    // Desktop (md): Sticky at 19rem, 6rem wide, HAS shadow.
     const stickyOverall = "z-10 md:z-20 border-r-2 border-gray-400 w-[5rem] min-w-[5rem] max-w-[5rem] md:w-[6rem] md:min-w-[6rem] md:max-w-[6rem] md:sticky md:left-[19rem] md:shadow-[4px_0_5px_-2px_rgba(0,0,0,0.1)]";
 
-    // 4. Build Headers
     const studentInfoHeaders = `
         <th class="${stickyName} ${headerBg} p-3 text-left z-30">Student Name</th>
         <th class="${stickyIep} ${headerBg} p-3 text-center z-30">IEP</th>
@@ -229,7 +215,7 @@ export function renderGradebook() {
 
     const thead = table.querySelector('thead');
     
-    // Top Row (Blank over frozen cols need explicit sticky classes too)
+    // ... (Keep Header HTML generation logic) ...
     let headerHtml1 = `<tr class="bg-gray-50">
         <th class="${stickyName} ${headerBg} z-30" rowspan="2"></th>
         <th class="${stickyIep} ${headerBg} z-30" rowspan="2"></th>
@@ -308,7 +294,6 @@ export function renderGradebook() {
             const hasNotes = student.generalNotes && student.generalNotes.trim().length > 0;
             const noteIndicator = hasNotes ? `<span class="text-accent text-xl leading-none ml-1 relative top-1" title="Has General Note">*</span>` : '';
 
-            // --- BUILD ROW (With Sticky Classes) ---
             let rowHtml = `<tr class="student-row hover:bg-gray-50 transition-colors" data-student-id="${studentId}">
                 <td class="${stickyName} ${bodyBg} p-0 border-t border-gray-200">
                     <div class="flex items-center pl-2 h-full">
@@ -339,20 +324,25 @@ export function renderGradebook() {
                     assignments.forEach(asg => {
                         const isSubmitted = asg.isSubmitted || false;
                         const subClass = isSubmitted ? 'submitted-assignment-col' : '';
-                        const getCellClass = (val) => {
-                             if (!val && val !== 0) return '';
-                             const s = String(val).toUpperCase();
-                             return (s === 'M' || s === '0') ? 'missing-cell' : '';
-                        };
 
                         if (unit.isFinal) {
                             const score = student.grades?.[asg.id]?.grade ?? '';
-                            rowHtml += `<td class="p-0 border-l-2 border-gray-400 ${subClass} ${getCellClass(score)}"><input type="text" class="grade-input" data-student-id="${studentId}" data-assignment-id="${asg.id}" value="${score}"></td>`;
+                            
+                            // UPDATED: Apply color class immediately on render
+                            const max = asg.total || 0;
+                            const colorClass = getGradeColorClass(score, max);
+                            
+                            rowHtml += `<td class="p-0 border-l-2 border-gray-400 ${subClass} ${colorClass}"><input type="text" class="grade-input" data-student-id="${studentId}" data-assignment-id="${asg.id}" value="${score}"></td>`;
                         } else {
                             ['k','t','c','a'].forEach(cat => {
                                 const score = student.grades?.[asg.id]?.[cat] ?? '';
                                 const borderClass = cat === 'k' ? 'border-l-2 border-gray-400' : 'border-l';
-                                rowHtml += `<td class="p-0 ${borderClass} ${subClass} ${getCellClass(score)}"><input type="text" class="grade-input" data-student-id="${studentId}" data-assignment-id="${asg.id}" data-cat="${cat}" value="${score}"></td>`;
+                                
+                                // UPDATED: Apply color class immediately on render
+                                const max = asg.categoryTotals?.[cat] || 0;
+                                const colorClass = getGradeColorClass(score, max);
+                                
+                                rowHtml += `<td class="p-0 ${borderClass} ${subClass} ${colorClass}"><input type="text" class="grade-input" data-student-id="${studentId}" data-assignment-id="${asg.id}" data-cat="${cat}" value="${score}"></td>`;
                             });
                         }
                     });
@@ -362,9 +352,9 @@ export function renderGradebook() {
         }).join('');
     }
 
+    // ... (Keep tfoot and recalculate logic) ...
     const tfoot = table.querySelector('tfoot');
     
-    // Footer Locked Cells
     let footerCells = [
         `<td class="${stickyName} ${headerBg} p-3 text-left font-bold z-20">Class Average</td>`,
         `<td class="${stickyIep} ${headerBg} z-20"></td>`,

@@ -2,7 +2,7 @@ import { initializeSupabase, syncToServer, loadDataForUser, deleteCurrentUser, s
 import { setupAuthListener, handleAuthSubmit, signOut } from './auth.js';
 import { showModal, updateSaveStatus } from './ui.js';
 import { setAppState, setCurrentUser, getAppState, getCurrentUser, getActiveClassData, getActiveSemesterData } from './state.js';
-import { recalculateAndRenderAverages } from './calculations.js';
+import { recalculateAndRenderAverages,getGradeColorClass } from './calculations.js';
 import { renderFullGradebookUI, renderAnalyticsModal, updateUIFromState, renderGradebook, renderClassTabs, renderAccountPage, renderAttendanceSheet, renderStudentProfileModal,updateClassStats } from './render.js';
 import * as actions from './actions.js'
 import { startTutorial } from './tutorial.js';
@@ -575,6 +575,11 @@ function setupEventListeners() {
                 const assignmentId = target.dataset.assignmentId;
                 const category = target.dataset.cat;
                 const rawValue = target.value.trim().toUpperCase();
+                
+                // 1. Get Unit/Assignment Data FIRST (Moved up so we can use it for max scores)
+                const unit = Object.values(classData.units || {}).find(u => u.assignments?.[assignmentId]);
+                const assignment = unit?.assignments?.[assignmentId];
+
                 let storageValue;
                 if (rawValue === '') { storageValue = null; } 
                 else if (rawValue === 'M') { storageValue = 'M'; } 
@@ -582,77 +587,76 @@ function setupEventListeners() {
                     storageValue = parseFloat(rawValue); 
                     if (isNaN(storageValue)) { storageValue = null; } 
                 }
+
                 if (studentId && assignmentId && classData?.students?.[studentId]) {
                     if (!classData.students[studentId].grades) classData.students[studentId].grades = {};
                     if (!classData.students[studentId].grades[assignmentId]) classData.students[studentId].grades[assignmentId] = {};
+                    
                     let previousValue = null;
                     if (category) { previousValue = classData.students[studentId].grades[assignmentId][category]; }
+                    
+                    // Helper to update DOM and Data
                     const updateCell = (cat, val) => {
+                        // A. Update Data
                         if (cat) { classData.students[studentId].grades[assignmentId][cat] = val; }
                         else { classData.students[studentId].grades[assignmentId].grade = val; }
+                        
+                        // B. Update DOM Input
                         const selector = cat 
                             ? `.grade-input[data-student-id="${studentId}"][data-assignment-id="${assignmentId}"][data-cat="${cat}"]`
                             : `.grade-input[data-student-id="${studentId}"][data-assignment-id="${assignmentId}"]`;
                         const inputEl = document.querySelector(selector);
+                        
                         if (inputEl) {
                             if (val === 'M' && inputEl.value !== 'M') inputEl.value = 'M';
                             else if (inputEl !== target) inputEl.value = val === null ? '' : val;
+                            
+                            // C. Update DOM Cell Color (Parent TD)
                             const parentTd = inputEl.closest('td');
                             if (parentTd) {
+                                // 1. Handle Missing
                                 if (val === 0 || val === 'M') parentTd.classList.add('missing-cell');
                                 else parentTd.classList.remove('missing-cell');
+
+                                // 2. Handle Color Grades
+                                // Determine max score for this specific cell
+                                let max = 0;
+                                if (unit.isFinal) max = assignment.total || 0;
+                                else if (cat) max = assignment.categoryTotals?.[cat] || 0;
+
+                                // Get color class
+                                const colorClass = getGradeColorClass(val, max);
+
+                                // Remove OLD color classes (Tailwind bg/text colors)
+                                parentTd.className = parentTd.className.replace(/\b(!?bg-\S+|!?text-\S+)\b/g, '').trim();
+                                
+                                // Add NEW color class
+                                if (colorClass) {
+                                    // Split in case it returns multiple classes (bg + text)
+                                    colorClass.split(' ').forEach(c => parentTd.classList.add(c));
+                                }
                             }
                         }
                     };
+
                     if (category) {
                         if (storageValue === 'M') { ['k', 't', 'c', 'a'].forEach(c => updateCell(c, 'M')); } 
                         else if (storageValue === null && previousValue === 'M') { ['k', 't', 'c', 'a'].forEach(c => updateCell(c, null)); }
                         else { updateCell(category, storageValue); }
                     } else { updateCell(null, storageValue); }
-                    const unit = Object.values(classData.units || {}).find(u => u.assignments?.[assignmentId]);
-                    const assignment = unit?.assignments?.[assignmentId];
+                    
                     let maxScore = Infinity;
                     if (unit?.isFinal) { maxScore = assignment?.total ?? Infinity; }
                     else if (category) { maxScore = assignment?.categoryTotals?.[category] ?? Infinity; }
+                    
                     const isValid = storageValue === 'M' || storageValue === null || (!isNaN(storageValue) && storageValue >= 0 && (maxScore === Infinity || storageValue <= maxScore));
                     target.classList.toggle('grade-input-error', !isValid && rawValue !== '');
+                    
                     recalculateAndRenderAverages(); 
                     triggerAutoSave();
                 }
             }
-           if (target.id === 'className' && classData) {
-                 classData.name = target.textContent.trim();
-                 triggerAutoSave(); 
-            } else if (target.classList.contains('cat-weight-input') && classData) {
-                 const cat = target.dataset.cat;
-                 const value = parseFloat(target.value) || 0;
-                 if (cat && classData.categoryWeights) {
-                     classData.categoryWeights[cat] = value;
-                     renderCategoryWeights(); 
-                     renderGradebook(); 
-                     triggerAutoSave(); 
-                 }
-            }     
-        });
-        
-        contentWrapper.addEventListener('change', (e) => {
-             if (e.target.id === 'unitFilterDropdown') {
-                const appState = getAppState();
-                if(appState.gradebook_data) appState.gradebook_data.activeUnitId = e.target.value;
-                renderGradebook();
-            }
-            if (e.target.id === 'attendance-date-picker') { renderAttendanceSheet(e.target.value); }
-            if (e.target.id === 'show-archived-checkbox') { renderClassTabs(); }
-            if (e.target.classList.contains('iep-checkbox')) {
-                const studentId = e.target.dataset.studentId;
-                const classData = getActiveClassData(); 
-                 if (studentId && classData?.students?.[studentId]) {
-                     classData.students[studentId].iep = e.target.checked;
-                     updateClassStats(); // Update stats
-                     recalculateAndRenderAverages(); 
-                     triggerAutoSave(); 
-                 }
-            }
+            
            if (e.target.name.startsWith('status-')) {
                 const classData = getActiveClassData();
                 const studentRow = e.target.closest('.student-attendance-row');

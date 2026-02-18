@@ -79,7 +79,10 @@ body.modal-open { overflow: hidden; }
 /* Table Body Styling */
 #gradebookTable tbody td { background-color: white; }
 #gradebookTable tbody tr.student-row:nth-child(even) td { background-color: #e6eff8; }
-#gradebookTable tbody tr.student-row:hover td { background-color: #e7c2ec !important; }
+
+/* FIX: Removed '!important' so it doesn't hide the grade colors */
+#gradebookTable tbody tr.student-row:hover td { background-color: #e7c2ec; } 
+
 #gradebookTable tfoot td { background-color: #f3f4f6; font-weight: 600; }
 
 
