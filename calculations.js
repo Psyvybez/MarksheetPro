@@ -224,8 +224,9 @@ export function calculateClassStats(classData) {
     return { distribution, catAverages };
 }
 
+//
+
 export function recalculateAndRenderAverages() {
-    // FIX: Using imported getActiveClassData instead of require()
     const classData = getActiveClassData();
     if (!classData) return;
 
@@ -239,20 +240,25 @@ export function recalculateAndRenderAverages() {
     students.forEach(student => {
         const avgs = calculateStudentAverages(student, classData);
         
-        // Update Student Row DOM
         const row = document.querySelector(`tr[data-student-id="${student.id}"]`);
         if (row) {
             const fmt = (v) => v !== null ? `${v.toFixed(1)}%` : '--%';
             
-            // Color coding helper
-            const colorize = (el, val) => {
-                el.classList.remove('bg-green-100', 'text-green-800', 'bg-yellow-100', 'text-yellow-800', 'bg-red-100', 'text-red-800', 'font-bold');
+            // --- FIX: Use the new helper function ---
+            const applyColor = (el, val) => {
+                // 1. Scrub old classes
+                el.className = el.className.replace(/\b(!?bg-\S+|!?text-\S+)\b/g, '').trim();
+                el.classList.remove('font-bold'); // Remove bold to re-add it cleanly
+
                 if (val !== null) {
                     el.classList.add('font-bold');
-                    if (val >= 80) el.classList.add('bg-green-100', 'text-green-800');
-                    else if (val >= 70) el.classList.add('bg-yellow-100', 'text-yellow-800'); // B Level
-                    else if (val >= 60) el.classList.add('bg-yellow-100', 'text-yellow-800'); // C Level
-                    else if (val < 50) el.classList.add('bg-red-100', 'text-red-800');
+                    // 2. Get the new class string (e.g. "!bg-green-300")
+                    const colorClass = getGradeColorClass(val, 100); 
+                    if(colorClass) {
+                        // 3. Add classes safely
+                        const classes = colorClass.split(' ');
+                        el.classList.add(...classes);
+                    }
                 }
             };
 
@@ -260,15 +266,30 @@ export function recalculateAndRenderAverages() {
             const termEl = row.querySelector('.student-term-mark');
             const finalEl = row.querySelector('.student-final');
             
-            if(overallEl) { overallEl.textContent = fmt(avgs.overallGrade); colorize(overallEl, avgs.overallGrade); }
-            if(termEl) { termEl.textContent = fmt(avgs.termMark); }
-            if(finalEl) { finalEl.textContent = fmt(avgs.finalMark); }
+            // Apply to Overall
+            if(overallEl) { 
+                overallEl.textContent = fmt(avgs.overallGrade); 
+                applyColor(overallEl, avgs.overallGrade); 
+            }
+            
+            // Apply to Term (Optional: remove applyColor if you want it plain)
+            if(termEl) { 
+                termEl.textContent = fmt(avgs.termMark); 
+                applyColor(termEl, avgs.termMark);
+            }
+            
+            // Apply to Final
+            if(finalEl) { 
+                finalEl.textContent = fmt(avgs.finalMark); 
+                applyColor(finalEl, avgs.finalMark);
+            }
 
+            // Apply to Categories (K/T/C/A)
             ['k','t','c','a'].forEach(cat => {
                 const el = row.querySelector(`.student-cat-${cat}`);
                 if(el) {
                     el.textContent = fmt(avgs.categories[cat]);
-                    colorize(el, avgs.categories[cat]);
+                    applyColor(el, avgs.categories[cat]);
                 }
             });
         }

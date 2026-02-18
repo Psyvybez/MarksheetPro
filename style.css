@@ -74,7 +74,8 @@ body.modal-open { overflow: hidden; }
 
 
 
-#gradebookTable thead .student-info-header, #gradebookTable thead .student-info-header-blank { z-index: 35 !important; }
+#gradebookTable thead .student-info-header, 
+#gradebookTable thead .student-info-header-blank { z-index: 35; }
 
 /* */
 
