@@ -364,10 +364,23 @@ export function editUnits() {
 export function manageAssignments() {
     const appState = getAppState();
     const classData = getActiveClassData();
-    const activeUnitId = appState.gradebook_data?.activeUnitId;
+    let activeUnitId = appState.gradebook_data?.activeUnitId;
 
-    if (!classData || !activeUnitId || activeUnitId === 'all') {
+    if (!classData) {
         return;
+    }
+
+    if (!activeUnitId || activeUnitId === 'all') {
+        const firstUnit = Object.values(classData.units || {}).sort((a, b) => a.order - b.order)[0];
+        if (!firstUnit) return;
+        activeUnitId = firstUnit.id;
+        if (appState.gradebook_data) {
+            appState.gradebook_data.activeUnitId = activeUnitId;
+        }
+        const unitDropdown = document.getElementById('unitFilterDropdown');
+        if (unitDropdown) {
+            unitDropdown.value = activeUnitId;
+        }
     }
 
     const unit = classData.units[activeUnitId];

@@ -512,6 +512,31 @@ function setupEventListeners() {
             else if (tabId) { e.preventDefault(); actions.switchActiveClass(tabId); }
         });
 
+        contentWrapper.addEventListener('change', (e) => {
+            const target = e.target;
+            const classData = getActiveClassData();
+
+            if (target.id === 'unitFilterDropdown') {
+                const appState = getAppState();
+                if (appState.gradebook_data) {
+                    appState.gradebook_data.activeUnitId = target.value || 'all';
+                    renderGradebook();
+                    triggerAutoSave();
+                }
+                return;
+            }
+
+            if (target.classList.contains('iep-checkbox')) {
+                const studentId = target.dataset.studentId;
+                if (classData?.students?.[studentId]) {
+                    classData.students[studentId].iep = target.checked;
+                    updateClassStats();
+                    triggerAutoSave();
+                }
+                return;
+            }
+        });
+
         contentWrapper.addEventListener('input', (e) => {
             const target = e.target;
             const classData = getActiveClassData(); 
