@@ -107,6 +107,7 @@ export function editUnits() {
     if (!classData) return;
 
     let draggedItem = null;
+    let dragArmedUnitItem = null;
 
     function renderUnitsEditor(units, hasFinal, finalWeight) {
         const termUnits = Object.values(units).filter(u => !u.isFinal).sort((a,b) => a.order - b.order);
@@ -115,7 +116,7 @@ export function editUnits() {
         const weightColor = Math.abs(totalWeight - 100) < 0.1 ? 'text-green-600' : 'text-red-600';
 
         let termUnitsHtml = termUnits.map(unit => `
-            <div class="unit-item flex items-center gap-3 p-2 border rounded-md bg-gray-50" draggable="true" data-unit-id="${unit.id}">
+            <div class="unit-item flex items-center gap-3 p-2 border rounded-md bg-gray-50" draggable="false" data-unit-id="${unit.id}">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="drag-handle cursor-grab text-gray-400"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>
                 <span class="font-semibold text-gray-600">Unit ${unit.order}:</span>
                 <input type="text" data-field="title" class="p-1 border rounded-md flex-grow" value="${unit.title || ''}" placeholder="Custom Title (e.g., Algebra)">
@@ -164,7 +165,7 @@ export function editUnits() {
 
     function getStateFromModalDOM(modal) {
         const updatedUnits = {};
-        const unitItems = modal.querySelectorAll('.unit-item[draggable="true"]');
+        const unitItems = modal.querySelectorAll('#unit-list .unit-item');
         
         unitItems.forEach((item, index) => {
             const unitId = item.dataset.unitId;
@@ -318,11 +319,19 @@ export function editUnits() {
     });
     
     // Drag and Drop Logic
+    modal.addEventListener('pointerdown', e => {
+        const handle = e.target.closest('.drag-handle');
+        const unitItem = e.target.closest('.unit-item[draggable="false"], .unit-item[draggable="true"]');
+        if (!handle || !unitItem) return;
+        unitItem.draggable = true;
+        dragArmedUnitItem = unitItem;
+    });
+
     modal.addEventListener('dragstart', e => {
         const unitItem = e.target.closest('.unit-item[draggable="true"]');
         if (!unitItem) return;
 
-        if (!e.target.closest('.drag-handle')) {
+        if (unitItem !== dragArmedUnitItem) {
             e.preventDefault();
             return;
         }
@@ -331,10 +340,22 @@ export function editUnits() {
         setTimeout(() => unitItem.classList.add('dragging'), 0);
     });
 
+    const disarmUnitDrag = () => {
+        if (dragArmedUnitItem) {
+            dragArmedUnitItem.draggable = false;
+            dragArmedUnitItem = null;
+        }
+    };
+
+    modal.addEventListener('pointerup', disarmUnitDrag);
+    modal.addEventListener('pointercancel', disarmUnitDrag);
+
     modal.addEventListener('dragend', () => {
         if (!draggedItem) return;
         draggedItem.classList.remove('dragging');
+        draggedItem.draggable = false;
         draggedItem = null;
+        disarmUnitDrag();
         // Re-number visible units locally for visual consistency
         modal.querySelectorAll('#unit-list .unit-item').forEach((item, index) => {
             const orderSpan = item.querySelector('span:nth-of-type(1)');
@@ -393,6 +414,7 @@ export function manageAssignments() {
     if (!unit) return;
 
     let draggedItem = null;
+    let dragArmedAssignmentItem = null;
 
     // Ensure order/weight exist
     Object.values(unit.assignments || {}).forEach((asg, index) => {
@@ -410,7 +432,7 @@ export function manageAssignments() {
         const assignmentsHtml = assignments.map(asg => {
             if (isFinal) {
                 return `
-                    <div class="assignment-item grid grid-cols-[auto,1fr,5rem,6rem,auto] items-center gap-2 p-2 bg-white rounded border" draggable="true" data-asg-id="${asg.id}">
+                    <div class="assignment-item grid grid-cols-[auto,1fr,5rem,6rem,auto] items-center gap-2 p-2 bg-white rounded border" draggable="false" data-asg-id="${asg.id}">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="drag-handle cursor-grab text-gray-400"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>
                         <input data-field="name" type="text" class="p-1 border rounded-md w-full" value="${asg.name || ''}" placeholder="Assessment Name">
                         <input data-field="weight" type="number" step="0.1" class="p-1 border rounded-md text-center w-full" value="${asg.weight || 1}" placeholder="x1">
@@ -419,7 +441,7 @@ export function manageAssignments() {
                     </div>`;
             } else {
                 return `
-                    <div class="assignment-item grid grid-cols-[auto,1fr,5rem,4rem,4rem,4rem,4rem,auto] items-center gap-2 p-2 bg-white rounded border" draggable="true" data-asg-id="${asg.id}">
+                    <div class="assignment-item grid grid-cols-[auto,1fr,5rem,4rem,4rem,4rem,4rem,auto] items-center gap-2 p-2 bg-white rounded border" draggable="false" data-asg-id="${asg.id}">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="drag-handle cursor-grab text-gray-400"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>
                         <input data-field="name" type="text" class="p-1 border rounded-md w-full" value="${asg.name || ''}" placeholder="Assignment Name">
                         <input data-field="weight" type="number" step="0.1" class="p-1 border rounded-md text-center w-full" value="${asg.weight || 1}" placeholder="x1">
@@ -538,11 +560,19 @@ export function manageAssignments() {
     });
     
     // Assignment Drag and Drop Logic
+    editor.addEventListener('pointerdown', e => {
+        const handle = e.target.closest('.drag-handle');
+        const assignmentItem = e.target.closest('.assignment-item[draggable="false"], .assignment-item[draggable="true"]');
+        if (!handle || !assignmentItem) return;
+        assignmentItem.draggable = true;
+        dragArmedAssignmentItem = assignmentItem;
+    });
+
     editor.addEventListener('dragstart', e => {
-        const assignmentItem = e.target.closest('.assignment-item');
+        const assignmentItem = e.target.closest('.assignment-item[draggable="true"]');
         if (!assignmentItem) return;
 
-        if (!e.target.closest('.drag-handle')) {
+        if (assignmentItem !== dragArmedAssignmentItem) {
             e.preventDefault();
             return;
         }
@@ -551,7 +581,24 @@ export function manageAssignments() {
         setTimeout(() => assignmentItem.classList.add('dragging'), 0);
     });
 
-    editor.addEventListener('dragend', () => { draggedItem?.classList.remove('dragging'); draggedItem = null; });
+    const disarmAssignmentDrag = () => {
+        if (dragArmedAssignmentItem) {
+            dragArmedAssignmentItem.draggable = false;
+            dragArmedAssignmentItem = null;
+        }
+    };
+
+    editor.addEventListener('pointerup', disarmAssignmentDrag);
+    editor.addEventListener('pointercancel', disarmAssignmentDrag);
+
+    editor.addEventListener('dragend', () => {
+        if (draggedItem) {
+            draggedItem.classList.remove('dragging');
+            draggedItem.draggable = false;
+            draggedItem = null;
+        }
+        disarmAssignmentDrag();
+    });
     editor.addEventListener('dragover', e => {
         if (!draggedItem) return;
         e.preventDefault();
