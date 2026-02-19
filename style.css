@@ -1,174 +1,307 @@
 /* Add this to the top of style.css */
 :root {
-    --color-brand-primary: #2b3a67;   /* Dark Navy */
-    --color-brand-secondary: #0d9488;  /* Teal */
-    --color-brand-accent: #c026d3;    /* Fuchsia */
-    --color-brand-text: #2b3a67;
+  --color-brand-primary: #2b3a67; /* Dark Navy */
+  --color-brand-secondary: #0d9488; /* Teal */
+  --color-brand-accent: #c026d3; /* Fuchsia */
+  --color-brand-text: #2b3a67;
 }
 
 /* New Theme Utility Classes */
-.bg-primary { background-color: var(--color-brand-primary); }
-.hover\:bg-primary-dark:hover { background-color: #222e54; } /* Darker Navy */
+.bg-primary {
+  background-color: var(--color-brand-primary);
+}
+.hover\:bg-primary-dark:hover {
+  background-color: #222e54;
+} /* Darker Navy */
 
-.bg-accent { background-color: var(--color-brand-accent); }
-.hover\:bg-accent-dark:hover { background-color: #a21caf; } /* Darker Fuchsia */
+.bg-accent {
+  background-color: var(--color-brand-accent);
+}
+.hover\:bg-accent-dark:hover {
+  background-color: #a21caf;
+} /* Darker Fuchsia */
 
-.bg-secondary { background-color: var(--color-brand-secondary); }
-.hover\:bg-secondary-dark:hover { background-color: #0f766e; } /* Darker Teal */
+.bg-secondary {
+  background-color: var(--color-brand-secondary);
+}
+.hover\:bg-secondary-dark:hover {
+  background-color: #0f766e;
+} /* Darker Teal */
 
-.text-primary { color: var(--color-brand-text); }
-.text-accent { color: var(--color-brand-accent); }
-.hover\:text-accent-dark:hover { color: #a21caf; }
+.text-primary {
+  color: var(--color-brand-text);
+}
+.text-accent {
+  color: var(--color-brand-accent);
+}
+.hover\:text-accent-dark:hover {
+  color: #a21caf;
+}
 
-.border-primary { border-color: var(--color-brand-primary); }
-.border-accent { border-color: var(--color-brand-accent); }
+.border-primary {
+  border-color: var(--color-brand-primary);
+}
+.border-accent {
+  border-color: var(--color-brand-accent);
+}
 
 /* Global styles */
-body { font-family: 'Inter', sans-serif; margin: 0; }
-.hidden { display: none; }
-.fade-in { animation: fadeIn 0.5s ease-in-out; }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+body {
+  font-family: 'Inter', sans-serif;
+  margin: 0;
+}
+.hidden {
+  display: none;
+}
+.fade-in {
+  animation: fadeIn 0.5s ease-in-out;
+}
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 
 /* Content Editable Focus Style */
-[contenteditable="true"]:focus { outline-color: #3b82f6; box-shadow: 0 0 0 2px #bfdbfe; }
+[contenteditable='true']:focus {
+  outline-color: #3b82f6;
+  box-shadow: 0 0 0 2px #bfdbfe;
+}
 
 /* Table Input Styles */
-table input, table select { border: none; background-color: transparent; width: 100%; height: 100%; text-align: center; padding: 12px 8px; outline: none; }
-table input:focus { background-color: #eff6ff; }
+table input,
+table select {
+  border: none;
+  background-color: transparent;
+  width: 100%;
+  height: 100%;
+  text-align: center;
+  padding: 12px 8px;
+  outline: none;
+}
+table input:focus {
+  background-color: #eff6ff;
+}
 
 /* Tab Button Styles */
-.tab-button.active, .semester-button.active { border-bottom-color: var(--color-brand-accent); color: var(--color-brand-accent); font-weight: 600; }
+.tab-button.active,
+.semester-button.active {
+  border-bottom-color: var(--color-brand-accent);
+  color: var(--color-brand-accent);
+  font-weight: 600;
+}
 
 /* Delete Button */
-.delete-btn { background: #fee2e2; color: #ef4444; border-radius: 9999px; width: 20px; height: 20px; display: inline-flex; justify-content: center; align-items: center; font-size: 12px; font-weight: bold; cursor: pointer; border: none; line-height: 1; transition: all 0.2s ease; flex-shrink: 0; }
-.delete-btn:hover { background: #ef4444; color: white; transform: scale(1.1); }
+.delete-btn {
+  background: #fee2e2;
+  color: #ef4444;
+  border-radius: 9999px;
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  border: none;
+  line-height: 1;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+.delete-btn:hover {
+  background: #ef4444;
+  color: white;
+  transform: scale(1.1);
+}
 
 /* Dragging Visuals */
-.tab-button.dragging, .unit-item.dragging, .assignment-item.dragging {
-    opacity: 0.5;
-    background: #eef2ff;
+.tab-button.dragging,
+.unit-item.dragging,
+.assignment-item.dragging {
+  opacity: 0.5;
+  background: #eef2ff;
 }
 
 /* Modal Styling */
-body.modal-open { overflow: hidden; }
-#custom-modal { max-height: 95vh; }
-.modal-content-area { overflow-y: auto; padding-right: 1rem; margin-right: -1rem; }
+body.modal-open {
+  overflow: hidden;
+}
+#custom-modal {
+  max-height: 95vh;
+}
+.modal-content-area {
+  overflow-y: auto;
+  padding-right: 1rem;
+  margin-right: -1rem;
+}
 
 /* Table Wrapper */
 #table-wrapper {
-    overflow: auto;
-    position: sticky;
-    top: 0;
-    max-height: 100vh;
-    z-index: 40;
+  overflow: auto;
+  position: sticky;
+  top: 0;
+  max-height: 100vh;
+  z-index: 40;
 }
 
 /* Sticky Header Rows */
-#gradebookTable thead tr { position: sticky; z-index: 30; }
-#gradebookTable thead tr:first-child { top: 0; z-index: 32; }
-#gradebookTable thead tr:first-child th { background-color: #f9fafb; }
-#gradebookTable thead tr:nth-child(2) { top: var(--header-row-1-height, 36px); z-index: 31; }
-#gradebookTable thead tr:nth-child(2) th { background-color: #f3f4f6; }
-#gradebookTable thead tr:nth-child(3) { top: var(--header-row-2-height, 72px); z-index: 30; }
-#gradebookTable thead tr:nth-child(3) th { background-color: #e5e7eb; }
+#gradebookTable thead tr {
+  position: sticky;
+  z-index: 30;
+}
+#gradebookTable thead tr:first-child {
+  top: 0;
+  z-index: 32;
+}
+#gradebookTable thead tr:first-child th {
+  background-color: #f9fafb;
+}
+#gradebookTable thead tr:nth-child(2) {
+  top: var(--header-row-1-height, 36px);
+  z-index: 31;
+}
+#gradebookTable thead tr:nth-child(2) th {
+  background-color: #f3f4f6;
+}
+#gradebookTable thead tr:nth-child(3) {
+  top: var(--header-row-2-height, 72px);
+  z-index: 30;
+}
+#gradebookTable thead tr:nth-child(3) th {
+  background-color: #e5e7eb;
+}
 
-
-
-#gradebookTable thead .student-info-header, 
-#gradebookTable thead .student-info-header-blank { z-index: 35; }
+#gradebookTable thead .student-info-header,
+#gradebookTable thead .student-info-header-blank {
+  z-index: 35;
+}
 
 /* */
 
 /* Table Body Styling */
-#gradebookTable tbody td { background-color: white; }
-#gradebookTable tbody tr.student-row:nth-child(even) td { background-color: #e6eff8; }
+#gradebookTable tbody td {
+  background-color: white;
+}
+#gradebookTable tbody tr.student-row:nth-child(even) td {
+  background-color: #e6eff8;
+}
 
 /* FIX: Removed '!important' so it doesn't hide the grade colors */
-#gradebookTable tbody tr.student-row:hover td { background-color: #e7c2ec; } 
+#gradebookTable tbody tr.student-row:hover td {
+  background-color: #e7c2ec;
+}
 
-#gradebookTable tfoot td { background-color: #f3f4f6; font-weight: 600; }
-
+#gradebookTable tfoot td {
+  background-color: #f3f4f6;
+  font-weight: 600;
+}
 
 /* Student Name Button */
-.student-name-btn { width: 100%; height: 100%; text-align: left; padding: 12px; background-color: transparent; border: none; color: #3b82f6; font-weight: 500; cursor: pointer; transition: all 0.2s ease-in-out; }
-.student-name-btn:hover { background-color: #eff6ff; text-decoration: underline; }
+.student-name-btn {
+  width: 100%;
+  height: 100%;
+  text-align: left;
+  padding: 12px;
+  background-color: transparent;
+  border: none;
+  color: #3b82f6;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+.student-name-btn:hover {
+  background-color: #eff6ff;
+  text-decoration: underline;
+}
 
-.assignment-header-cell { min-width: 4.5rem; }
+.assignment-header-cell {
+  min-width: 4.5rem;
+}
 
 /* Save Status Icon */
-.save-status-icon { display: inline-block; font-weight: bold; transition: color 0.3s ease; }
+.save-status-icon {
+  display: inline-block;
+  font-weight: bold;
+  transition: color 0.3s ease;
+}
 
 /* --- Tutorial Styles --- */
 #tutorial-backdrop {
-    position: fixed;
-    inset: 0;
-    z-index: 90;
-    background-color: rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(2px);
-    animation: fadeIn 0.3s ease;
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background-color: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(2px);
+  animation: fadeIn 0.3s ease;
 }
 
 #tutorial-spotlight {
-    position: fixed;
-    z-index: 91;
-    border-radius: 6px;
-    box-shadow: 0 0 0 2000px rgba(0, 0, 0, 0.6);
-    pointer-events: none;
-    transition: all 0.3s ease-in-out;
+  position: fixed;
+  z-index: 91;
+  border-radius: 6px;
+  box-shadow: 0 0 0 2000px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+  transition: all 0.3s ease-in-out;
 }
 #tutorial-modal-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 93; /* Sits *above* the modal (92) but *below* the target (94) */
-    background: transparent; /* This transparent div will block clicks */
+  position: fixed;
+  inset: 0;
+  z-index: 93; /* Sits *above* the modal (92) but *below* the target (94) */
+  background: transparent; /* This transparent div will block clicks */
 }
 
 #tutorial-tooltip {
-    position: fixed;
-    z-index: 95;
-    background-color: white;
-    padding: 1rem;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-    width: 300px;
-    transition: all 0.3s ease-in-out;
-    opacity: 0;
-    transform: translateY(10px);
+  position: fixed;
+  z-index: 95;
+  background-color: white;
+  padding: 1rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  width: 300px;
+  transition: all 0.3s ease-in-out;
+  opacity: 0;
+  transform: translateY(10px);
 }
 
 #tutorial-tooltip.visible {
-    opacity: 1;
-    transform: translateY(0);
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .tutorial-highlighted-element {
-    /* This brings the *actual* button above the shadow */
-    position: relative;
-    z-index: 94;
-    pointer-events: auto !important;
+  /* This brings the *actual* button above the shadow */
+  position: relative;
+  z-index: 94;
+  pointer-events: auto !important;
 }
 /* --- SUBMISSION & MISSING LOGIC STYLES --- */
 
 /* Missing or Zero Grade (Red) */
 .missing-cell {
-    background-color: #fee2e2 !important; /* Red background */
+  background-color: #fee2e2 !important; /* Red background */
 }
 .missing-cell input {
-    color: #b91c1c; /* Dark red text */
-    font-weight: bold;
+  color: #b91c1c; /* Dark red text */
+  font-weight: bold;
 }
 
 /* Submitted / Ungraded Assignment (Blue) */
 .submitted-assignment-col {
-    background-color: #e0f2fe !important; /* Light Blue background */
+  background-color: #e0f2fe !important; /* Light Blue background */
 }
 .submitted-assignment-col input {
-    color: #0369a1; /* Dark Blue text */
+  color: #0369a1; /* Dark Blue text */
 }
 
 /* Toggle Checkbox in Header */
 .assignment-status-toggle {
-    cursor: pointer;
-    width: 0.8rem; 
-    height: 0.8rem;
+  cursor: pointer;
+  width: 0.8rem;
+  height: 0.8rem;
 }
