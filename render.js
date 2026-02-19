@@ -766,7 +766,7 @@ export async function renderStudentProfileModal(studentId) {
         footerContent: `<button id="modal-delete-student-btn" class="text-red-600 hover:text-red-800 font-medium text-sm px-3 py-2 border border-transparent hover:border-red-200 rounded transition-colors">Delete Student</button>`,
         confirmText: 'Save Changes',
         confirmClasses: 'bg-primary hover:bg-primary-dark',
-        onConfirm: async (closeModal) => {
+        onConfirm: async () => {
             student.firstName = document.getElementById('student-firstname-edit').value.trim();
             student.lastName = document.getElementById('student-lastname-edit').value.trim();
             student.iepNotes = document.getElementById('student-iep-notes').value.trim();
@@ -791,7 +791,6 @@ export async function renderStudentProfileModal(studentId) {
             
             renderGradebook();
             triggerAutoSave();
-            closeModal();
         }
     });
 

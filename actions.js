@@ -116,7 +116,7 @@ export function editUnits() {
 
         let termUnitsHtml = termUnits.map(unit => `
             <div class="unit-item flex items-center gap-3 p-2 border rounded-md bg-gray-50" draggable="true" data-unit-id="${unit.id}">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="cursor-grab text-gray-400"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="drag-handle cursor-grab text-gray-400"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>
                 <span class="font-semibold text-gray-600">Unit ${unit.order}:</span>
                 <input type="text" data-field="title" class="p-1 border rounded-md flex-grow" value="${unit.title || ''}" placeholder="Custom Title (e.g., Algebra)">
                 <input type="text" data-field="subtitle" class="p-1 border rounded-md flex-grow" value="${unit.subtitle || ''}" placeholder="Subtitle (optional)">
@@ -319,10 +319,16 @@ export function editUnits() {
     
     // Drag and Drop Logic
     modal.addEventListener('dragstart', e => {
-        if (e.target.classList.contains('unit-item')) {
-            draggedItem = e.target;
-            setTimeout(() => e.target.classList.add('dragging'), 0);
+        const unitItem = e.target.closest('.unit-item[draggable="true"]');
+        if (!unitItem) return;
+
+        if (!e.target.closest('.drag-handle')) {
+            e.preventDefault();
+            return;
         }
+
+        draggedItem = unitItem;
+        setTimeout(() => unitItem.classList.add('dragging'), 0);
     });
 
     modal.addEventListener('dragend', () => {
@@ -405,7 +411,7 @@ export function manageAssignments() {
             if (isFinal) {
                 return `
                     <div class="assignment-item grid grid-cols-[auto,1fr,5rem,6rem,auto] items-center gap-2 p-2 bg-white rounded border" draggable="true" data-asg-id="${asg.id}">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="cursor-grab text-gray-400"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="drag-handle cursor-grab text-gray-400"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>
                         <input data-field="name" type="text" class="p-1 border rounded-md w-full" value="${asg.name || ''}" placeholder="Assessment Name">
                         <input data-field="weight" type="number" step="0.1" class="p-1 border rounded-md text-center w-full" value="${asg.weight || 1}" placeholder="x1">
                         <input data-field="total" type="number" step="0.1" class="p-1 border rounded-md text-center w-full" value="${asg.total || 0}" placeholder="Total Score">
@@ -414,7 +420,7 @@ export function manageAssignments() {
             } else {
                 return `
                     <div class="assignment-item grid grid-cols-[auto,1fr,5rem,4rem,4rem,4rem,4rem,auto] items-center gap-2 p-2 bg-white rounded border" draggable="true" data-asg-id="${asg.id}">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="cursor-grab text-gray-400"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="drag-handle cursor-grab text-gray-400"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>
                         <input data-field="name" type="text" class="p-1 border rounded-md w-full" value="${asg.name || ''}" placeholder="Assignment Name">
                         <input data-field="weight" type="number" step="0.1" class="p-1 border rounded-md text-center w-full" value="${asg.weight || 1}" placeholder="x1">
                         <input data-field="k" type="number" step="0.1" class="p-1 border rounded-md text-center w-full" value="${asg.categoryTotals?.k || 0}" placeholder="K">
@@ -533,10 +539,16 @@ export function manageAssignments() {
     
     // Assignment Drag and Drop Logic
     editor.addEventListener('dragstart', e => {
-        if (e.target.classList.contains('assignment-item')) {
-            draggedItem = e.target;
-            setTimeout(() => e.target.classList.add('dragging'), 0);
+        const assignmentItem = e.target.closest('.assignment-item');
+        if (!assignmentItem) return;
+
+        if (!e.target.closest('.drag-handle')) {
+            e.preventDefault();
+            return;
         }
+
+        draggedItem = assignmentItem;
+        setTimeout(() => assignmentItem.classList.add('dragging'), 0);
     });
 
     editor.addEventListener('dragend', () => { draggedItem?.classList.remove('dragging'); draggedItem = null; });

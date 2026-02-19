@@ -15,7 +15,17 @@ export function setupAuthListener(supabaseClient, wasLocalDataLoaded) {
         const authContainer = document.getElementById('auth-container');
         const appContainer = document.getElementById('app-container');
         const verifyContainer = document.getElementById('verify-email-container'); // Get the verification screen
+        const updatePasswordContainer = document.getElementById('update-password-container');
         const loadingOverlay = document.getElementById('loading-overlay');
+
+        if (event === 'PASSWORD_RECOVERY') {
+            authContainer?.classList.add('hidden');
+            appContainer?.classList.add('hidden');
+            verifyContainer?.classList.add('hidden');
+            updatePasswordContainer?.classList.remove('hidden');
+            loadingOverlay?.classList.add('hidden');
+            return;
+        }
 
         if (event === 'SIGNED_OUT' || !session) {
             hasHandledInitialLoad = false; // Reset flag on sign out
@@ -28,18 +38,31 @@ export function setupAuthListener(supabaseClient, wasLocalDataLoaded) {
             authContainer?.classList.remove('hidden');
             appContainer?.classList.add('hidden');
             verifyContainer?.classList.add('hidden');
+            updatePasswordContainer?.classList.add('hidden');
             loadingOverlay?.classList.add('hidden');
             return;
         }
 
         // Handle Page Refresh (INITIAL_SESSION) OR Email Link Click (SIGNED_IN)
         if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
+            const currentUser = getCurrentUser();
+            const isSameUser = !!currentUser && currentUser.id === user?.id;
+
+            // Supabase can emit duplicate SIGNED_IN events (e.g. on tab focus/session refresh).
+            // Ignore duplicates once initial state is already handled for the same user.
+            if (event === 'SIGNED_IN' && hasHandledInitialLoad && isSameUser) {
+                resetInactivityTimer();
+                loadingOverlay?.classList.add('hidden');
+                return;
+            }
+
             hasHandledInitialLoad = true;
             setCurrentUser(user);
             
             // Hide Auth & Verify Screens, Show App
             authContainer?.classList.add('hidden');
             verifyContainer?.classList.add('hidden'); // <--- IMPORTANT: Hide the standby screen
+            updatePasswordContainer?.classList.add('hidden');
             appContainer?.classList.remove('hidden');
             resetInactivityTimer();
 

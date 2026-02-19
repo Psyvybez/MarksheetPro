@@ -30,7 +30,14 @@ export function showModal({ title, content, footerContent = '', confirmText = 'C
         if (onAction) {
             confirmBtn.addEventListener('click', () => { onAction(closeModal); });
         } else {
-             confirmBtn.addEventListener('click', () => { if (onConfirm) onConfirm(); closeModal(); });
+            confirmBtn.addEventListener('click', async () => {
+                let shouldClose = true;
+                if (onConfirm) {
+                    const result = await onConfirm(closeModal);
+                    if (result === false) shouldClose = false;
+                }
+                if (shouldClose) closeModal();
+            });
         }
     }
     if(cancelBtn) cancelBtn.addEventListener('click', () => { if (onCancel) onCancel(); closeModal(); });

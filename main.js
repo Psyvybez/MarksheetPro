@@ -406,11 +406,35 @@ function setupEventListeners() {
         document.getElementById('password')?.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') { e.preventDefault(); document.getElementById('auth-submit-btn')?.click(); }
         });
+        document.getElementById('forgot-password-link')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            const authTitle = document.getElementById('auth-title');
+            const authSubmitBtn = document.getElementById('auth-submit-btn');
+            const authToggleLink = document.getElementById('auth-toggle-link');
+            if (authTitle) authTitle.textContent = 'Reset your password';
+            if (authSubmitBtn) {
+                authSubmitBtn.textContent = 'Send Reset Link';
+                authSubmitBtn.classList.remove('bg-accent', 'hover:bg-accent-dark');
+                authSubmitBtn.classList.add('bg-primary', 'hover:bg-primary-dark');
+            }
+            if (authToggleLink) authToggleLink.innerHTML = 'Back to <span class="font-bold underline">sign in</span>';
+        });
         document.getElementById('auth-toggle-link')?.addEventListener('click', (e) => {
             e.preventDefault();
             const authTitle = document.getElementById('auth-title');
             const authSubmitBtn = document.getElementById('auth-submit-btn');
             const authToggleLink = document.getElementById('auth-toggle-link');
+
+            if (authSubmitBtn.textContent === 'Send Reset Link') {
+                authTitle.textContent = 'Sign in to your account';
+                authSubmitBtn.textContent = 'Sign in';
+                authToggleLink.innerHTML = 'Or <span class="font-bold underline">create a new account</span>';
+                authSubmitBtn.classList.remove('bg-accent', 'hover:bg-accent-dark');
+                authSubmitBtn.classList.add('bg-primary', 'hover:bg-primary-dark');
+                authTitle.classList.remove('text-accent');
+                return;
+            }
+
             const isCurrentlySignIn = authSubmitBtn.textContent === 'Sign in';
             if (isCurrentlySignIn) {
                 authTitle.textContent = 'Create a new account';
@@ -426,6 +450,66 @@ function setupEventListeners() {
                 authSubmitBtn.classList.remove('bg-accent', 'hover:bg-accent-dark');
                 authSubmitBtn.classList.add('bg-primary', 'hover:bg-primary-dark');
                 authTitle.classList.remove('text-accent');
+            }
+        });
+
+        document.getElementById('back-to-login-btn')?.addEventListener('click', () => {
+            document.getElementById('verify-email-container')?.classList.add('hidden');
+            document.getElementById('auth-container')?.classList.remove('hidden');
+        });
+
+        document.getElementById('resend-verification-btn')?.addEventListener('click', async () => {
+            const email = document.getElementById('verify-email-address')?.textContent?.trim();
+            if (!email || !supabaseClient) return;
+
+            try {
+                const { error } = await supabaseClient.auth.resend({ type: 'signup', email });
+                if (error) throw error;
+                showModal({
+                    title: 'Verification Email Sent',
+                    content: `<p>A new verification link was sent to <strong>${email}</strong>.</p>`,
+                    confirmText: null,
+                    cancelText: 'Close',
+                    modalWidth: 'max-w-sm'
+                });
+            } catch (error) {
+                showModal({
+                    title: 'Resend Failed',
+                    content: `<p>${error.message}</p>`,
+                    confirmText: null,
+                    cancelText: 'Close',
+                    modalWidth: 'max-w-sm'
+                });
+            }
+        });
+
+        document.getElementById('update-password-btn')?.addEventListener('click', async () => {
+            const newPassword = document.getElementById('new-password')?.value?.trim();
+            if (!newPassword || !supabaseClient) return;
+
+            try {
+                const { error } = await supabaseClient.auth.updateUser({ password: newPassword });
+                if (error) throw error;
+
+                document.getElementById('new-password').value = '';
+                document.getElementById('update-password-container')?.classList.add('hidden');
+                document.getElementById('auth-container')?.classList.remove('hidden');
+
+                showModal({
+                    title: 'Password Updated',
+                    content: '<p>Your password was updated. Please sign in with your new password.</p>',
+                    confirmText: null,
+                    cancelText: 'Close',
+                    modalWidth: 'max-w-sm'
+                });
+            } catch (error) {
+                showModal({
+                    title: 'Update Failed',
+                    content: `<p>${error.message}</p>`,
+                    confirmText: null,
+                    cancelText: 'Close',
+                    modalWidth: 'max-w-sm'
+                });
             }
         });
     }
@@ -516,6 +600,16 @@ function setupEventListeners() {
             const target = e.target;
             const classData = getActiveClassData();
 
+            if (target.id === 'attendance-date-picker') {
+                renderAttendanceSheet(target.value);
+                return;
+            }
+
+            if (target.id === 'show-archived-checkbox') {
+                renderClassTabs();
+                return;
+            }
+
             if (target.id === 'unitFilterDropdown') {
                 const appState = getAppState();
                 if (appState.gradebook_data) {
@@ -537,9 +631,53 @@ function setupEventListeners() {
             }
         });
 
+        contentWrapper.addEventListener('blur', (e) => {
+            const target = e.target;
+            if (target.id !== 'className') return;
+
+            const classData = getActiveClassData();
+            if (!classData) return;
+
+            const newName = (target.textContent || '').trim();
+            if (!newName) {
+                target.textContent = classData.name || '';
+                return;
+            }
+
+            if (newName !== classData.name) {
+                classData.name = newName;
+                renderClassTabs();
+                triggerAutoSave();
+            }
+        }, true);
+
         contentWrapper.addEventListener('input', (e) => {
             const target = e.target;
             const classData = getActiveClassData(); 
+
+            if (target.classList.contains('cat-weight-input')) {
+                const cat = target.dataset.cat;
+                if (classData && cat) {
+                    if (!classData.categoryWeights) {
+                        classData.categoryWeights = { k: 25, t: 25, c: 25, a: 25 };
+                    }
+
+                    classData.categoryWeights[cat] = parseFloat(target.value) || 0;
+
+                    const allWeightInputs = Array.from(document.querySelectorAll('.cat-weight-input'));
+                    const total = allWeightInputs.reduce((sum, input) => sum + (parseFloat(input.value) || 0), 0);
+                    const totalEl = document.getElementById('cat-weight-total');
+                    const totalContainer = document.getElementById('cat-weight-total-container');
+                    if (totalEl && totalContainer) {
+                        totalEl.textContent = `Total: ${total}%`;
+                        totalContainer.className = `mt-5 text-center p-2 rounded-lg ${Math.round(total) === 100 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`;
+                    }
+
+                    recalculateAndRenderAverages();
+                    triggerAutoSave();
+                }
+                return;
+            }
 
             // Assignment Total Editing Logic
             if (target.classList.contains('assignment-total-input')) {
@@ -673,7 +811,7 @@ function setupEventListeners() {
                 }
             }
             
-           if (e.target.name.startsWith('status-')) {
+         if (typeof e.target.name === 'string' && e.target.name.startsWith('status-')) {
                 const classData = getActiveClassData();
                 const studentRow = e.target.closest('.student-attendance-row');
                 const datePicker = document.getElementById('attendance-date-picker');
