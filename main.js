@@ -88,7 +88,7 @@ document.addEventListener('DOMContentLoaded', () => {
   supabaseClient.auth.getSession().then(({ data: { session } }) => {
     const userId = session?.user?.id;
     const wasLocalDataLoaded = loadLocalStateBeforeAuth(userId);
-    setupAuthListener(supabaseClient, wasLocalDataLoaded);
+    setupAuthListener(supabaseClient, wasLocalDataLoaded, userId);
   });
 });
 

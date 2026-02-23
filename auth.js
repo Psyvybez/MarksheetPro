@@ -7,9 +7,130 @@ import { setCurrentUser, setAppState, getAppState, getCurrentUser } from './stat
 
 // This flag will prevent the listener from firing twice on a page load
 let hasHandledInitialLoad = false;
+let authDebugSnapshot = {
+  updatedAt: new Date().toISOString(),
+  phase: 'init',
+};
+const AUTH_DEBUG_HISTORY_LIMIT = 20;
+const authDebugHistory = [];
+
+function pushAuthDebugHistory(entry = {}) {
+  authDebugHistory.push({
+    at: new Date().toISOString(),
+    ...entry,
+  });
+
+  if (authDebugHistory.length > AUTH_DEBUG_HISTORY_LIMIT) {
+    authDebugHistory.splice(0, authDebugHistory.length - AUTH_DEBUG_HISTORY_LIMIT);
+  }
+}
+
+function updateAuthDebugSnapshot(patch = {}) {
+  authDebugSnapshot = {
+    ...authDebugSnapshot,
+    ...patch,
+    updatedAt: new Date().toISOString(),
+  };
+
+  pushAuthDebugHistory({
+    phase: authDebugSnapshot.phase || 'unknown',
+    event: authDebugSnapshot.event || null,
+    sessionUserId: authDebugSnapshot.sessionUserId || null,
+    currentUserId: authDebugSnapshot.currentUserId || null,
+    shouldUseStartupLocalData: authDebugSnapshot.shouldUseStartupLocalData,
+    hasFullName: authDebugSnapshot.hasFullName,
+    errorMessage: authDebugSnapshot.errorMessage || null,
+  });
+}
+
+function installAuthDebugHelpers() {
+  if (typeof window === 'undefined') return;
+  if (window.__marksheetAuthDebugHelpersInstalled) return;
+
+  window.__marksheetAuthDebugHelpersInstalled = true;
+  window.getAuthDebugSnapshot = () => ({ ...authDebugSnapshot });
+  window.getAuthDebugHistory = () => authDebugHistory.map((entry) => ({ ...entry }));
+  window.copyAuthDebugSnapshot = async () => {
+    const snapshotText = JSON.stringify(window.getAuthDebugSnapshot(), null, 2);
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(snapshotText);
+        console.info('AUTH DEBUG: Snapshot copied to clipboard.');
+        return true;
+      }
+    } catch (error) {
+      console.warn('AUTH DEBUG: Clipboard write failed.', error);
+    }
+
+    console.info('AUTH DEBUG: Clipboard unavailable. Snapshot output below:');
+    console.log(snapshotText);
+    return false;
+  };
+
+  window.copyAuthDebugHistory = async () => {
+    const historyText = JSON.stringify(window.getAuthDebugHistory(), null, 2);
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(historyText);
+        console.info('AUTH DEBUG: History copied to clipboard.');
+        return true;
+      }
+    } catch (error) {
+      console.warn('AUTH DEBUG: Clipboard write failed.', error);
+    }
+
+    console.info('AUTH DEBUG: Clipboard unavailable. History output below:');
+    console.log(historyText);
+    return false;
+  };
+
+  window.getAuthDebugReport = () => ({
+    snapshot: window.getAuthDebugSnapshot(),
+    history: window.getAuthDebugHistory(),
+    generatedAt: new Date().toISOString(),
+  });
+
+  window.copyAuthDebugReport = async () => {
+    const reportText = JSON.stringify(window.getAuthDebugReport(), null, 2);
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(reportText);
+        console.info('AUTH DEBUG: Full report copied to clipboard.');
+        return true;
+      }
+    } catch (error) {
+      console.warn('AUTH DEBUG: Clipboard write failed.', error);
+    }
+
+    console.info('AUTH DEBUG: Clipboard unavailable. Full report output below:');
+    console.log(reportText);
+    return false;
+  };
+}
+
+function isAuthDebugEnabled() {
+  if (typeof window === 'undefined') return false;
+  const host = window.location?.hostname || '';
+  const isLocalHost = host === 'localhost' || host === '127.0.0.1' || host.endsWith('.local');
+  return isLocalHost || localStorage.getItem('marksheetProDebugAuth') === '1';
+}
+
+function authDebugLog(message, details = null) {
+  if (!isAuthDebugEnabled()) return;
+  if (details) {
+    console.debug(`AUTH DEBUG: ${message}`, details);
+  } else {
+    console.debug(`AUTH DEBUG: ${message}`);
+  }
+}
 
 //
-export function setupAuthListener(supabaseClient, wasLocalDataLoaded) {
+export function setupAuthListener(supabaseClient, wasLocalDataLoaded, initialLocalDataUserId = null) {
+  installAuthDebugHelpers();
+
+  let canUseStartupLocalData = !!wasLocalDataLoaded;
+  let startupLocalDataUserId = initialLocalDataUserId;
+
   supabaseClient.auth.onAuthStateChange(async (event, session) => {
     const user = session?.user;
     const authContainer = document.getElementById('auth-container');
@@ -17,6 +138,27 @@ export function setupAuthListener(supabaseClient, wasLocalDataLoaded) {
     const verifyContainer = document.getElementById('verify-email-container'); // Get the verification screen
     const updatePasswordContainer = document.getElementById('update-password-container');
     const loadingOverlay = document.getElementById('loading-overlay');
+
+    updateAuthDebugSnapshot({
+      phase: 'auth_event',
+      event,
+      sessionUserId: user?.id || null,
+      currentUserId: getCurrentUser()?.id || null,
+      hasHandledInitialLoad,
+      canUseStartupLocalData,
+      startupLocalDataUserId,
+      hasAppStateGradebook: !!getAppState()?.gradebook_data,
+    });
+
+    authDebugLog('onAuthStateChange fired', {
+      event,
+      sessionUserId: user?.id || null,
+      currentUserId: getCurrentUser()?.id || null,
+      hasHandledInitialLoad,
+      canUseStartupLocalData,
+      startupLocalDataUserId,
+      hasAppStateGradebook: !!getAppState()?.gradebook_data,
+    });
 
     if (event === 'PASSWORD_RECOVERY') {
       authContainer?.classList.add('hidden');
@@ -29,6 +171,15 @@ export function setupAuthListener(supabaseClient, wasLocalDataLoaded) {
 
     if (event === 'SIGNED_OUT' || !session) {
       hasHandledInitialLoad = false; // Reset flag on sign out
+      canUseStartupLocalData = false;
+      startupLocalDataUserId = null;
+      updateAuthDebugSnapshot({
+        phase: 'signed_out',
+        canUseStartupLocalData,
+        startupLocalDataUserId,
+        hasHandledInitialLoad,
+      });
+      authDebugLog('SIGNED_OUT or no session: reset startup local-data gate');
       const currentUser = getCurrentUser();
       if (currentUser) localStorage.removeItem(`marksheetProData-${currentUser.id}`);
       setCurrentUser(null);
@@ -51,6 +202,8 @@ export function setupAuthListener(supabaseClient, wasLocalDataLoaded) {
       // Supabase can emit duplicate SIGNED_IN events (e.g. on tab focus/session refresh).
       // Ignore duplicates once initial state is already handled for the same user.
       if (event === 'SIGNED_IN' && hasHandledInitialLoad && isSameUser) {
+        updateAuthDebugSnapshot({ phase: 'duplicate_signed_in_ignored', isSameUser });
+        authDebugLog('Duplicate SIGNED_IN ignored for same user');
         resetInactivityTimer();
         loadingOverlay?.classList.add('hidden');
         return;
@@ -71,9 +224,34 @@ export function setupAuthListener(supabaseClient, wasLocalDataLoaded) {
         window.history.replaceState(null, '', window.location.pathname);
       }
 
-      if (wasLocalDataLoaded) {
+      const shouldUseStartupLocalData =
+        canUseStartupLocalData &&
+        !!getAppState()?.gradebook_data &&
+        !!startupLocalDataUserId &&
+        startupLocalDataUserId === user?.id;
+
+      authDebugLog('Resolved data source for auth load', {
+        shouldUseStartupLocalData,
+        canUseStartupLocalData,
+        startupLocalDataUserId,
+        signedInUserId: user?.id || null,
+      });
+
+      updateAuthDebugSnapshot({
+        phase: 'resolved_data_source',
+        shouldUseStartupLocalData,
+        signedInUserId: user?.id || null,
+      });
+
+      if (shouldUseStartupLocalData) {
         console.log('AUTH: Resuming session from local state.');
         handleDataLoad(getAppState(), true);
+        canUseStartupLocalData = false;
+        updateAuthDebugSnapshot({
+          phase: 'loaded_from_startup_local_data',
+          canUseStartupLocalData,
+        });
+        authDebugLog('Used startup local data and disabled reuse');
         loadingOverlay?.classList.add('hidden');
       } else {
         console.log('AUTH: Fetching fresh data from server...');
@@ -86,8 +264,22 @@ export function setupAuthListener(supabaseClient, wasLocalDataLoaded) {
           if (error) throw error;
 
           handleDataLoad(data, true);
+          updateAuthDebugSnapshot({
+            phase: 'loaded_from_server',
+            loadedUserId: user?.id || null,
+            hasFullName: !!data?.full_name,
+          });
+          authDebugLog('Server profile load complete', {
+            loadedUserId: user?.id || null,
+            hasFullName: !!data?.full_name,
+          });
         } catch (e) {
           console.error('AUTH ERROR:', e);
+          updateAuthDebugSnapshot({
+            phase: 'server_load_failed',
+            errorMessage: e?.message || String(e),
+          });
+          authDebugLog('Server profile load failed', { message: e?.message || String(e) });
           // Only sign out if the server fetch actually FAILS
           signOut(supabaseClient, true);
         } finally {
@@ -171,6 +363,11 @@ export async function handleAuthSubmit(e, supabaseClient) {
 
 export function signOut(supabaseClient, _isForced = false) {
   hasHandledInitialLoad = false; // Reset flag on sign out
+  updateAuthDebugSnapshot({
+    phase: 'signout_called',
+    hasHandledInitialLoad,
+    currentUserId: getCurrentUser()?.id || null,
+  });
   const currentUser = getCurrentUser();
   if (currentUser) {
     console.log('SIGN OUT: Clearing local browser storage.');
