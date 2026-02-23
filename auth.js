@@ -104,9 +104,8 @@ export async function handleAuthSubmit(e, supabaseClient) {
   e.preventDefault();
   if (!supabaseClient) return;
 
-  const email = document.getElementById('email-address').value;
-  const password = document.getElementById('password').value;
-  const authSubmitBtn = document.getElementById('auth-submit-btn');
+  const authContainer = document.getElementById('auth-container');
+  const mode = authContainer?.dataset.authMode || 'signin';
   const authError = document.getElementById('auth-error');
   const loadingOverlay = document.getElementById('loading-overlay');
 
@@ -114,20 +113,41 @@ export async function handleAuthSubmit(e, supabaseClient) {
   loadingOverlay.classList.remove('hidden');
 
   try {
-    const mode = authSubmitBtn.textContent; // "Sign in", "Create account", or "Send Reset Link"
+    if (mode === 'forgot') {
+      const email = document.getElementById('reset-email-address')?.value?.trim();
+      if (!email) throw new Error('Please enter your email address.');
 
-    if (mode === 'Send Reset Link') {
       const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
         redirectTo: window.location.origin, // Important: Redirects back to your app
       });
       if (error) throw error;
       alert('Password reset link sent! Check your email.');
-      // Optional: Switch back to Sign In mode here
-    } else if (mode === 'Sign in') {
+      return;
+    }
+
+    if (mode === 'signin') {
+      const email = document.getElementById('email-address')?.value?.trim();
+      const password = document.getElementById('password')?.value;
+      if (!email || !password) throw new Error('Please enter email and password.');
+
       const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
       if (error) throw error;
-    } else {
-      // Sign Up Logic
+      return;
+    }
+
+    if (mode === 'signup') {
+      const email = document.getElementById('signup-email-address')?.value?.trim();
+      const password = document.getElementById('signup-password')?.value;
+      const confirmPassword = document.getElementById('signup-password-confirm')?.value;
+
+      if (!email || !password || !confirmPassword) {
+        throw new Error('Please complete all sign up fields.');
+      }
+
+      if (password !== confirmPassword) {
+        throw new Error('Passwords do not match.');
+      }
+
       const { data, error } = await supabaseClient.auth.signUp({ email, password });
       if (error) throw error;
       if (data.user && !data.session) {
@@ -135,7 +155,10 @@ export async function handleAuthSubmit(e, supabaseClient) {
         document.getElementById('verify-email-container').classList.remove('hidden');
         document.getElementById('verify-email-address').textContent = email;
       }
+      return;
     }
+
+    throw new Error('Unknown authentication mode.');
   } catch (error) {
     if (authError) {
       authError.textContent = error.message;
@@ -158,20 +181,24 @@ export function signOut(supabaseClient, _isForced = false) {
 
   const authContainer = document.getElementById('auth-container');
   const appContainer = document.getElementById('app-container');
+  const verifyContainer = document.getElementById('verify-email-container');
+  const updatePasswordContainer = document.getElementById('update-password-container');
   const loadingOverlay = document.getElementById('loading-overlay');
+  const authError = document.getElementById('auth-error');
 
+  const signInPanel = document.getElementById('auth-signin-panel');
+  const signUpPanel = document.getElementById('auth-signup-panel');
+  const resetPanel = document.getElementById('auth-reset-panel');
+
+  if (authContainer) authContainer.dataset.authMode = 'signin';
+  signInPanel?.classList.remove('hidden');
+  signUpPanel?.classList.add('hidden');
+  resetPanel?.classList.add('hidden');
+  verifyContainer?.classList.add('hidden');
+  updatePasswordContainer?.classList.add('hidden');
+
+  if (authError) authError.classList.add('hidden');
   authContainer?.classList.remove('hidden');
   appContainer?.classList.add('hidden');
   loadingOverlay?.classList.add('hidden');
-
-  // Reset the auth form to the default "Sign in" state
-  const authTitle = document.getElementById('auth-title');
-  const authSubmitBtn = document.getElementById('auth-submit-btn');
-  const authToggleLink = document.getElementById('auth-toggle-link');
-  const authError = document.getElementById('auth-error');
-
-  if (authError) authError.classList.add('hidden');
-  if (authTitle) authTitle.textContent = 'Sign in to your account';
-  if (authSubmitBtn) authSubmitBtn.textContent = 'Sign in';
-  if (authToggleLink) authToggleLink.innerHTML = 'Or create a new account';
 }

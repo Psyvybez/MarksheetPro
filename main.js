@@ -508,63 +508,67 @@ function setupEventListeners() {
   const authContainer = document.getElementById('auth-container');
 
   if (authContainer) {
+    const setAuthMode = (mode) => {
+      const authError = document.getElementById('auth-error');
+      const signInPanel = document.getElementById('auth-signin-panel');
+      const signUpPanel = document.getElementById('auth-signup-panel');
+      const resetPanel = document.getElementById('auth-reset-panel');
+
+      authContainer.dataset.authMode = mode;
+      if (authError) authError.classList.add('hidden');
+
+      signInPanel?.classList.toggle('hidden', mode !== 'signin');
+      signUpPanel?.classList.toggle('hidden', mode !== 'signup');
+      resetPanel?.classList.toggle('hidden', mode !== 'forgot');
+    };
+
     document.getElementById('auth-submit-btn')?.addEventListener('click', (e) => handleAuthSubmit(e, supabaseClient));
-    document.getElementById('password')?.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
+    document
+      .getElementById('auth-signup-submit-btn')
+      ?.addEventListener('click', (e) => handleAuthSubmit(e, supabaseClient));
+    document
+      .getElementById('auth-reset-submit-btn')
+      ?.addEventListener('click', (e) => handleAuthSubmit(e, supabaseClient));
+
+    authContainer.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      const mode = authContainer.dataset.authMode || 'signin';
+      if (mode === 'signin') {
         e.preventDefault();
         document.getElementById('auth-submit-btn')?.click();
+      } else if (mode === 'signup') {
+        e.preventDefault();
+        document.getElementById('auth-signup-submit-btn')?.click();
+      } else if (mode === 'forgot') {
+        e.preventDefault();
+        document.getElementById('auth-reset-submit-btn')?.click();
       }
     });
-    document.getElementById('forgot-password-link')?.addEventListener('click', (e) => {
+
+    document.getElementById('to-forgot-password-btn')?.addEventListener('click', (e) => {
       e.preventDefault();
-      const authTitle = document.getElementById('auth-title');
-      const authSubmitBtn = document.getElementById('auth-submit-btn');
-      const authToggleLink = document.getElementById('auth-toggle-link');
-      if (authTitle) authTitle.textContent = 'Reset your password';
-      if (authSubmitBtn) {
-        authSubmitBtn.textContent = 'Send Reset Link';
-        authSubmitBtn.classList.remove('bg-accent', 'hover:bg-accent-dark');
-        authSubmitBtn.classList.add('bg-primary', 'hover:bg-primary-dark');
-      }
-      if (authToggleLink) authToggleLink.innerHTML = 'Back to <span class="font-bold underline">sign in</span>';
+      setAuthMode('forgot');
     });
-    document.getElementById('auth-toggle-link')?.addEventListener('click', (e) => {
+
+    document.getElementById('to-create-account-btn')?.addEventListener('click', (e) => {
       e.preventDefault();
-      const authTitle = document.getElementById('auth-title');
-      const authSubmitBtn = document.getElementById('auth-submit-btn');
-      const authToggleLink = document.getElementById('auth-toggle-link');
+      setAuthMode('signup');
+    });
 
-      if (authSubmitBtn.textContent === 'Send Reset Link') {
-        authTitle.textContent = 'Sign in to your account';
-        authSubmitBtn.textContent = 'Sign in';
-        authToggleLink.innerHTML = 'Or <span class="font-bold underline">create a new account</span>';
-        authSubmitBtn.classList.remove('bg-accent', 'hover:bg-accent-dark');
-        authSubmitBtn.classList.add('bg-primary', 'hover:bg-primary-dark');
-        authTitle.classList.remove('text-accent');
-        return;
-      }
+    document.getElementById('to-signin-from-signup-btn')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      setAuthMode('signin');
+    });
 
-      const isCurrentlySignIn = authSubmitBtn.textContent === 'Sign in';
-      if (isCurrentlySignIn) {
-        authTitle.textContent = 'Create a new account';
-        authSubmitBtn.textContent = 'Create account';
-        authToggleLink.innerHTML = 'Already have an account? <span class="font-bold underline">Sign in</span>';
-        authSubmitBtn.classList.remove('bg-primary', 'hover:bg-primary-dark');
-        authSubmitBtn.classList.add('bg-accent', 'hover:bg-accent-dark');
-        authTitle.classList.add('text-accent');
-      } else {
-        authTitle.textContent = 'Sign in to your account';
-        authSubmitBtn.textContent = 'Sign in';
-        authToggleLink.innerHTML = 'Or <span class="font-bold underline">create a new account</span>';
-        authSubmitBtn.classList.remove('bg-accent', 'hover:bg-accent-dark');
-        authSubmitBtn.classList.add('bg-primary', 'hover:bg-primary-dark');
-        authTitle.classList.remove('text-accent');
-      }
+    document.getElementById('to-signin-from-reset-btn')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      setAuthMode('signin');
     });
 
     document.getElementById('back-to-login-btn')?.addEventListener('click', () => {
       document.getElementById('verify-email-container')?.classList.add('hidden');
       document.getElementById('auth-container')?.classList.remove('hidden');
+      setAuthMode('signin');
     });
 
     document.getElementById('resend-verification-btn')?.addEventListener('click', async () => {

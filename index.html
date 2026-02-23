@@ -37,15 +37,21 @@
 
     <div
       id="auth-container"
+      data-auth-mode="signin"
       class="hidden min-h-screen flex items-center justify-center bg-[#fdfefe] py-12 px-4 sm:px-6 lg:p-8"
     >
       <div class="max-w-md w-full space-y-4">
         <div>
           <img class="mx-auto h-13 w-auto" src="Marksheet Pro Logo.png" alt="Marksheet Pro Logo" />
-          <p id="auth-title" class="text-center text-sm text-gray-600">Sign in to your account</p>
+          <p class="text-center text-sm text-gray-600">Welcome to Marksheet Pro</p>
         </div>
-        <div class="mt-8 space-y-6">
-          <div id="auth-error" class="hidden p-3 bg-red-100 text-red-700 rounded-md"></div>
+        <div id="auth-error" class="hidden p-3 bg-red-100 text-red-700 rounded-md"></div>
+
+        <div id="auth-signin-panel" class="mt-6 bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-4">
+          <div>
+            <h2 class="text-xl font-semibold text-gray-900">Sign In</h2>
+            <p class="text-sm text-gray-500 mt-1">Access your classes and grading dashboard.</p>
+          </div>
           <div class="rounded-md shadow-sm -space-y-px">
             <input
               id="email-address"
@@ -66,11 +72,13 @@
               placeholder="Password"
             />
           </div>
-          <div class="flex items-center justify-end my-2">
-            <button id="forgot-password-link" class="text-sm font-medium text-blue-600 hover:text-blue-500">
+
+          <div class="flex items-center justify-end">
+            <button id="to-forgot-password-btn" class="text-sm font-medium text-blue-600 hover:text-blue-500">
               Forgot your password?
             </button>
           </div>
+
           <div>
             <button
               id="auth-submit-btn"
@@ -79,10 +87,99 @@
               Sign in
             </button>
           </div>
+
+          <p class="text-center text-sm text-gray-600">
+            Need an account?
+            <button id="to-create-account-btn" class="font-medium text-accent hover:text-accent-dark underline">
+              Create one
+            </button>
+          </p>
+        </div>
+
+        <div
+          id="auth-signup-panel"
+          class="hidden mt-6 bg-white border border-accent/30 rounded-xl p-6 shadow-sm space-y-4"
+        >
+          <div>
+            <h2 class="text-xl font-semibold text-accent">Create Account</h2>
+            <p class="text-sm text-gray-500 mt-1">Set up your account to start using Marksheet Pro.</p>
+          </div>
+
+          <div class="space-y-2">
+            <input
+              id="signup-email-address"
+              name="signup-email"
+              type="email"
+              autocomplete="email"
+              required
+              class="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-accent focus:border-accent sm:text-sm"
+              placeholder="Email address"
+            />
+            <input
+              id="signup-password"
+              name="signup-password"
+              type="password"
+              autocomplete="new-password"
+              required
+              class="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-accent focus:border-accent sm:text-sm"
+              placeholder="Create password"
+            />
+            <input
+              id="signup-password-confirm"
+              name="signup-password-confirm"
+              type="password"
+              autocomplete="new-password"
+              required
+              class="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-accent focus:border-accent sm:text-sm"
+              placeholder="Confirm password"
+            />
+          </div>
+
+          <button
+            id="auth-signup-submit-btn"
+            class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-accent hover:bg-accent-dark"
+          >
+            Create account
+          </button>
+
+          <p class="text-center text-sm text-gray-600">
+            Already have an account?
+            <button id="to-signin-from-signup-btn" class="font-medium text-blue-600 hover:text-blue-500 underline">
+              Sign in
+            </button>
+          </p>
+        </div>
+
+        <div
+          id="auth-reset-panel"
+          class="hidden mt-6 bg-white border border-blue-200 rounded-xl p-6 shadow-sm space-y-4"
+        >
+          <div>
+            <h2 class="text-xl font-semibold text-blue-700">Reset Password</h2>
+            <p class="text-sm text-gray-500 mt-1">Enter your email and we’ll send you a password reset link.</p>
+          </div>
+
+          <input
+            id="reset-email-address"
+            name="reset-email"
+            type="email"
+            autocomplete="email"
+            required
+            class="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+            placeholder="Email address"
+          />
+
+          <button
+            id="auth-reset-submit-btn"
+            class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+          >
+            Send reset link
+          </button>
+
           <p class="mt-2 text-center text-sm text-gray-600">
-            <a href="#" id="auth-toggle-link" class="font-medium text-accent hover:text-accent-dark"
-              >Or create a new account</a
-            >
+            <button id="to-signin-from-reset-btn" class="font-medium text-blue-600 hover:text-blue-500 underline">
+              Back to sign in
+            </button>
           </p>
         </div>
       </div>
