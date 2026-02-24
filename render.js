@@ -283,8 +283,8 @@ export function renderGradebook() {
         const midtermDisplayScore = midtermDisplayValue !== '' ? `${midtermDisplayValue}%` : '--';
         const profilePicUrl = student.profilePicturePath ? getProfilePictureUrl(student.profilePicturePath) : null;
         const profilePicHtml = profilePicUrl
-          ? `<img src="${profilePicUrl}" class="w-8 h-8 rounded-full mr-2 object-cover">`
-          : `<div class="w-8 h-8 rounded-full mr-2 bg-gray-300 flex items-center justify-center text-white font-bold">${student.firstName.charAt(0)}${student.lastName.charAt(0)}</div>`;
+          ? `<img src="${profilePicUrl}" class="w-8 h-8 rounded-full mr-2 object-cover shrink-0">`
+          : `<div class="w-8 h-8 rounded-full mr-2 bg-gray-300 flex items-center justify-center text-white font-bold shrink-0">${student.firstName.charAt(0)}${student.lastName.charAt(0)}</div>`;
         const hasNotes = student.generalNotes && student.generalNotes.trim().length > 0;
         const noteIndicator = hasNotes
           ? `<span class="text-accent text-xl leading-none ml-1 relative top-1" title="Has General Note">*</span>`
@@ -296,8 +296,8 @@ export function renderGradebook() {
                         <button class="delete-btn text-gray-400 hover:text-red-600 hover:bg-red-50 p-1 mr-2 rounded transition-colors" title="Delete Student" style="background: none; width: auto; height: auto;">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                         </button>
-                        <button class="student-name-btn flex items-center p-2 flex-grow text-left hover:bg-gray-50 rounded truncate">
-                            ${profilePicHtml}<span class="font-medium text-gray-700 truncate">${student.lastName}, ${student.firstName}</span>${noteIndicator}
+                        <button class="student-name-btn flex items-start p-2 flex-grow min-w-0 text-left hover:bg-gray-50 rounded">
+                          ${profilePicHtml}<span class="font-medium text-gray-700 min-w-0 whitespace-normal break-words leading-tight">${student.lastName}, ${student.firstName}</span>${noteIndicator}
                         </button>
                     </div>
                 </td>
