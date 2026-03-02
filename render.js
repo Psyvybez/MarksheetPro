@@ -458,6 +458,7 @@ export function renderFullGradebookUI() {
                         <li><strong>Create a Class:</strong> Click the <span class="bg-gray-200 px-1 rounded font-bold text-xs">+ Add Class</span> button above.</li>
                         <li><strong>Semesters:</strong> Switch between Semester 1 and 2 tabs to organize your year.</li>
                         <li><strong>Move Classes:</strong> Created a class in the wrong semester? Open the class and click <span class="bg-gray-500 text-white px-1 rounded font-bold text-xs">Move to Sem X</span> to instantly transfer it.</li>
+                        <li><strong>Archive Class:</strong> Use the <span class="bg-accent text-white px-1 rounded font-bold text-xs">Archive Class</span> button to hide old classes while keeping the data intact.</li>
                     </ul>
                 </div>
 
@@ -470,6 +471,7 @@ export function renderFullGradebookUI() {
                         <li><strong>Quick Add:</strong> Click <span class="bg-accent text-white px-1 rounded font-bold text-xs">+ Add Student</span> to add one by one.</li>
                         <li><strong>Smart Import:</strong> Click <strong>Import Students</strong> to paste a list of names. We auto-detect "First Last" or "Last, First" formats.</li>
                         <li><strong>Photo Scan:</strong> In the Import menu, upload a photo of a paper class list to automatically extract student names!</li>
+                        <li><strong>Edit Student:</strong> Click a student's name in the gradebook to open their profile, add photos, notes, and contact information.</li>
                     </ul>
                 </div>
 
@@ -480,20 +482,51 @@ export function renderFullGradebookUI() {
                     </h3>
                     <ul class="space-y-2 text-gray-600 text-sm list-disc list-inside ml-2">
                         <li><strong>Weights:</strong> Adjust the K/T/C/A category percentages at the top of the gradebook. Ensure they total 100%.</li>
-                        <li><strong>Add Work:</strong> Use <span class="bg-accent text-white px-1 rounded font-bold text-xs">Manage Assignments</span> to create tasks.</li>
+                        <li><strong>Add Work:</strong> Use <span class="bg-accent text-white px-1 rounded font-bold text-xs">Manage Assignments</span> to create tasks and set weightings.</li>
+                        <li><strong>Edit Units:</strong> Click <span class="bg-primary text-white px-1 rounded font-bold text-xs">Edit Units</span> to organize your course into units and create a final assessment.</li>
                         <li><strong>Edit Totals:</strong> <em>Pro Tip:</em> You can edit an assignment's total score directly by clicking the number in the table header!</li>
                         <li><strong>Missing Work:</strong> Type <strong>'M'</strong> in any grade cell to mark it as missing (calculates as 0).</li>
                     </ul>
                 </div>
 
                 <div class="space-y-4">
+                    <h3 class="text-xl font-bold text-red-600 flex items-center gap-2">
+                        <span class="bg-red-100 text-red-600 rounded-full w-8 h-8 flex items-center justify-center text-sm">4</span>
+                        Student Profiles
+                    </h3>
+                    <ul class="space-y-2 text-gray-600 text-sm list-disc list-inside ml-2">
+                        <li><strong>Student Notes:</strong> Add general notes or specific IEP notes to any student by clicking their name.</li>
+                        <li><strong>Student Contacts:</strong> Store parent/guardian contact information right in their profile.</li>
+                        <li><strong>Profile Picture:</strong> Upload or generate a profile picture for each student.</li>
+                        <li><strong>Mid-Semester Entry:</strong> Set a starting overall mark for students who joined partway through the term.</li>
+                        <li><strong>Download Reports:</strong> Export individual student reports with a single click.</li>
+                    </ul>
+                </div>
+
+                <div class="space-y-4">
+                    <h3 class="text-xl font-bold text-indigo-600 flex items-center gap-2">
+                        <span class="bg-indigo-100 text-indigo-600 rounded-full w-8 h-8 flex items-center justify-center text-sm">5</span>
+                        Tracking & Analytics
+                    </h3>
+                    <ul class="space-y-2 text-gray-600 text-sm list-disc list-inside ml-2">
+                        <li><strong>Attendance:</strong> Click <span class="bg-primary text-white px-1 rounded font-bold text-xs">Attendance</span> to track present, absent, and late records for any date.</li>
+                        <li><strong>Midterms:</strong> Use <span class="bg-primary text-white px-1 rounded font-bold text-xs">Record Midterms</span> to store midterm grades separately from regular assignments.</li>
+                        <li><strong>Analytics:</strong> Click <span class="bg-indigo-600 text-white px-1 rounded font-bold text-xs">Analytics</span> to visualize grade distribution and category performance across your class.</li>
+                        <li><strong>Search:</strong> Use the search bar at the top to quickly find any student in your class.</li>
+                    </ul>
+                </div>
+
+                <div class="space-y-4">
                     <h3 class="text-xl font-bold text-orange-600 flex items-center gap-2">
-                        <span class="bg-orange-100 text-orange-600 rounded-full w-8 h-8 flex items-center justify-center text-sm">4</span>
+                        <span class="bg-orange-100 text-orange-600 rounded-full w-8 h-8 flex items-center justify-center text-sm">6</span>
                         Tools & Exports
                     </h3>
                     <ul class="space-y-2 text-gray-600 text-sm list-disc list-inside ml-2">
-                        <li><strong>Exporting:</strong> Use the <strong>Export</strong> menu to download professional PDFs for report cards, student lists, or CSV backups.</li>
-                        <li><strong>Zoom:</strong> Use the <span class="font-bold border px-1 rounded">- / +</span> controls to adjust the view size.</li>
+                        <li><strong>Save as Preset:</strong> Click <span class="bg-secondary text-white px-1 rounded font-bold text-xs">Save Class as Preset</span> to reuse units and assignments for future classes.</li>
+                        <li><strong>Export Options:</strong> Use the <strong>Export</strong> menu to download PDFs for report cards, student lists, contact lists, or CSV backups.</li>
+                        <li><strong>Blank Marksheet:</strong> Export a blank printing-ready marksheet.</li>
+                        <li><strong>Zoom:</strong> Use the <span class="font-bold border px-1 rounded">- / +</span> controls to adjust the view size for better readability.</li>
+                        <li><strong>Backup & Restore:</strong> Click <strong>Backup</strong> to download your data, or <strong>Restore</strong> to upload a backup file.</li>
                         <li><strong>Auto-Save:</strong> All changes are saved automatically to the cloud.</li>
                     </ul>
                 </div>
@@ -577,9 +610,15 @@ export function renderAccountPage(isSetupMode = false) {
   const currentSchoolBoard = appState.school_board || '';
   const currentRoomNumber = appState.room_number || '';
   const currentBirthday = appState.birthday || '';
+  const profilePicPath = appState.profilePicturePath || '';
+  const profilePicUrl = profilePicPath ? getProfilePictureUrl(profilePicPath) : null;
 
   const creationDate = appState.created_at ? new Date(appState.created_at).toLocaleDateString() : 'N/A';
   const lastLogin = appState.last_login ? new Date(appState.last_login).toLocaleString() : 'N/A';
+
+  const profilePicHtml = profilePicUrl
+    ? `<img src="${profilePicUrl}" id="profile-pic-preview" class="w-32 h-32 rounded-full mx-auto object-cover mb-4">`
+    : `<div id="profile-pic-preview" class="w-32 h-32 rounded-full mx-auto bg-gray-300 flex items-center justify-center text-white text-5xl font-bold mb-4">${currentFullName ? currentFullName.charAt(0) : 'U'}</div>`;
 
   contentWrapper.innerHTML = `
         <div class="bg-white rounded-lg shadow-md p-8 max-w-2xl mx-auto fade-in">
@@ -590,6 +629,11 @@ export function renderAccountPage(isSetupMode = false) {
             }
             <div id="account-feedback" class="hidden mb-4 p-3 rounded-md"></div>
             <div class="space-y-6">
+                <div class="flex flex-col items-center">
+                    ${profilePicHtml}
+                    <input type="file" id="profile-picture-upload" class="hidden" accept="image/*">
+                    <button id="upload-profile-pic-btn" class="text-sm text-blue-600 hover:underline">Upload Photo</button>
+                </div>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div class="md:col-span-1"><label for="title-input" class="block text-sm font-medium text-gray-700">Title</label><input type="text" id="title-input" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" value="${currentTitle}" placeholder="e.g., Mr."></div>
                     <div class="md:col-span-2"><label for="full-name-input" class="block text-sm font-medium text-gray-700">Full Name</label><input type="text" id="full-name-input" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" value="${currentFullName}" placeholder="e.g., John Smith"></div>
@@ -624,7 +668,40 @@ export function renderAccountPage(isSetupMode = false) {
             </div>
         </div>
     `;
+
+  // Add event listeners for profile picture upload
+  const uploadPicBtn = document.getElementById('upload-profile-pic-btn');
+  const fileInput = document.getElementById('profile-picture-upload');
+  
+  if (uploadPicBtn) {
+    uploadPicBtn.addEventListener('click', () => {
+      fileInput.click();
+    });
+  }
+
+  if (fileInput) {
+    fileInput.addEventListener('change', (event) => {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const preview = document.getElementById('profile-pic-preview');
+          if (preview.tagName === 'IMG') {
+            preview.src = e.target.result;
+          } else {
+            const img = document.createElement('img');
+            img.src = e.target.result;
+            img.id = 'profile-pic-preview';
+            img.className = 'w-32 h-32 rounded-full mx-auto object-cover mb-4';
+            preview.replaceWith(img);
+          }
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+  }
 }
+
 
 export function renderAttendanceSheet(dateString) {
   // ... (No changes here)

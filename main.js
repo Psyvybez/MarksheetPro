@@ -1,4 +1,4 @@
-import { initializeSupabase, syncToServer, deleteCurrentUser, submitFeedback } from './api.js';
+import { initializeSupabase, syncToServer, deleteCurrentUser, submitFeedback, uploadProfilePicture } from './api.js';
 import { setupAuthListener, handleAuthSubmit, signOut } from './auth.js';
 import { showModal, updateSaveStatus } from './ui.js';
 import { setAppState, getAppState, getCurrentUser, getActiveClassData, getActiveSemesterData } from './state.js';
@@ -330,6 +330,22 @@ async function saveProfile() {
     room_number: roomNumber,
     birthday: birthday || null,
   };
+  
+  // Handle profile picture upload
+  const fileInput = document.getElementById('profile-picture-upload');
+  if (fileInput && fileInput.files[0]) {
+    try {
+      const path = await uploadProfilePicture(fileInput.files[0], currentUser.id);
+      updates.profilePicturePath = path;
+    } catch (error) {
+      console.error('Failed to upload profile picture:', error);
+      feedbackEl.textContent = `Error uploading photo: ${error.message}`;
+      feedbackEl.className = 'p-3 rounded-md bg-red-100 text-red-700';
+      feedbackEl.classList.remove('hidden');
+      return;
+    }
+  }
+  
   const newState = { ...appState, ...updates };
   setAppState(newState);
 
