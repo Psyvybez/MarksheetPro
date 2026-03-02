@@ -672,7 +672,7 @@ export function renderAccountPage(isSetupMode = false) {
   // Add event listeners for profile picture upload
   const uploadPicBtn = document.getElementById('upload-profile-pic-btn');
   const fileInput = document.getElementById('profile-picture-upload');
-  
+
   if (uploadPicBtn) {
     uploadPicBtn.addEventListener('click', () => {
       fileInput.click();
@@ -701,7 +701,6 @@ export function renderAccountPage(isSetupMode = false) {
     });
   }
 }
-
 
 export function renderAttendanceSheet(dateString) {
   // ... (No changes here)

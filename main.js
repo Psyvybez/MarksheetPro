@@ -330,7 +330,7 @@ async function saveProfile() {
     room_number: roomNumber,
     birthday: birthday || null,
   };
-  
+
   // Handle profile picture upload
   const fileInput = document.getElementById('profile-picture-upload');
   if (fileInput && fileInput.files[0]) {
@@ -345,7 +345,7 @@ async function saveProfile() {
       return;
     }
   }
-  
+
   const newState = { ...appState, ...updates };
   setAppState(newState);
 
