@@ -33,6 +33,23 @@ export function archiveClass() {
   const appState = getAppState();
   if (!classData) return;
 
+  if (classData.isArchived) {
+    showModal({
+      title: 'Unarchive Class',
+      content: `<p>Restore "<strong>${classData.name}</strong>" to active classes?</p>`,
+      confirmText: 'Unarchive',
+      confirmClasses: 'bg-secondary hover:bg-secondary-dark',
+      onConfirm: () => {
+        if (!appState.gradebook_data) return;
+        captureHistoryPoint();
+        classData.isArchived = false;
+        updateUIFromState();
+        triggerAutoSave();
+      },
+    });
+    return;
+  }
+
   showModal({
     title: 'Archive Class',
     content: `<p>Are you sure you want to archive "<strong>${classData.name}</strong>"?</p><p class="text-sm text-gray-500 mt-2">Archived classes can be viewed and restored later.</p>`,
@@ -57,6 +74,17 @@ export function deleteClass() {
   const classData = getActiveClassData();
   const appState = getAppState();
   if (!classData || !appState.gradebook_data) return;
+
+  if (classData.isArchived) {
+    showModal({
+      title: 'Delete Class Unavailable',
+      content: '<p>Archived classes cannot be deleted. Unarchive this class first to delete it.</p>',
+      confirmText: null,
+      cancelText: 'Close',
+      modalWidth: 'max-w-sm',
+    });
+    return;
+  }
 
   showModal({
     title: 'Delete Class',

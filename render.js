@@ -153,6 +153,8 @@ export function renderGradebook() {
   document.body.classList.toggle('no-final', !classData.hasFinal);
   classNameEl.textContent = classData.name;
   const classStatusBadge = document.getElementById('class-status-badge');
+  const archiveClassBtn = document.getElementById('archiveClassBtn');
+  const deleteClassBtn = document.getElementById('deleteClassBtn');
   if (classStatusBadge) {
     if (classData.isArchived) {
       classStatusBadge.textContent = 'Archived';
@@ -161,6 +163,21 @@ export function renderGradebook() {
       classStatusBadge.textContent = 'Active';
       classStatusBadge.className = 'text-xs font-semibold px-2 py-1 rounded-full bg-green-100 text-green-700';
     }
+  }
+  if (archiveClassBtn) {
+    const isArchived = Boolean(classData.isArchived);
+    archiveClassBtn.textContent = isArchived ? 'Unarchive Class' : 'Archive Class';
+    archiveClassBtn.className = isArchived
+      ? 'bg-secondary hover:bg-secondary-dark text-white font-bold py-2 px-4 rounded-lg'
+      : 'bg-accent hover:bg-accent-dark text-white font-bold py-2 px-4 rounded-lg';
+    archiveClassBtn.title = isArchived ? 'Restore this class to active classes' : 'Archive this class';
+  }
+  if (deleteClassBtn) {
+    const isArchived = Boolean(classData.isArchived);
+    deleteClassBtn.disabled = isArchived;
+    deleteClassBtn.title = isArchived
+      ? 'Archived classes cannot be deleted. Unarchive this class first to delete it.'
+      : 'Delete this class permanently';
   }
 
   const students = classData.students || {};
@@ -562,7 +579,7 @@ export function renderFullGradebookUI() {
                     <button id="moveClassBtn" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg">Move to Sem ${targetSem}</button>
                     
                     <button id="archiveClassBtn" class="bg-accent hover:bg-accent-dark text-white font-bold py-2 px-4 rounded-lg">Archive Class</button>
-                    <button id="deleteClassBtn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg">Delete Class</button>
+                    <button id="deleteClassBtn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-red-600">Delete Class</button>
                     <div class="relative">
                         <button id="exportMenuBtn" class="bg-accent hover:bg-accent-dark text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2">
                             Export <span>&#9662;</span>
