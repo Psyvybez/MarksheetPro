@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 const UPDATES_FEED = [
   {
+    id: '2026-03-workflow-safety',
     title: 'March 2026 - Workflow & Safety Update',
     tag: 'Latest',
     items: [
@@ -29,6 +30,15 @@ const UPDATES_IMPACT_ITEMS = [
   'Cleaner class management with archive/unarchive and deletion guards.',
   'More transparency about new features through this updates section.',
 ];
+
+export function getLatestUpdateMeta() {
+  if (!UPDATES_FEED.length) return null;
+  const latest = UPDATES_FEED[0];
+  return {
+    id: latest.id,
+    title: latest.title,
+  };
+}
 
 function renderUpdatesSection() {
   const cardsHtml = UPDATES_FEED.map((update) => {
@@ -49,7 +59,7 @@ function renderUpdatesSection() {
   return `
     <div id="updates-page" class="mt-10 border-t border-gray-100 pt-8">
       <div class="mb-5">
-        <h3 class="text-2xl font-bold text-gray-800">Updates Page</h3>
+        <h3 class="text-2xl font-bold text-gray-800">Updates</h3>
         <p class="text-sm text-gray-500 mt-1">Recent improvements and changes in Marksheet Pro.</p>
       </div>
       <div class="space-y-4">
@@ -183,9 +193,7 @@ export function renderCategoryWeights() {
   updateTotal();
 }
 
-//
-
-//
+// This file handles rendering the gradebook table and related UI based on the current state
 export function renderGradebook() {
   const classData = getActiveClassData();
   const table = document.getElementById('gradebookTable');
@@ -194,7 +202,6 @@ export function renderGradebook() {
 
   if (!classData || !table || !classNameEl) return;
 
-  // ... (Keep Zoom and Basic UI logic) ...
   const savedZoom = appState.gradebook_data.zoomLevel || 0.8;
   const contentArea = document.getElementById('main-content-area');
   if (contentArea) contentArea.style.zoom = savedZoom;
@@ -468,6 +475,7 @@ export function updateUIFromState() {
   const mainContent = document.getElementById('main-content-area');
   const instructionsContent = document.getElementById('content-instructions');
   const instructionsTab = document.querySelector('[data-tab-id="instructions"]');
+  const updatesNewBadge = document.getElementById('updates-new-badge');
 
   if (!semesterBtn1 || !semesterBtn2 || !mainContent || !instructionsContent || !instructionsTab) return;
 
@@ -475,6 +483,8 @@ export function updateUIFromState() {
   const activeClassId = appState.gradebook_data.activeClassId;
   const semesterData = getActiveSemesterData();
   const hasClasses = Object.keys(semesterData.classes || {}).length > 0;
+  const latestUpdate = getLatestUpdateMeta();
+  const hasUnseenUpdates = Boolean(latestUpdate?.id && appState.gradebook_data.lastSeenUpdateId !== latestUpdate.id);
 
   // 1. Update Semester Tabs
   semesterBtn1.classList.toggle('active', activeSemester === '1');
@@ -497,6 +507,7 @@ export function updateUIFromState() {
   mainContent.classList.toggle('hidden', !hasActiveClass);
   instructionsContent.classList.toggle('hidden', hasActiveClass || !hasClasses);
   instructionsTab.classList.toggle('active', !hasActiveClass);
+  if (updatesNewBadge) updatesNewBadge.classList.toggle('hidden', !hasUnseenUpdates);
 
   if (hasActiveClass) {
     renderUnitFilter();
@@ -518,7 +529,7 @@ export function renderFullGradebookUI() {
   contentWrapper.innerHTML = `
         <div class="mb-4">
             <div class="border-b border-gray-200"><nav class="flex items-center space-x-8"><button id="semesterBtn1" class="semester-button py-3 px-1 border-b-2 border-transparent font-medium text-lg text-gray-500 hover:text-gray-700">Semester 1</button><button id="semesterBtn2" class="semester-button py-3 px-1 border-b-2 border-transparent font-medium text-lg text-gray-500 hover:text-gray-700">Semester 2</button></nav></div>
-            <div class="border-b border-gray-200 mt-2"><nav class="flex items-center space-x-4"><button data-tab-id="instructions" class="tab-button shrink-0 py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700">Instructions</button><div id="class-tabs-container" class="flex items-center space-x-4 overflow-x-auto"></div><button id="addClassBtn" class="ml-2 shrink-0 bg-gray-200 hover:bg-gray-300 text-gray-600 font-bold py-2 px-3 rounded-lg text-sm">+ Add Class</button><div class="ml-auto flex items-center"><input type="checkbox" id="show-archived-checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"><label for="show-archived-checkbox" class="ml-2 block text-sm text-gray-900">Show Archived</label></div></nav></div>
+        <div class="border-b border-gray-200 mt-2"><nav class="flex items-center space-x-4"><button data-tab-id="instructions" class="tab-button shrink-0 py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 inline-flex items-center gap-2">Instructions <span id="updates-new-badge" class="hidden bg-red-100 text-red-700 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide">New</span></button><div id="class-tabs-container" class="flex items-center space-x-4 overflow-x-auto"></div><button id="addClassBtn" class="ml-2 shrink-0 bg-gray-200 hover:bg-gray-300 text-gray-600 font-bold py-2 px-3 rounded-lg text-sm">+ Add Class</button><div class="ml-auto flex items-center"><input type="checkbox" id="show-archived-checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"><label for="show-archived-checkbox" class="ml-2 block text-sm text-gray-900">Show Archived</label></div></nav></div>
         </div>
         <div id="no-class-content" class="hidden text-center p-8 bg-white rounded-lg shadow-md"><h2 class="text-2xl font-semibold mb-4 text-gray-700">No classes yet for this semester.</h2><p class="text-gray-500">Click the "+ Add Class" button to create your first class.</p></div>
         

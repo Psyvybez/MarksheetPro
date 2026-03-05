@@ -25,6 +25,7 @@ import {
   renderStudentProfileModal,
   updateClassStats,
   updateUIFromState,
+  getLatestUpdateMeta,
 } from './render.js';
 import * as actions from './actions.js';
 import { startTutorial } from './tutorial.js';
@@ -66,6 +67,49 @@ function applyRedo() {
 function checkpointHistory() {
   captureHistoryPoint();
   refreshHistoryButtons();
+}
+
+function markLatestUpdateAsSeen() {
+  const appState = getAppState();
+  const gradebookData = appState?.gradebook_data;
+  if (!gradebookData) return;
+
+  const latestUpdate = getLatestUpdateMeta();
+  if (!latestUpdate?.id) return;
+
+  if (gradebookData.lastSeenUpdateId === latestUpdate.id) return;
+  gradebookData.lastSeenUpdateId = latestUpdate.id;
+  triggerAutoSave();
+}
+
+function notifyUserAboutNewUpdatesIfNeeded(isInitialLoad) {
+  if (!isInitialLoad) return;
+
+  const appState = getAppState();
+  const gradebookData = appState?.gradebook_data;
+  if (!gradebookData) return;
+  if (!appState.full_name) return;
+
+  const latestUpdate = getLatestUpdateMeta();
+  if (!latestUpdate?.id) return;
+
+  if (gradebookData.lastSeenUpdateId === latestUpdate.id) return;
+  if (gradebookData.lastNotifiedUpdateId === latestUpdate.id) return;
+
+  gradebookData.lastNotifiedUpdateId = latestUpdate.id;
+  triggerAutoSave();
+
+  showModal({
+    title: 'What\'s New',
+    content: `<p>Marksheet Pro has a new update: <strong>${latestUpdate.title}</strong>.</p><p class="mt-2 text-sm text-gray-600">Would you like to view the Updates section now?</p>`,
+    confirmText: 'View Updates',
+    confirmClasses: 'bg-blue-600 hover:bg-blue-700',
+    cancelText: 'Later',
+    onConfirm: () => {
+      const instructionsTab = document.querySelector('[data-tab-id="instructions"]');
+      instructionsTab?.click();
+    },
+  });
 }
 
 function reportRuntimeError(source, error) {
@@ -190,6 +234,8 @@ export function handleDataLoad(data, isInitial = true) {
       safeRun('renderFullGradebookUI', () => renderFullGradebookUI());
     }
   }
+
+  notifyUserAboutNewUpdatesIfNeeded(isInitial);
 
   refreshHistoryButtons();
 }
@@ -760,6 +806,10 @@ function setupEventListeners() {
       if (!target) return;
       const id = target.id;
       const tabId = target.dataset.tabId;
+
+      if (tabId === 'instructions') {
+        markLatestUpdateAsSeen();
+      }
 
       if (id === 'back-to-gradebook-btn') {
         safeRun('renderFullGradebookUI', () => renderFullGradebookUI());
