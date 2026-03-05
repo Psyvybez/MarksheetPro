@@ -1,4 +1,4 @@
-import { getAppState, getActiveSemesterData, getActiveClassData } from './state.js';
+import { getAppState, getActiveSemesterData, getActiveClassData, canUndoHistory, canRedoHistory } from './state.js';
 import { recalculateAndRenderAverages, calculateClassStats } from './calculations.js';
 import { getProfilePictureUrl, uploadProfilePicture } from './api.js';
 import { showModal } from './ui.js';
@@ -582,7 +582,10 @@ export function renderFullGradebookUI() {
 
                 <div id="class-stats-container" class="text-sm text-gray-500 font-medium flex items-center gap-3 px-2"></div>
 
+                <button id="undoBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-3 rounded-lg whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed" ${canUndoHistory() ? '' : 'disabled'}>Undo</button>
+                <button id="redoBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-3 rounded-lg whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed" ${canRedoHistory() ? '' : 'disabled'}>Redo</button>
                 <button id="addStudentBtn" class="bg-accent hover:bg-accent-dark text-white font-bold py-2 px-4 rounded-lg whitespace-nowrap">+ Add Student</button>
+                <button id="restoreStudentsBtn" class="bg-secondary hover:bg-secondary-dark text-white font-bold py-2 px-4 rounded-lg whitespace-nowrap">Restore Students</button>
                 <button id="attendanceBtn" class="bg-primary hover:bg-primary-dark text-white font-bold py-2 px-4 rounded-lg">Attendance</button>
             </div>
 

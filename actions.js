@@ -1,5 +1,5 @@
 import { showModal } from './ui.js';
-import { getAppState, getActiveClassData, getActiveSemesterData } from './state.js';
+import { getAppState, getActiveClassData, getActiveSemesterData, captureHistoryPoint } from './state.js';
 import { triggerAutoSave } from './main.js';
 import { renderGradebook, updateUIFromState } from './render.js';
 import { calculateStudentAverages } from './calculations.js';
@@ -68,6 +68,7 @@ export function addStudent() {
       if (firstName && lastName) {
         const classData = getActiveClassData();
         if (classData) {
+          captureHistoryPoint();
           const studentId = `student_${Date.now()}`;
           if (!classData.students) classData.students = {};
           classData.students[studentId] = {
@@ -101,16 +102,118 @@ export function deleteStudent(studentId) {
   const classData = getActiveClassData();
   const student = classData?.students?.[studentId];
   if (!student) return;
+
+  if (!classData.trash) classData.trash = { students: {} };
+  if (!classData.trash.students) classData.trash.students = {};
+
   showModal({
-    title: 'Delete Student',
-    content: `<p>Are you sure you want to delete "<strong>${student.firstName} ${student.lastName}</strong>" and all their grades?</p>`,
+    title: 'Move Student to Trash',
+    content: `<p>Move "<strong>${student.firstName} ${student.lastName}</strong>" to trash?</p><p class="text-sm text-gray-500 mt-2">You can restore this student later.</p>`,
+    confirmText: 'Move to Trash',
     confirmClasses: 'bg-red-600 hover:bg-red-700',
     onConfirm: () => {
+      captureHistoryPoint();
+      classData.trash.students[studentId] = {
+        ...student,
+        deletedAt: new Date().toISOString(),
+      };
       delete classData.students[studentId];
       renderGradebook();
       triggerAutoSave();
     },
   });
+}
+
+export function showRestoreStudentsModal() {
+  const classData = getActiveClassData();
+  if (!classData) return;
+
+  if (!classData.trash) classData.trash = { students: {} };
+  if (!classData.trash.students) classData.trash.students = {};
+
+  const trashedStudents = Object.values(classData.trash.students);
+  if (trashedStudents.length === 0) {
+    showModal({
+      title: 'Trash is Empty',
+      content: '<p>No deleted students to restore.</p>',
+      confirmText: null,
+      cancelText: 'Close',
+      modalWidth: 'max-w-xs',
+    });
+    return;
+  }
+
+  const sortedTrashedStudents = trashedStudents.sort((a, b) =>
+    `${a.lastName || ''} ${a.firstName || ''}`.localeCompare(`${b.lastName || ''} ${b.firstName || ''}`)
+  );
+
+  const rows = sortedTrashedStudents
+    .map((student) => {
+      const deletedDate = student.deletedAt ? new Date(student.deletedAt).toLocaleString() : 'Unknown';
+      return `<label class="flex items-start gap-3 p-2 border rounded-md hover:bg-gray-50"><input type="checkbox" class="restore-student-checkbox mt-1" value="${student.id}"><span><span class="font-medium text-gray-800">${student.firstName} ${student.lastName}</span><span class="block text-xs text-gray-500">Deleted: ${deletedDate}</span></span></label>`;
+    })
+    .join('');
+
+  showModal({
+    title: 'Restore Students',
+    modalWidth: 'max-w-2xl',
+    content: `
+      <div class="space-y-3">
+        <p class="text-sm text-gray-600">Select students to restore to this class.</p>
+        <label class="inline-flex items-center gap-2 text-sm font-medium text-gray-700">
+          <input type="checkbox" id="restore-select-all" checked>
+          Select all
+        </label>
+        <div class="max-h-72 overflow-y-auto space-y-2 pr-1">${rows}</div>
+      </div>
+    `,
+    confirmText: 'Restore Selected',
+    confirmClasses: 'bg-primary hover:bg-primary-dark',
+    onConfirm: () => {
+      const selectedIds = Array.from(document.querySelectorAll('.restore-student-checkbox:checked')).map(
+        (checkbox) => checkbox.value
+      );
+
+      if (selectedIds.length === 0) {
+        showModal({
+          title: 'No Students Selected',
+          content: '<p>Please select at least one student to restore.</p>',
+          confirmText: null,
+          cancelText: 'Close',
+          modalWidth: 'max-w-xs',
+        });
+        return false;
+      }
+
+      captureHistoryPoint();
+      selectedIds.forEach((studentId) => {
+        const student = classData.trash.students[studentId];
+        if (!student) return;
+        const restoredStudent = { ...student };
+        delete restoredStudent.deletedAt;
+        classData.students[studentId] = restoredStudent;
+        delete classData.trash.students[studentId];
+      });
+
+      renderGradebook();
+      triggerAutoSave();
+      return true;
+    },
+  });
+
+  const selectAll = document.getElementById('restore-select-all');
+  const checkboxes = Array.from(document.querySelectorAll('.restore-student-checkbox'));
+  checkboxes.forEach((checkbox) => {
+    checkbox.checked = true;
+  });
+
+  if (selectAll) {
+    selectAll.addEventListener('change', (e) => {
+      checkboxes.forEach((checkbox) => {
+        checkbox.checked = e.target.checked;
+      });
+    });
+  }
 }
 
 export function editUnits() {

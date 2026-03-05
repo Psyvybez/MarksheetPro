@@ -1,7 +1,19 @@
 import { initializeSupabase, syncToServer, deleteCurrentUser, submitFeedback, uploadProfilePicture } from './api.js';
 import { setupAuthListener, handleAuthSubmit, signOut } from './auth.js';
 import { showModal, updateSaveStatus } from './ui.js';
-import { setAppState, getAppState, getCurrentUser, getActiveClassData, getActiveSemesterData } from './state.js';
+import {
+  setAppState,
+  getAppState,
+  getCurrentUser,
+  getActiveClassData,
+  getActiveSemesterData,
+  clearHistory,
+  captureHistoryPoint,
+  undoHistory,
+  redoHistory,
+  canUndoHistory,
+  canRedoHistory,
+} from './state.js';
 import { recalculateAndRenderAverages } from './calculations.js';
 import {
   renderFullGradebookUI,
@@ -12,6 +24,7 @@ import {
   renderAttendanceSheet,
   renderStudentProfileModal,
   updateClassStats,
+  updateUIFromState,
 } from './render.js';
 import * as actions from './actions.js';
 import { startTutorial } from './tutorial.js';
@@ -26,6 +39,34 @@ let supabaseClient;
 let autoSaveTimer = null;
 let inactivityTimer = null;
 let lastRuntimeErrorAt = 0;
+
+function refreshHistoryButtons() {
+  const undoBtn = document.getElementById('undoBtn');
+  const redoBtn = document.getElementById('redoBtn');
+  if (undoBtn) undoBtn.disabled = !canUndoHistory();
+  if (redoBtn) redoBtn.disabled = !canRedoHistory();
+}
+
+function applyUndo() {
+  const didUndo = undoHistory();
+  if (!didUndo) return;
+  updateUIFromState();
+  triggerAutoSave();
+  refreshHistoryButtons();
+}
+
+function applyRedo() {
+  const didRedo = redoHistory();
+  if (!didRedo) return;
+  updateUIFromState();
+  triggerAutoSave();
+  refreshHistoryButtons();
+}
+
+function checkpointHistory() {
+  captureHistoryPoint();
+  refreshHistoryButtons();
+}
 
 function reportRuntimeError(source, error) {
   const err = error instanceof Error ? error : new Error(String(error || 'Unknown runtime error'));
@@ -116,6 +157,7 @@ function loadLocalStateBeforeAuth(userId) {
 export function handleDataLoad(data, isInitial = true) {
   const userEmailDisplay = document.getElementById('user-email-display');
 
+  clearHistory();
   setAppState(data);
 
   const currentUser = getCurrentUser();
@@ -148,6 +190,8 @@ export function handleDataLoad(data, isInitial = true) {
       safeRun('renderFullGradebookUI', () => renderFullGradebookUI());
     }
   }
+
+  refreshHistoryButtons();
 }
 
 export function resetInactivityTimer() {
@@ -156,6 +200,7 @@ export function resetInactivityTimer() {
 }
 
 export function triggerAutoSave() {
+  refreshHistoryButtons();
   const appState = getAppState();
   const currentUser = getCurrentUser();
   if (appState.gradebook_data) {
@@ -645,6 +690,21 @@ function setupEventListeners() {
 
   document.addEventListener('keydown', (e) => {
     const modal = document.getElementById('custom-modal');
+    const hasModifier = e.ctrlKey || e.metaKey;
+    const key = e.key.toLowerCase();
+
+    if (!modal && hasModifier && key === 'z' && !e.shiftKey) {
+      e.preventDefault();
+      applyUndo();
+      return;
+    }
+
+    if (!modal && hasModifier && (key === 'y' || (key === 'z' && e.shiftKey))) {
+      e.preventDefault();
+      applyRedo();
+      return;
+    }
+
     if (modal && document.body.classList.contains('modal-open') && e.key === 'Enter') {
       const target = e.target;
       if ((target.tagName === 'INPUT' || target.tagName === 'SELECT') && modal.contains(target)) {
@@ -691,6 +751,7 @@ function setupEventListeners() {
         const studentId = deleteBtn.closest('[data-student-id]')?.dataset.studentId;
         if (studentId) {
           safeRun('deleteStudent', () => actions.deleteStudent(studentId));
+          refreshHistoryButtons();
           return;
         }
       }
@@ -730,6 +791,9 @@ function setupEventListeners() {
         analyticsBtn: renderAnalyticsModal,
         attendanceBtn: () => renderAttendanceSheet(new Date().toISOString().slice(0, 10)),
         savePresetBtn: actions.saveClassAsPreset,
+        restoreStudentsBtn: actions.showRestoreStudentsModal,
+        undoBtn: applyUndo,
+        redoBtn: applyRedo,
         exportMenuBtn: () => document.getElementById('exportMenuDropdown')?.classList.toggle('hidden'),
         exportPdfBtn: () => {
           actions.showPdfExportOptionsModal();
@@ -790,6 +854,7 @@ function setupEventListeners() {
       if (target.classList.contains('iep-checkbox')) {
         const studentId = target.dataset.studentId;
         if (classData?.students?.[studentId]) {
+          checkpointHistory();
           classData.students[studentId].iep = target.checked;
           updateClassStats();
           triggerAutoSave();
@@ -814,6 +879,7 @@ function setupEventListeners() {
         }
 
         if (newName !== classData.name) {
+          checkpointHistory();
           classData.name = newName;
           safeRun('renderClassTabs.className', () => renderClassTabs());
           triggerAutoSave();
@@ -829,6 +895,7 @@ function setupEventListeners() {
       if (target.classList.contains('cat-weight-input')) {
         const cat = target.dataset.cat;
         if (classData && cat) {
+          checkpointHistory();
           if (!classData.categoryWeights) {
             classData.categoryWeights = { k: 25, t: 25, c: 25, a: 25 };
           }
@@ -859,6 +926,7 @@ function setupEventListeners() {
         if (classData && unitId && asgId) {
           const assignment = classData.units[unitId]?.assignments?.[asgId];
           if (assignment) {
+            checkpointHistory();
             if (cat) {
               if (!assignment.categoryTotals) assignment.categoryTotals = {};
               assignment.categoryTotals[cat] = val;
@@ -877,6 +945,7 @@ function setupEventListeners() {
         const cat = target.dataset.cat;
         const val = target.value.trim();
         if (classData && cat) {
+          checkpointHistory();
           if (!classData.categoryNames)
             classData.categoryNames = { k: 'Knowledge', t: 'Thinking', c: 'Communication', a: 'Application' };
           classData.categoryNames[cat] = val || cat.toUpperCase();
@@ -896,6 +965,7 @@ function setupEventListeners() {
         const studentRow = target.closest('.student-attendance-row');
         const datePicker = document.getElementById('attendance-date-picker');
         if (studentRow && datePicker && classData) {
+          checkpointHistory();
           const studentId = studentRow.dataset.studentId;
           const selectedDate = datePicker.value;
           const notes = target.value;
@@ -934,6 +1004,7 @@ function setupEventListeners() {
         }
 
         if (studentId && assignmentId && classData?.students?.[studentId]) {
+          checkpointHistory();
           if (!classData.students[studentId].grades) classData.students[studentId].grades = {};
           if (!classData.students[studentId].grades[assignmentId])
             classData.students[studentId].grades[assignmentId] = {};
@@ -1017,6 +1088,7 @@ function setupEventListeners() {
         const studentRow = e.target.closest('.student-attendance-row');
         const datePicker = document.getElementById('attendance-date-picker');
         if (studentRow && datePicker && classData) {
+          checkpointHistory();
           const studentId = studentRow.dataset.studentId;
           const status = e.target.value;
           const selectedDate = datePicker.value;
@@ -1111,6 +1183,7 @@ function setupEventListeners() {
         appState.gradebook_data.semesters[appState.gradebook_data.activeSemester].classes[activeClassId].units[unitId]
           .assignments[asgId]
       ) {
+        checkpointHistory();
         appState.gradebook_data.semesters[appState.gradebook_data.activeSemester].classes[activeClassId].units[
           unitId
         ].assignments[asgId].isSubmitted = isChecked;
