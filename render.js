@@ -10,6 +10,59 @@ document.addEventListener('DOMContentLoaded', () => {
   contentWrapper = document.getElementById('content-wrapper');
 });
 
+const UPDATES_FEED = [
+  {
+    title: 'March 2026 - Workflow & Safety Update',
+    tag: 'Latest',
+    items: [
+      'Added Undo/Redo controls with keyboard shortcuts (<strong>Ctrl/Cmd + Z</strong>, <strong>Ctrl/Cmd + Y</strong>).',
+      'Student deletion now uses Trash with restore options.',
+      'Added class status badge (Active/Archived) beside the class title.',
+      'Archived classes can now be unarchived directly from the class toolbar.',
+      'Added protected class deletion with typed confirmation (<strong>DELETE</strong>).',
+    ],
+  },
+];
+
+const UPDATES_IMPACT_ITEMS = [
+  'Safer editing with easy recovery from mistakes.',
+  'Cleaner class management with archive/unarchive and deletion guards.',
+  'More transparency about new features through this updates section.',
+];
+
+function renderUpdatesSection() {
+  const cardsHtml = UPDATES_FEED.map((update) => {
+    const listItems = update.items.map((item) => `<li>${item}</li>`).join('');
+    return `
+      <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+        <div class="flex items-center justify-between gap-2 mb-2">
+          <h4 class="font-semibold text-gray-800">${update.title}</h4>
+          ${update.tag ? `<span class="text-xs font-medium text-gray-500">${update.tag}</span>` : ''}
+        </div>
+        <ul class="text-sm text-gray-600 list-disc list-inside space-y-1">${listItems}</ul>
+      </div>
+    `;
+  }).join('');
+
+  const impactList = UPDATES_IMPACT_ITEMS.map((item) => `<li>${item}</li>`).join('');
+
+  return `
+    <div id="updates-page" class="mt-10 border-t border-gray-100 pt-8">
+      <div class="mb-5">
+        <h3 class="text-2xl font-bold text-gray-800">Updates Page</h3>
+        <p class="text-sm text-gray-500 mt-1">Recent improvements and changes in Marksheet Pro.</p>
+      </div>
+      <div class="space-y-4">
+        ${cardsHtml}
+        <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+          <h4 class="font-semibold text-gray-800 mb-2">What this means for you</h4>
+          <ul class="text-sm text-gray-600 list-disc list-inside space-y-1">${impactList}</ul>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 export function renderClassTabs() {
   const classTabsContainer = document.getElementById('class-tabs-container');
   if (!classTabsContainer) return;
@@ -558,6 +611,8 @@ export function renderFullGradebookUI() {
                     </ul>
                 </div>
             </div>
+
+            ${renderUpdatesSection()}
             
             <div class="mt-8 text-center pt-6 border-t border-gray-100">
                 <p class="text-sm text-gray-400">Need help? Click the "Report Bug" button at the top if you encounter any issues.</p>
