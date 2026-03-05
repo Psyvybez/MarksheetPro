@@ -40,6 +40,7 @@ export function archiveClass() {
     confirmClasses: 'bg-yellow-500 hover:bg-yellow-600',
     onConfirm: () => {
       if (!appState.gradebook_data) return;
+      captureHistoryPoint();
       classData.isArchived = true;
       const activeSemester = appState.gradebook_data.activeSemester;
       const classIds = Object.keys(appState.gradebook_data.semesters[activeSemester].classes).filter(
@@ -350,6 +351,16 @@ export function editUnits() {
         return false;
       }
 
+      const existingUnitsState = JSON.stringify(classData.units || {});
+      const nextUnitsState = JSON.stringify(newState.units || {});
+      const unitsChanged =
+        existingUnitsState !== nextUnitsState ||
+        Boolean(classData.hasFinal) !== Boolean(newState.hasFinal) ||
+        Number(classData.finalWeight || 0) !== Number(newState.finalWeight || 0);
+
+      if (!unitsChanged) return true;
+
+      captureHistoryPoint();
       classData.units = newState.units;
       classData.hasFinal = newState.hasFinal;
       classData.finalWeight = newState.finalWeight;
@@ -652,7 +663,13 @@ export function manageAssignments() {
     confirmClasses: 'bg-primary hover:bg-primary-dark',
     onConfirm: () => {
       const modal = document.getElementById('custom-modal');
-      classData.units[activeUnitId].assignments = getStateFromModalDOM(modal);
+      const nextAssignments = getStateFromModalDOM(modal);
+      const existingAssignments = classData.units[activeUnitId].assignments || {};
+
+      if (JSON.stringify(existingAssignments) === JSON.stringify(nextAssignments)) return true;
+
+      captureHistoryPoint();
+      classData.units[activeUnitId].assignments = nextAssignments;
       updateUIFromState();
       triggerAutoSave();
     },
@@ -677,6 +694,7 @@ export function manageAssignments() {
       } else {
         newAsg.categoryTotals = { k: 10, t: 10, c: 10, a: 10 }; // Default non-zero for convenience
       }
+      captureHistoryPoint();
       assignmentsState[newAsgId] = newAsg;
       unit.assignments = assignmentsState;
       editor.innerHTML = renderAssignmentsEditor(unit);
@@ -684,6 +702,7 @@ export function manageAssignments() {
       const asgId = e.target.dataset.asgId;
       const assignmentsState = getStateFromModalDOM(modal);
       if (assignmentsState[asgId]) {
+        captureHistoryPoint();
         delete assignmentsState[asgId];
         unit.assignments = assignmentsState;
         editor.innerHTML = renderAssignmentsEditor(unit);
@@ -796,6 +815,7 @@ export function addClass() {
       const presetId = document.getElementById('class-preset-select').value;
 
       if (newClassName && appState.gradebook_data) {
+        captureHistoryPoint();
         const newClassId = `class_${Date.now()}`;
         const activeSemester = appState.gradebook_data.activeSemester;
 
@@ -900,6 +920,7 @@ export function saveClassAsPreset() {
       const appState = getAppState();
       const presetName = document.getElementById('preset-name-input').value.trim();
       if (presetName) {
+        captureHistoryPoint();
         const presetId = `preset_${Date.now()}`;
 
         // Deep copy the class data
@@ -940,10 +961,11 @@ export function recordMidterms() {
 
   showModal({
     title: 'Confirm Midterm Recording',
-    content: `<p>Are you sure you want to officially record the current Term Mark as the Midterm Grade for all students?</p><p class="mt-3 font-semibold text-red-600">This action cannot be undone.</p>`,
+    content: `<p>Are you sure you want to officially record the current Term Mark as the Midterm Grade for all students?</p><p class="mt-3 font-semibold text-amber-700">You can undo this action if needed.</p>`,
     confirmText: 'Record Marks',
     confirmClasses: 'bg-accent hover:bg-accent-dark',
     onConfirm: () => {
+      captureHistoryPoint();
       const students = classData.students || {};
       let recordedCount = 0;
 
@@ -1722,6 +1744,7 @@ export function moveClassToSemester() {
   const classId = appState.gradebook_data.activeClassId;
 
   if (confirm(`Are you sure you want to move "${classData.name}" to Semester ${targetSem}?`)) {
+    captureHistoryPoint();
     // 1. Ensure target semester classes object exists
     if (!appState.gradebook_data.semesters[targetSem]) {
       appState.gradebook_data.semesters[targetSem] = { classes: {} };
