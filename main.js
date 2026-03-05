@@ -100,7 +100,7 @@ function notifyUserAboutNewUpdatesIfNeeded(isInitialLoad) {
   triggerAutoSave();
 
   showModal({
-    title: 'What\'s New',
+    title: "What's New",
     content: `<p>Marksheet Pro has a new update: <strong>${latestUpdate.title}</strong>.</p><p class="mt-2 text-sm text-gray-600">Would you like to view the Updates section now?</p>`,
     confirmText: 'View Updates',
     confirmClasses: 'bg-blue-600 hover:bg-blue-700',
