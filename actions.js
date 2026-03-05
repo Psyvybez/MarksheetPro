@@ -53,6 +53,57 @@ export function archiveClass() {
   });
 }
 
+export function deleteClass() {
+  const classData = getActiveClassData();
+  const appState = getAppState();
+  if (!classData || !appState.gradebook_data) return;
+
+  showModal({
+    title: 'Delete Class',
+    content: `
+      <div class="space-y-3">
+        <p>Delete <strong>${classData.name}</strong> and all associated students, grades, and attendance records?</p>
+        <p class="text-sm text-red-600 font-semibold">This permanently removes the class data from the semester.</p>
+        <div>
+          <label for="delete-class-confirm-input" class="block text-sm font-medium text-gray-700">Type <strong>DELETE</strong> to confirm</label>
+          <input type="text" id="delete-class-confirm-input" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+          <p id="delete-class-confirm-error" class="hidden text-sm text-red-600 mt-1">Please type DELETE to continue.</p>
+        </div>
+      </div>
+    `,
+    confirmText: 'Delete Class',
+    confirmClasses: 'bg-red-600 hover:bg-red-700',
+    onConfirm: () => {
+      const input = document.getElementById('delete-class-confirm-input');
+      const errorEl = document.getElementById('delete-class-confirm-error');
+      const typedValue = input?.value?.trim();
+
+      if (typedValue !== 'DELETE') {
+        if (errorEl) errorEl.classList.remove('hidden');
+        input?.focus();
+        return false;
+      }
+
+      const activeSemester = appState.gradebook_data.activeSemester;
+      const semesterClasses = appState.gradebook_data.semesters?.[activeSemester]?.classes;
+      const classId = appState.gradebook_data.activeClassId;
+      if (!semesterClasses || !classId || !semesterClasses[classId]) return false;
+
+      captureHistoryPoint();
+      delete semesterClasses[classId];
+
+      const remainingClassIds = Object.keys(semesterClasses).sort(
+        (a, b) => (semesterClasses[a]?.order || 0) - (semesterClasses[b]?.order || 0)
+      );
+      appState.gradebook_data.activeClassId = remainingClassIds.length > 0 ? remainingClassIds[0] : null;
+
+      updateUIFromState();
+      triggerAutoSave();
+      return true;
+    },
+  });
+}
+
 export function addStudent() {
   showModal({
     title: 'Add New Student',
@@ -785,12 +836,12 @@ export function addClass() {
   if (!appState.gradebook_data.presets) appState.gradebook_data.presets = {};
 
   const presets = appState.gradebook_data.presets;
-  const presetOptions =
-    Object.keys(presets).length > 0
-      ? Object.keys(presets)
-          .map((id) => `<option value="${id}">${presets[id].name}</option>`)
-          .join('')
-      : '<option value="" disabled>No presets saved yet</option>';
+  const renderPresetOptions = () => {
+    if (Object.keys(presets).length === 0) return '<option value="" disabled>No presets saved yet</option>';
+    return Object.keys(presets)
+      .map((id) => `<option value="${id}">${presets[id].name}</option>`)
+      .join('');
+  };
 
   showModal({
     title: 'Add New Class',
@@ -804,8 +855,9 @@ export function addClass() {
                     <label for="class-preset-select" class="block text-sm font-medium">Use a Preset (Optional)</label>
                     <select id="class-preset-select" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
                         <option value="">Start from scratch</option>
-                        ${presetOptions}
+                    ${renderPresetOptions()}
                     </select>
+                  <button id="delete-selected-preset-btn" type="button" class="mt-2 text-sm text-red-600 hover:underline">Delete Selected Preset</button>
                 </div>
             </div>`,
     confirmText: 'Add Class',
@@ -897,6 +949,39 @@ export function addClass() {
       }
     },
   });
+
+  setTimeout(() => {
+    const deletePresetBtn = document.getElementById('delete-selected-preset-btn');
+    const presetSelect = document.getElementById('class-preset-select');
+    if (!deletePresetBtn || !presetSelect) return;
+
+    const syncDeleteButtonState = () => {
+      const hasPresetSelected = !!presetSelect.value;
+      deletePresetBtn.disabled = !hasPresetSelected;
+      deletePresetBtn.classList.toggle('opacity-50', !hasPresetSelected);
+      deletePresetBtn.classList.toggle('cursor-not-allowed', !hasPresetSelected);
+    };
+
+    presetSelect.addEventListener('change', syncDeleteButtonState);
+    syncDeleteButtonState();
+
+    deletePresetBtn.addEventListener('click', () => {
+      const selectedPresetId = presetSelect.value;
+      if (!selectedPresetId || !presets[selectedPresetId]) return;
+
+      const presetName = presets[selectedPresetId].name || 'this preset';
+      const shouldDelete = confirm(`Delete preset "${presetName}"?`);
+      if (!shouldDelete) return;
+
+      captureHistoryPoint();
+      delete presets[selectedPresetId];
+
+      presetSelect.innerHTML = `<option value="">Start from scratch</option>${renderPresetOptions()}`;
+      presetSelect.value = '';
+      syncDeleteButtonState();
+      triggerAutoSave();
+    });
+  }, 0);
 }
 
 export function saveClassAsPreset() {
@@ -1174,6 +1259,7 @@ export function importStudentsCSV() {
       if (studentsToAdd.length === 0) return;
 
       // Add them to the class data
+      captureHistoryPoint();
       studentsToAdd.forEach((s) => {
         const newId = `student_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         if (!classData.students) classData.students = {};

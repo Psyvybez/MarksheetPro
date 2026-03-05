@@ -783,6 +783,7 @@ function setupEventListeners() {
         semesterBtn2: () => actions.switchSemester('2'),
         addClassBtn: actions.addClass,
         archiveClassBtn: actions.archiveClass,
+        deleteClassBtn: actions.deleteClass,
         addStudentBtn: actions.addStudent,
         importStudentsBtn: actions.importStudentsCSV,
         addAssignmentBtn: actions.manageAssignments,

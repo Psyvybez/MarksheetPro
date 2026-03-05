@@ -152,6 +152,16 @@ export function renderGradebook() {
   document.body.classList.toggle('has-final', classData.hasFinal);
   document.body.classList.toggle('no-final', !classData.hasFinal);
   classNameEl.textContent = classData.name;
+  const classStatusBadge = document.getElementById('class-status-badge');
+  if (classStatusBadge) {
+    if (classData.isArchived) {
+      classStatusBadge.textContent = 'Archived';
+      classStatusBadge.className = 'text-xs font-semibold px-2 py-1 rounded-full bg-yellow-100 text-yellow-800';
+    } else {
+      classStatusBadge.textContent = 'Active';
+      classStatusBadge.className = 'text-xs font-semibold px-2 py-1 rounded-full bg-green-100 text-green-700';
+    }
+  }
 
   const students = classData.students || {};
   const allUnits = classData.units || {};
@@ -538,7 +548,7 @@ export function renderFullGradebookUI() {
         </div>
         <div id="main-content-area" class="tab-content hidden fade-in">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-4">
-                <div class="flex items-center gap-4"><div contenteditable="true" id="className" class="text-2xl font-bold text-gray-700 p-2 rounded-md transition-shadow"></div><div class="flex items-center gap-2"><span id="save-status-icon"></span><span id="saveStatus" class="text-sm"></span></div></div>
+                <div class="flex items-center gap-4"><div class="flex items-center gap-2"><div contenteditable="true" id="className" class="text-2xl font-bold text-gray-700 p-2 rounded-md transition-shadow"></div><span id="class-status-badge" class="hidden text-xs font-semibold px-2 py-1 rounded-full"></span></div><div class="flex items-center gap-2"><span id="save-status-icon"></span><span id="saveStatus" class="text-sm"></span></div></div>
                 <div class="mt-2 sm:mt-0 flex flex-wrap items-center justify-end gap-2">
                     <button id="savePresetBtn" class="bg-secondary hover:bg-secondary-dark text-white font-bold py-2 px-4 rounded-lg">Save Class as Preset</button>
                     <button id="importStudentsBtn" class="bg-secondary hover:bg-secondary-dark text-white font-bold py-2 px-4 rounded-lg">Import Students</button>
@@ -552,6 +562,7 @@ export function renderFullGradebookUI() {
                     <button id="moveClassBtn" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg">Move to Sem ${targetSem}</button>
                     
                     <button id="archiveClassBtn" class="bg-accent hover:bg-accent-dark text-white font-bold py-2 px-4 rounded-lg">Archive Class</button>
+                    <button id="deleteClassBtn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg">Delete Class</button>
                     <div class="relative">
                         <button id="exportMenuBtn" class="bg-accent hover:bg-accent-dark text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2">
                             Export <span>&#9662;</span>
