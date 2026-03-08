@@ -939,16 +939,60 @@ function setupEventListeners() {
       true
     );
 
-    const updateGradeInputOutOfTooltips = (assignmentId, category, outOfValue) => {
-      if (!assignmentId) return;
+    const toNumericScore = (value) => {
+      if (value === 'M') return 0;
+      const parsed = typeof value === 'number' ? value : parseFloat(value);
+      return Number.isFinite(parsed) ? parsed : 0;
+    };
 
-      const tooltipText = `Out of ${outOfValue}`;
-      const selectorBase = `.grade-input[data-assignment-id="${assignmentId}"]`;
-      const selector = category ? `${selectorBase}[data-cat="${category}"]` : `${selectorBase}:not([data-cat])`;
+    const formatTooltipNumber = (value) => {
+      const rounded = Math.round((toNumericScore(value) + Number.EPSILON) * 100) / 100;
+      return Number.isInteger(rounded) ? String(rounded) : String(rounded);
+    };
 
+    const getAssignmentTooltipText = (activeClassData, studentId, assignmentId) => {
+      const unit = Object.values(activeClassData?.units || {}).find((u) => u.assignments?.[assignmentId]);
+      const assignment = unit?.assignments?.[assignmentId];
+      if (!unit || !assignment) return '';
+
+      if (unit.isFinal) {
+        const earned = toNumericScore(activeClassData?.students?.[studentId]?.grades?.[assignmentId]?.grade);
+        const possible = toNumericScore(assignment.total);
+        return `${formatTooltipNumber(earned)} out of ${formatTooltipNumber(possible)}`;
+      }
+
+      const cats = ['k', 't', 'c', 'a'];
+      const earned = cats.reduce(
+        (sum, cat) => sum + toNumericScore(activeClassData?.students?.[studentId]?.grades?.[assignmentId]?.[cat]),
+        0
+      );
+      const possible = cats.reduce((sum, cat) => sum + toNumericScore(assignment?.categoryTotals?.[cat]), 0);
+      return `${formatTooltipNumber(earned)} out of ${formatTooltipNumber(possible)}`;
+    };
+
+    const updateGradeInputTooltipForStudentAssignment = (studentId, assignmentId) => {
+      const activeClassData = getActiveClassData();
+      if (!activeClassData || !studentId || !assignmentId) return;
+
+      const tooltipText = getAssignmentTooltipText(activeClassData, studentId, assignmentId);
+      if (!tooltipText) return;
+
+      const selector = `.grade-input[data-student-id="${studentId}"][data-assignment-id="${assignmentId}"]`;
       document.querySelectorAll(selector).forEach((input) => {
         input.title = tooltipText;
         input.setAttribute('aria-label', tooltipText);
+      });
+    };
+
+    const updateGradeInputTooltipsForAssignment = (assignmentId) => {
+      if (!assignmentId) return;
+      const seenStudentIds = new Set();
+
+      document.querySelectorAll(`.grade-input[data-assignment-id="${assignmentId}"]`).forEach((input) => {
+        const studentId = input.dataset.studentId;
+        if (!studentId || seenStudentIds.has(studentId)) return;
+        seenStudentIds.add(studentId);
+        updateGradeInputTooltipForStudentAssignment(studentId, assignmentId);
       });
     };
 
@@ -994,11 +1038,10 @@ function setupEventListeners() {
             if (cat) {
               if (!assignment.categoryTotals) assignment.categoryTotals = {};
               assignment.categoryTotals[cat] = val;
-              updateGradeInputOutOfTooltips(asgId, cat, val);
             } else {
               assignment.total = val;
-              updateGradeInputOutOfTooltips(asgId, null, val);
             }
+            updateGradeInputTooltipsForAssignment(asgId);
             recalculateAndRenderAverages();
             triggerAutoSave();
           }
@@ -1143,6 +1186,7 @@ function setupEventListeners() {
             storageValue === null ||
             (!isNaN(storageValue) && storageValue >= 0 && (maxScore === Infinity || storageValue <= maxScore));
           target.classList.toggle('grade-input-error', !isValid && rawValue !== '');
+          updateGradeInputTooltipForStudentAssignment(studentId, assignmentId);
 
           recalculateAndRenderAverages();
           triggerAutoSave();

@@ -248,6 +248,27 @@ export function renderGradebook() {
     const name = catNames[key];
     return name && name.length > 0 ? name.trim().charAt(0).toUpperCase() : key.toUpperCase();
   };
+  const toNumericScore = (value) => {
+    if (value === 'M') return 0;
+    const parsed = typeof value === 'number' ? value : parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+  const formatTooltipNumber = (value) => {
+    const rounded = Math.round((toNumericScore(value) + Number.EPSILON) * 100) / 100;
+    return Number.isInteger(rounded) ? String(rounded) : String(rounded);
+  };
+  const buildAssignmentTooltip = (student, assignment, isFinal) => {
+    if (isFinal) {
+      const earned = toNumericScore(student.grades?.[assignment.id]?.grade);
+      const possible = toNumericScore(assignment.total);
+      return `${formatTooltipNumber(earned)} out of ${formatTooltipNumber(possible)}`;
+    }
+
+    const cats = ['k', 't', 'c', 'a'];
+    const earned = cats.reduce((sum, cat) => sum + toNumericScore(student.grades?.[assignment.id]?.[cat]), 0);
+    const possible = cats.reduce((sum, cat) => sum + toNumericScore(assignment.categoryTotals?.[cat]), 0);
+    return `${formatTooltipNumber(earned)} out of ${formatTooltipNumber(possible)}`;
+  };
 
   let activeUnitId = appState.gradebook_data?.activeUnitId;
   let unitsToDisplay = allUnits;
@@ -412,26 +433,24 @@ export function renderGradebook() {
 
                 if (unit.isFinal) {
                   const score = student.grades?.[asg.id]?.grade ?? '';
-                  const finalOutOf = asg.total ?? 0;
-                  const outOfTitle = `Out of ${finalOutOf}`;
+                  const tooltipText = buildAssignmentTooltip(student, asg, true);
 
                   // UPDATED LOGIC: Only color if 0 or M
                   const isZeroOrMissing = score === 0 || String(score).toUpperCase() === 'M';
                   const colorClass = isZeroOrMissing ? '!bg-red-300 !text-red-900' : '';
 
-                  rowHtml += `<td class="p-0 border-l-2 border-gray-400 ${subClass} ${colorClass}"><input type="text" class="grade-input" title="${outOfTitle}" aria-label="${outOfTitle}" data-student-id="${studentId}" data-assignment-id="${asg.id}" value="${score}"></td>`;
+                  rowHtml += `<td class="p-0 border-l-2 border-gray-400 ${subClass} ${colorClass}"><input type="text" class="grade-input" title="${tooltipText}" aria-label="${tooltipText}" data-student-id="${studentId}" data-assignment-id="${asg.id}" value="${score}"></td>`;
                 } else {
+                  const tooltipText = buildAssignmentTooltip(student, asg, false);
                   ['k', 't', 'c', 'a'].forEach((cat) => {
                     const score = student.grades?.[asg.id]?.[cat] ?? '';
                     const borderClass = cat === 'k' ? 'border-l-2 border-gray-400' : 'border-l';
-                    const catOutOf = asg.categoryTotals?.[cat] ?? 0;
-                    const outOfTitle = `Out of ${catOutOf}`;
 
                     // UPDATED LOGIC: Only color if 0 or M
                     const isZeroOrMissing = score === 0 || String(score).toUpperCase() === 'M';
                     const colorClass = isZeroOrMissing ? '!bg-red-300 !text-red-900' : '';
 
-                    rowHtml += `<td class="p-0 ${borderClass} ${subClass} ${colorClass}"><input type="text" class="grade-input" title="${outOfTitle}" aria-label="${outOfTitle}" data-student-id="${studentId}" data-assignment-id="${asg.id}" data-cat="${cat}" value="${score}"></td>`;
+                    rowHtml += `<td class="p-0 ${borderClass} ${subClass} ${colorClass}"><input type="text" class="grade-input" title="${tooltipText}" aria-label="${tooltipText}" data-student-id="${studentId}" data-assignment-id="${asg.id}" data-cat="${cat}" value="${score}"></td>`;
                   });
                 }
               });
