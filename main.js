@@ -939,6 +939,19 @@ function setupEventListeners() {
       true
     );
 
+    const updateGradeInputOutOfTooltips = (assignmentId, category, outOfValue) => {
+      if (!assignmentId) return;
+
+      const tooltipText = `Out of ${outOfValue}`;
+      const selectorBase = `.grade-input[data-assignment-id="${assignmentId}"]`;
+      const selector = category ? `${selectorBase}[data-cat="${category}"]` : `${selectorBase}:not([data-cat])`;
+
+      document.querySelectorAll(selector).forEach((input) => {
+        input.title = tooltipText;
+        input.setAttribute('aria-label', tooltipText);
+      });
+    };
+
     contentWrapper.addEventListener('input', (e) => {
       const target = e.target;
       const classData = getActiveClassData();
@@ -981,8 +994,10 @@ function setupEventListeners() {
             if (cat) {
               if (!assignment.categoryTotals) assignment.categoryTotals = {};
               assignment.categoryTotals[cat] = val;
+              updateGradeInputOutOfTooltips(asgId, cat, val);
             } else {
               assignment.total = val;
+              updateGradeInputOutOfTooltips(asgId, null, val);
             }
             recalculateAndRenderAverages();
             triggerAutoSave();

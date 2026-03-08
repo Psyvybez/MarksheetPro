@@ -412,22 +412,26 @@ export function renderGradebook() {
 
                 if (unit.isFinal) {
                   const score = student.grades?.[asg.id]?.grade ?? '';
+                  const finalOutOf = asg.total ?? 0;
+                  const outOfTitle = `Out of ${finalOutOf}`;
 
                   // UPDATED LOGIC: Only color if 0 or M
                   const isZeroOrMissing = score === 0 || String(score).toUpperCase() === 'M';
                   const colorClass = isZeroOrMissing ? '!bg-red-300 !text-red-900' : '';
 
-                  rowHtml += `<td class="p-0 border-l-2 border-gray-400 ${subClass} ${colorClass}"><input type="text" class="grade-input" data-student-id="${studentId}" data-assignment-id="${asg.id}" value="${score}"></td>`;
+                  rowHtml += `<td class="p-0 border-l-2 border-gray-400 ${subClass} ${colorClass}"><input type="text" class="grade-input" title="${outOfTitle}" aria-label="${outOfTitle}" data-student-id="${studentId}" data-assignment-id="${asg.id}" value="${score}"></td>`;
                 } else {
                   ['k', 't', 'c', 'a'].forEach((cat) => {
                     const score = student.grades?.[asg.id]?.[cat] ?? '';
                     const borderClass = cat === 'k' ? 'border-l-2 border-gray-400' : 'border-l';
+                    const catOutOf = asg.categoryTotals?.[cat] ?? 0;
+                    const outOfTitle = `Out of ${catOutOf}`;
 
                     // UPDATED LOGIC: Only color if 0 or M
                     const isZeroOrMissing = score === 0 || String(score).toUpperCase() === 'M';
                     const colorClass = isZeroOrMissing ? '!bg-red-300 !text-red-900' : '';
 
-                    rowHtml += `<td class="p-0 ${borderClass} ${subClass} ${colorClass}"><input type="text" class="grade-input" data-student-id="${studentId}" data-assignment-id="${asg.id}" data-cat="${cat}" value="${score}"></td>`;
+                    rowHtml += `<td class="p-0 ${borderClass} ${subClass} ${colorClass}"><input type="text" class="grade-input" title="${outOfTitle}" aria-label="${outOfTitle}" data-student-id="${studentId}" data-assignment-id="${asg.id}" data-cat="${cat}" value="${score}"></td>`;
                   });
                 }
               });
