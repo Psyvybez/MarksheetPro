@@ -732,6 +732,7 @@ export function renderAccountPage(isSetupMode = false) {
   const currentBirthday = appState.birthday || '';
   const profilePicPath = appState.profilePicturePath || '';
   const profilePicUrl = profilePicPath ? getProfilePictureUrl(profilePicPath) : null;
+  const schoolLogoDataUrl = appState.gradebook_data?.branding?.schoolLogoDataUrl || '';
 
   const creationDate = appState.created_at ? new Date(appState.created_at).toLocaleDateString() : 'N/A';
   const lastLogin = appState.last_login ? new Date(appState.last_login).toLocaleString() : 'N/A';
@@ -760,6 +761,21 @@ export function renderAccountPage(isSetupMode = false) {
                 </div>
                 <div><label for="school-board-input" class="block text-sm font-medium text-gray-700">School Board</label><input type="text" id="school-board-input" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" value="${currentSchoolBoard}" placeholder="e.g., TCDSB"></div>
                 <div><label for="school-name-input" class="block text-sm font-medium text-gray-700">School Name</label><input type="text" id="school-name-input" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" value="${currentSchoolName}" placeholder="e.g., Maplewood High School"></div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700">School Logo (for PDF exports)</label>
+                  <div class="mt-2 flex items-center gap-4">
+                    <div id="school-logo-preview-wrap" class="w-28 h-16 border border-gray-300 rounded bg-gray-50 flex items-center justify-center overflow-hidden">
+                      ${schoolLogoDataUrl ? `<img id="school-logo-preview" src="${schoolLogoDataUrl}" class="max-w-full max-h-full object-contain">` : `<span id="school-logo-placeholder" class="text-[11px] text-gray-400">No Logo</span>`}
+                    </div>
+                    <div class="flex flex-col gap-2">
+                      <input type="file" id="school-logo-upload" class="hidden" accept="image/png,image/jpeg,image/webp">
+                      <input type="hidden" id="school-logo-data-url">
+                      <button id="upload-school-logo-btn" type="button" class="text-sm text-blue-600 hover:underline text-left">Upload Logo</button>
+                      <button id="remove-school-logo-btn" type="button" class="text-sm text-gray-500 hover:text-red-600 text-left">Remove Logo</button>
+                      <p class="text-[11px] text-gray-500">Accepted: PNG, JPG, WEBP up to 5MB.</p>
+                    </div>
+                  </div>
+                </div>
                 <div><label for="room-number-input" class="block text-sm font-medium text-gray-700">Room Number</label><input type="text" id="room-number-input" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" value="${currentRoomNumber}" placeholder="e.g., 204B"></div>
                 <div><label for="birthday-input" class="block text-sm font-medium text-gray-700">Birthday</label><input type="date" id="birthday-input" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" value="${currentBirthday}"></div>
                 <div><label for="new-password-input" class="block text-sm font-medium text-gray-700">New Password</label><input type="password" id="new-password-input" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="Leave blank to keep current password"></div>
@@ -792,6 +808,54 @@ export function renderAccountPage(isSetupMode = false) {
   // Add event listeners for profile picture upload
   const uploadPicBtn = document.getElementById('upload-profile-pic-btn');
   const fileInput = document.getElementById('profile-picture-upload');
+  const schoolLogoUploadBtn = document.getElementById('upload-school-logo-btn');
+  const schoolLogoRemoveBtn = document.getElementById('remove-school-logo-btn');
+  const schoolLogoInput = document.getElementById('school-logo-upload');
+  const schoolLogoDataInput = document.getElementById('school-logo-data-url');
+
+  if (schoolLogoDataInput) {
+    schoolLogoDataInput.value = schoolLogoDataUrl || '';
+  }
+
+  const renderSchoolLogoPreview = (dataUrl) => {
+    const wrapper = document.getElementById('school-logo-preview-wrap');
+    if (!wrapper) return;
+    if (dataUrl) {
+      wrapper.innerHTML = `<img id="school-logo-preview" src="${dataUrl}" class="max-w-full max-h-full object-contain">`;
+    } else {
+      wrapper.innerHTML = `<span id="school-logo-placeholder" class="text-[11px] text-gray-400">No Logo</span>`;
+    }
+  };
+
+  const resizeImageToDataUrl = (file, maxWidth = 320, maxHeight = 180, quality = 0.9) =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          const scale = Math.min(maxWidth / img.width, maxHeight / img.height, 1);
+          const targetWidth = Math.max(1, Math.round(img.width * scale));
+          const targetHeight = Math.max(1, Math.round(img.height * scale));
+
+          const canvas = document.createElement('canvas');
+          canvas.width = targetWidth;
+          canvas.height = targetHeight;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error('Could not process logo image.'));
+            return;
+          }
+
+          ctx.clearRect(0, 0, targetWidth, targetHeight);
+          ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+          resolve(canvas.toDataURL('image/png', quality));
+        };
+        img.onerror = () => reject(new Error('Invalid logo image file.'));
+        img.src = reader.result;
+      };
+      reader.onerror = () => reject(new Error('Could not read logo image file.'));
+      reader.readAsDataURL(file);
+    });
 
   if (uploadPicBtn) {
     uploadPicBtn.addEventListener('click', () => {
@@ -818,6 +882,70 @@ export function renderAccountPage(isSetupMode = false) {
         };
         reader.readAsDataURL(file);
       }
+    });
+  }
+
+  if (schoolLogoUploadBtn && schoolLogoInput) {
+    schoolLogoUploadBtn.addEventListener('click', () => {
+      schoolLogoInput.click();
+    });
+  }
+
+  if (schoolLogoInput) {
+    schoolLogoInput.addEventListener('change', async (event) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+
+      const allowedTypes = ['image/png', 'image/jpeg', 'image/webp'];
+      const maxBytes = 5 * 1024 * 1024;
+
+      if (!allowedTypes.includes(file.type)) {
+        showModal({
+          title: 'Invalid Logo Format',
+          content: '<p>Please upload a PNG, JPG, or WEBP file.</p>',
+          confirmText: null,
+          cancelText: 'Close',
+          modalWidth: 'max-w-sm',
+        });
+        schoolLogoInput.value = '';
+        return;
+      }
+
+      if (file.size > maxBytes) {
+        showModal({
+          title: 'Logo File Too Large',
+          content: '<p>Please upload an image smaller than 5MB.</p>',
+          confirmText: null,
+          cancelText: 'Close',
+          modalWidth: 'max-w-sm',
+        });
+        schoolLogoInput.value = '';
+        return;
+      }
+
+      try {
+        const resizedDataUrl = await resizeImageToDataUrl(file);
+        if (schoolLogoDataInput) schoolLogoDataInput.value = resizedDataUrl;
+        renderSchoolLogoPreview(resizedDataUrl);
+      } catch (error) {
+        console.error('Failed to process school logo:', error);
+        showModal({
+          title: 'Logo Upload Failed',
+          content: `<p>${error.message || 'Could not upload school logo.'}</p>`,
+          confirmText: null,
+          cancelText: 'Close',
+          modalWidth: 'max-w-sm',
+        });
+      } finally {
+        schoolLogoInput.value = '';
+      }
+    });
+  }
+
+  if (schoolLogoRemoveBtn) {
+    schoolLogoRemoveBtn.addEventListener('click', () => {
+      if (schoolLogoDataInput) schoolLogoDataInput.value = '';
+      renderSchoolLogoPreview('');
     });
   }
 }

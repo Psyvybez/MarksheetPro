@@ -1453,54 +1453,118 @@ function exportClassPDF({ studentIds = [], includeMissingAssignments = false }) 
 
   if (!classData) return;
 
-  // We need jsPDF and autoTable, which are loaded from index.html
   const { jsPDF } = window.jspdf;
+  const schoolLogoDataUrl = appState?.gradebook_data?.branding?.schoolLogoDataUrl || null;
+
+  const drawSchoolLogo = (doc, logoDataUrl, x, y, width, height) => {
+    if (!logoDataUrl) return;
+    const formatMatch = logoDataUrl.match(/^data:image\/(png|jpeg|jpg|webp);base64,/i);
+    const format = formatMatch ? formatMatch[1].toUpperCase().replace('JPG', 'JPEG') : 'PNG';
+    try {
+      doc.addImage(logoDataUrl, format, x, y, width, height, undefined, 'FAST');
+    } catch (error) {
+      console.warn('Failed to render school logo in PDF:', error);
+    }
+  };
+
+  const theme = {
+    primary: [30, 64, 175],
+    secondary: [71, 85, 105],
+    headerBg: [241, 245, 249],
+    border: [203, 213, 225],
+    muted: [100, 116, 139],
+  };
+
+  const generatedAt = new Date().toLocaleString();
+
+  const drawStandardHeader = (doc, title, subtitle) => {
+    const pageWidth = doc.internal.pageSize.getWidth();
+    doc.setFillColor(...theme.primary);
+    doc.rect(0, 0, pageWidth, 18, 'F');
+    doc.setFontSize(12);
+    doc.setFont(undefined, 'bold');
+    doc.setTextColor(255, 255, 255);
+    doc.text('Marksheet Pro', 12, 11);
+    doc.setFontSize(9);
+    doc.setFont(undefined, 'normal');
+    doc.text(generatedAt, pageWidth - 12, 11, { align: 'right' });
+
+    drawSchoolLogo(doc, schoolLogoDataUrl, pageWidth - 36, 20, 24, 12);
+
+    doc.setTextColor(15, 23, 42);
+    doc.setFontSize(17);
+    doc.setFont(undefined, 'bold');
+    doc.text(title, 12, 28);
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'normal');
+    doc.setTextColor(...theme.muted);
+    doc.text(subtitle, 12, 34);
+  };
+
+  const addPageFooters = (doc, leftText) => {
+    const totalPages = doc.getNumberOfPages();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+
+    for (let pageNumber = 1; pageNumber <= totalPages; pageNumber++) {
+      doc.setPage(pageNumber);
+      doc.setDrawColor(...theme.border);
+      doc.setLineWidth(0.2);
+      doc.line(12, pageHeight - 12, pageWidth - 12, pageHeight - 12);
+      doc.setFontSize(8);
+      doc.setTextColor(...theme.muted);
+      doc.text(leftText, 12, pageHeight - 7.5);
+      doc.text(`Page ${pageNumber} of ${totalPages}`, pageWidth - 12, pageHeight - 7.5, { align: 'right' });
+    }
+  };
 
   try {
     const doc = new jsPDF();
     const selectedStudents = studentIds
       .map((id) => classData.students[id])
+      .filter(Boolean)
       .sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''));
+
+    if (selectedStudents.length === 0) {
+      showModal({
+        title: 'Export Cancelled',
+        content: '<p>Please select at least one student to export.</p>',
+        confirmText: null,
+        cancelText: 'Close',
+        modalWidth: 'max-w-xs',
+      });
+      return;
+    }
 
     selectedStudents.forEach((student, index) => {
       const avgs = calculateStudentAverages(student, classData);
-
       if (index > 0) doc.addPage();
 
-      // --- Header ---
-      doc.setFontSize(18);
-      doc.setFont(undefined, 'bold');
-      doc.text(profile.school, 14, 20);
-      doc.setFontSize(12);
-      doc.setFont(undefined, 'normal');
-      doc.text(`Teacher: ${profile.name}`, 14, 26);
-      doc.text(`Class: ${profile.class}`, 14, 32);
+      drawStandardHeader(doc, 'Student Progress Report', `${profile.school} | ${profile.class} | Teacher: ${profile.name}`);
 
-      doc.setFontSize(16);
+      const studentName = `${student.firstName || ''} ${student.lastName || ''}`.trim();
+      doc.setFontSize(11);
       doc.setFont(undefined, 'bold');
-      doc.text(`Student Report: ${student.firstName} ${student.lastName}`, doc.internal.pageSize.getWidth() / 2, 40, {
-        align: 'center',
-      });
+      doc.setTextColor(15, 23, 42);
+      doc.text(`Student: ${studentName || 'Unnamed Student'}`, 12, 42);
 
-      // --- Summary ---
       doc.autoTable({
-        startY: 45,
+        startY: 46,
+        head: [['Summary', 'Value']],
         body: [
           ['Overall Mark', avgs.overallGrade !== null ? `${avgs.overallGrade.toFixed(1)}%` : 'N/A'],
           ['Term Mark', avgs.termMark !== null ? `${avgs.termMark.toFixed(1)}%` : 'N/A'],
-          [
-            'Final Mark',
-            classData.hasFinal ? (avgs.finalMark !== null ? `${avgs.finalMark.toFixed(1)}%` : 'N/A') : 'N/A',
-          ],
+          ['Final Mark', classData.hasFinal ? (avgs.finalMark !== null ? `${avgs.finalMark.toFixed(1)}%` : 'N/A') : 'N/A'],
         ],
         theme: 'grid',
-        styles: { fontSize: 10, cellPadding: 2, fontStyle: 'bold' },
-        columnStyles: { 0: { fontStyle: 'bold' }, 1: { fontStyle: 'normal' } },
+        headStyles: { fillColor: theme.primary, textColor: [255, 255, 255], fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        styles: { fontSize: 9.5, cellPadding: 2.2, lineColor: theme.border, lineWidth: 0.2 },
+        columnStyles: { 0: { fontStyle: 'bold', cellWidth: 50 }, 1: { halign: 'right' } },
       });
 
-      // --- Unit & Assignment Breakdown ---
       const units = Object.values(classData.units || {}).sort((a, b) => a.order - b.order);
-      let finalY = doc.autoTable.previous.finalY + 10;
+      let cursorY = doc.autoTable.previous.finalY + 8;
 
       units.forEach((unit) => {
         const assignments = Object.values(unit.assignments || {}).sort((a, b) => a.order - b.order);
@@ -1511,9 +1575,7 @@ function exportClassPDF({ studentIds = [], includeMissingAssignments = false }) 
           const grade = student.grades?.[asg.id];
           if (unit.isFinal) {
             const score = grade?.grade ?? 'N/A';
-            if (includeMissingAssignments || score !== 'N/A') {
-              body.push([asg.name, `${score} / ${asg.total || 0}`]);
-            }
+            if (includeMissingAssignments || score !== 'N/A') body.push([asg.name, `${score} / ${asg.total || 0}`]);
           } else {
             const k = grade?.k ?? 'N/A';
             const t = grade?.t ?? 'N/A';
@@ -1531,42 +1593,31 @@ function exportClassPDF({ studentIds = [], includeMissingAssignments = false }) 
           }
         });
 
-        if (body.length > 0) {
-          const head = unit.isFinal
-            ? [
-                [
-                  {
-                    content: unit.title || `Unit ${unit.order}`,
-                    colSpan: 2,
-                    styles: { halign: 'center', fillColor: [230, 230, 230] },
-                  },
-                ],
-                ['Assignment', 'Score'],
-              ]
-            : [
-                [
-                  {
-                    content: unit.title || `Unit ${unit.order}`,
-                    colSpan: 5,
-                    styles: { halign: 'center', fillColor: [230, 230, 230] },
-                  },
-                ],
-                ['Assignment', 'K', 'T', 'C', 'A'],
-              ];
+        if (body.length === 0) return;
 
-          doc.autoTable({
-            startY: finalY,
-            head: head,
-            body: body,
-            theme: 'grid',
-            styles: { fontSize: 9, cellPadding: 1.5 },
-            headStyles: { fontStyle: 'bold' },
-          });
-          finalY = doc.autoTable.previous.finalY + 8;
-        }
+        const unitTitle = unit.title || (unit.isFinal ? 'Final Assessment' : `Unit ${unit.order}`);
+        doc.setFillColor(...theme.headerBg);
+        doc.setDrawColor(...theme.border);
+        doc.roundedRect(12, cursorY - 1.5, doc.internal.pageSize.getWidth() - 24, 7, 1.5, 1.5, 'FD');
+        doc.setFontSize(10);
+        doc.setFont(undefined, 'bold');
+        doc.setTextColor(30, 41, 59);
+        doc.text(unitTitle, 14, cursorY + 3);
+
+        doc.autoTable({
+          startY: cursorY + 8,
+          head: [unit.isFinal ? ['Assessment', 'Score'] : ['Assessment', 'K', 'T', 'C', 'A']],
+          body,
+          theme: 'grid',
+          headStyles: { fillColor: theme.secondary, textColor: [255, 255, 255], fontStyle: 'bold' },
+          alternateRowStyles: { fillColor: [248, 250, 252] },
+          styles: { fontSize: 8.5, cellPadding: 1.8, lineColor: theme.border, lineWidth: 0.2 },
+        });
+        cursorY = doc.autoTable.previous.finalY + 7;
       });
     });
 
+    addPageFooters(doc, `${profile.class} - Student Reports`);
     doc.save(`${profile.class}_Student_Reports.pdf`);
   } catch (error) {
     console.error('PDF Export failed:', error);
@@ -1580,36 +1631,91 @@ function exportClassPDF({ studentIds = [], includeMissingAssignments = false }) 
 }
 
 export function exportBlankMarksheet() {
-  const classData = getActiveClassData(); // Use state getter
-  const appState = getAppState(); // Use state getter
+  const classData = getActiveClassData();
+  const appState = getAppState();
   const profile = {
     name: appState.full_name || 'Teacher',
     school: appState.school_name || 'School',
-    class: classData?.name || 'Class', // Safely access class name
+    class: classData?.name || 'Class',
   };
 
   if (!classData) {
-    showModal({ title: 'Error', content: '<p>No active class selected.</p>', confirmText: null, cancelText: 'Close' }); // Use existing showModal
+    showModal({ title: 'Error', content: '<p>No active class selected.</p>', confirmText: null, cancelText: 'Close' });
     return;
   }
 
-  const { jsPDF } = window.jspdf; // Get jsPDF library
-  const doc = new jsPDF({ orientation: 'landscape' }); // Use landscape orientation
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'landscape' });
+  const schoolLogoDataUrl = appState?.gradebook_data?.branding?.schoolLogoDataUrl || null;
 
-  // --- Build Headers ---
-  const head = [[], []]; // 2 header rows
+  const drawSchoolLogo = (logoDataUrl) => {
+    if (!logoDataUrl) return;
+    const formatMatch = logoDataUrl.match(/^data:image\/(png|jpeg|jpg|webp);base64,/i);
+    const format = formatMatch ? formatMatch[1].toUpperCase().replace('JPG', 'JPEG') : 'PNG';
+    try {
+      const pageWidth = doc.internal.pageSize.getWidth();
+      doc.addImage(logoDataUrl, format, pageWidth - 42, 21, 30, 12, undefined, 'FAST');
+    } catch (error) {
+      console.warn('Failed to render school logo in blank marksheet PDF:', error);
+    }
+  };
+
+  const theme = {
+    primary: [30, 64, 175],
+    secondary: [71, 85, 105],
+    border: [203, 213, 225],
+    muted: [100, 116, 139],
+  };
+
+  const generatedAt = new Date().toLocaleString();
+
+  const drawHeader = () => {
+    const pageWidth = doc.internal.pageSize.getWidth();
+    doc.setFillColor(...theme.primary);
+    doc.rect(0, 0, pageWidth, 18, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(12);
+    doc.setFont(undefined, 'bold');
+    doc.text('Marksheet Pro', 12, 11);
+    doc.setFontSize(9);
+    doc.setFont(undefined, 'normal');
+    doc.text(generatedAt, pageWidth - 12, 11, { align: 'right' });
+
+    doc.setTextColor(15, 23, 42);
+    doc.setFontSize(17);
+    doc.setFont(undefined, 'bold');
+    doc.text('Blank Marksheet Template', 12, 28);
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'normal');
+    doc.setTextColor(...theme.muted);
+    doc.text(`${profile.class} | ${profile.school} | Teacher: ${profile.name}`, 12, 34);
+
+    drawSchoolLogo(schoolLogoDataUrl);
+  };
+
+  const addFooter = () => {
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    doc.setDrawColor(...theme.border);
+    doc.setLineWidth(0.2);
+    doc.line(12, pageHeight - 12, pageWidth - 12, pageHeight - 12);
+    doc.setFontSize(8);
+    doc.setTextColor(...theme.muted);
+    doc.text(`${profile.class} - Blank Marksheet`, 12, pageHeight - 7.5);
+    doc.text('Page 1 of 1', pageWidth - 12, pageHeight - 7.5, { align: 'right' });
+  };
+
+  const head = [[], []];
   const categoryHeaders = ['K', 'T', 'C', 'A'];
-  const defaultAssignmentCount = 6; // *** Default to 6 assignment columns ***
+  const defaultAssignmentCount = 6;
   const totalAssignmentPlaceholders = defaultAssignmentCount;
 
-  // Row 1: Student Name + Blank Assignment Title spaces
   head[0].push({
     content: 'Student Name',
     rowSpan: 2,
     styles: { halign: 'left', valign: 'middle', fontStyle: 'bold' },
-  }); // Student Name spans 2 rows
+  });
 
-  // Add a blank, spanned cell for each assignment placeholder
   for (let i = 0; i < totalAssignmentPlaceholders; i++) {
     head[0].push({
       content: '',
@@ -1618,16 +1724,13 @@ export function exportBlankMarksheet() {
     });
   }
 
-  // Row 2: Category Headers (K, T, C, A repeated)
   for (let i = 0; i < totalAssignmentPlaceholders; i++) {
     head[1].push(
       ...categoryHeaders.map((cat) => ({ content: cat, styles: { halign: 'center', minCellWidth: 10, fontSize: 9 } }))
     );
   }
 
-  // --- Build Body (Student Names + Empty Cells) ---
   const students = Object.values(classData.students || {}).sort((a, b) => {
-    // Get sorted students
     const lastNameA = String(a?.lastName || '');
     const lastNameB = String(b?.lastName || '');
     const firstNameA = String(a?.firstName || '');
@@ -1635,90 +1738,71 @@ export function exportBlankMarksheet() {
     return lastNameA.localeCompare(lastNameB) || firstNameA.localeCompare(firstNameB);
   });
 
-  const totalCols = head[1].length + 1; // Use head[1] for column count now
+  const totalCols = head[1].length + 1;
 
-  // *** Create rows WITH student names and empty grade cells ***
   const body = students.map((student) => {
-    return Array(totalCols)
-      .fill('')
-      .map((_, i) => (i === 0 ? `${student.lastName}, ${student.firstName}` : '')); // Student name in first cell
+    return Array(totalCols).fill('').map((_, i) => (i === 0 ? `${student.lastName}, ${student.firstName}` : ''));
   });
 
-  // Add extra blank rows for additional students (e.g., up to 20 total rows)
-  const desiredRowCount = 20; // *** Desired total rows in the marksheet ***
+  const desiredRowCount = 20;
   const blankRowsToAdd = Math.max(0, desiredRowCount - students.length);
   for (let i = 0; i < blankRowsToAdd; i++) {
-    body.push(Array(totalCols).fill('')); // Add empty rows
+    body.push(Array(totalCols).fill(''));
   }
 
-  // --- Generate PDF ---
   try {
-    // *** Add Title and Subtitle (Teacher/School/Class info) ***
-    doc.setFontSize(16);
-    doc.setFont(undefined, 'bold');
-    doc.text(`${profile.class} - Blank Marksheet`, 14, 15);
-    doc.setFontSize(10);
-    doc.setFont(undefined, 'normal');
-    doc.text(`Teacher: ${profile.name} | School: ${profile.school}`, 14, 21);
+    drawHeader();
 
-    // Draw the table using autoTable
     doc.autoTable({
-      startY: 25,
+      startY: 40,
       head: head,
       body: body,
       theme: 'grid',
-      tableWidth: 'auto', // Auto-fit columns
+      tableWidth: 'auto',
       styles: {
         fontSize: 7,
-        cellPadding: 1,
-        lineWidth: 0.1,
+        cellPadding: 1.1,
+        lineWidth: 0.2,
+        lineColor: theme.border,
         valign: 'middle',
         minCellHeight: 8,
       },
       headStyles: {
         fontStyle: 'bold',
         halign: 'center',
-        fillColor: [180, 180, 180], // *** Darker Gray Header ***
-        textColor: [0, 0, 0], // Ensure text is black for contrast
+        fillColor: theme.secondary,
+        textColor: [255, 255, 255],
         fontSize: 8,
         cellPadding: { top: 2, right: 1, bottom: 2, left: 1 },
       },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
       columnStyles: {
         0: {
-          // Student Name column
           fontStyle: 'bold',
           halign: 'left',
-          cellWidth: 40, // Keep fixed width for student names
+          cellWidth: 40,
         },
-        // K/T/C/A columns will auto-size
       },
-      didParseCell: function (data) {
+      didParseCell(data) {
         if (data.row.section === 'head') {
           if (data.column.index === 0) {
-            // Student Name Header
             data.cell.styles.valign = 'middle';
             data.cell.styles.fontSize = 8;
-            data.cell.styles.textColor = [0, 0, 0]; // Ensure black text
           }
           if (data.row.index === 0 && data.column.index > 0) {
-            // Blank Header Cells
             data.cell.styles.minCellHeight = 5;
-            data.cell.styles.fillColor = [255, 255, 255]; // Keep blank cells white
+            data.cell.styles.fillColor = [255, 255, 255];
+            data.cell.styles.textColor = [71, 85, 105];
           }
           if (data.row.index === 1 && data.column.index > 0) {
-            // K/T/C/A Header Cells
             data.cell.styles.fontSize = 7;
-            data.cell.styles.textColor = [0, 0, 0]; // Ensure black text
           }
         }
-        if (data.row.section === 'body') {
-          data.cell.styles.minCellHeight = 8;
-        }
       },
-      margin: { left: 10, right: 10, top: 25, bottom: 15 },
+      margin: { left: 10, right: 10, top: 40, bottom: 16 },
     });
 
-    // Save the PDF
+    addFooter();
     doc.save(`${profile.class}_Blank_Marksheet.pdf`);
   } catch (error) {
     console.error('Blank PDF Export failed:', error);
@@ -1732,6 +1816,7 @@ export function exportBlankMarksheet() {
 }
 export function exportStudentListPDF() {
   const classData = getActiveClassData();
+  const appState = getAppState();
   if (!classData) {
     alert('No class data to export.');
     return;
@@ -1739,40 +1824,96 @@ export function exportStudentListPDF() {
 
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
+  const schoolLogoDataUrl = appState?.gradebook_data?.branding?.schoolLogoDataUrl || null;
+
+  const drawSchoolLogo = (logoDataUrl) => {
+    if (!logoDataUrl) return;
+    const formatMatch = logoDataUrl.match(/^data:image\/(png|jpeg|jpg|webp);base64,/i);
+    const format = formatMatch ? formatMatch[1].toUpperCase().replace('JPG', 'JPEG') : 'PNG';
+    try {
+      doc.addImage(logoDataUrl, format, pageWidth - 36, 20, 24, 12, undefined, 'FAST');
+    } catch (error) {
+      console.warn('Failed to render school logo in student list PDF:', error);
+    }
+  };
+  const profile = {
+    name: appState.full_name || 'Teacher',
+    school: appState.school_name || 'School',
+  };
+
+  const theme = {
+    primary: [30, 64, 175],
+    border: [203, 213, 225],
+    muted: [100, 116, 139],
+  };
+
+  const generatedAt = new Date().toLocaleString();
+
   const students = Object.values(classData.students || {}).sort(
     (a, b) => (a.lastName || '').localeCompare(b.lastName || '') || (a.firstName || '').localeCompare(b.firstName || '')
   );
 
-  const margin = 20;
-  const lineHeight = 8;
-  const pageHeight = doc.internal.pageSize.height;
-  let currentY = 30; // Start lower for the title
-
-  // --- Title ---
-  doc.setFontSize(16);
-  doc.setFont(undefined, 'bold');
-  doc.text(`${classData.name} - Student List`, margin, 20);
+  const pageWidth = doc.internal.pageSize.getWidth();
+  doc.setFillColor(...theme.primary);
+  doc.rect(0, 0, pageWidth, 18, 'F');
   doc.setFontSize(12);
+  doc.setFont(undefined, 'bold');
+  doc.setTextColor(255, 255, 255);
+  doc.text('Marksheet Pro', 12, 11);
+  doc.setFontSize(9);
   doc.setFont(undefined, 'normal');
+  doc.text(generatedAt, pageWidth - 12, 11, { align: 'right' });
 
-  // --- Student Loop ---
-  students.forEach((student, index) => {
-    // Check for page break *before* printing
-    if (currentY > pageHeight - margin) {
-      doc.addPage();
-      currentY = margin;
-    }
+  doc.setTextColor(15, 23, 42);
+  doc.setFontSize(17);
+  doc.setFont(undefined, 'bold');
+  doc.text('Student List', 12, 28);
+  doc.setFontSize(10);
+  doc.setFont(undefined, 'normal');
+  doc.setTextColor(...theme.muted);
+  doc.text(`${classData.name} | ${profile.school} | Teacher: ${profile.name}`, 12, 34);
+  drawSchoolLogo(schoolLogoDataUrl);
 
-    const studentName = `${index + 1}. ${student.lastName || ''}, ${student.firstName || ''}`;
-    doc.text(studentName, margin, currentY);
-    currentY += lineHeight;
+  const tableBody = students.map((student, index) => [
+    `${index + 1}`,
+    student.lastName || '',
+    student.firstName || '',
+    student.iep ? 'Yes' : 'No',
+  ]);
+
+  doc.autoTable({
+    startY: 40,
+    head: [['#', 'Last Name', 'First Name', 'IEP']],
+    body: tableBody,
+    theme: 'grid',
+    headStyles: { fillColor: theme.primary, textColor: [255, 255, 255], fontStyle: 'bold' },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+    styles: { fontSize: 9.5, cellPadding: 2.1, lineColor: theme.border, lineWidth: 0.2 },
+    columnStyles: {
+      0: { halign: 'center', cellWidth: 14 },
+      3: { halign: 'center', cellWidth: 18 },
+    },
   });
+
+  const totalPages = doc.getNumberOfPages();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  for (let pageNumber = 1; pageNumber <= totalPages; pageNumber++) {
+    doc.setPage(pageNumber);
+    doc.setDrawColor(...theme.border);
+    doc.setLineWidth(0.2);
+    doc.line(12, pageHeight - 12, pageWidth - 12, pageHeight - 12);
+    doc.setFontSize(8);
+    doc.setTextColor(...theme.muted);
+    doc.text(`${classData.name} - Student List`, 12, pageHeight - 7.5);
+    doc.text(`Page ${pageNumber} of ${totalPages}`, pageWidth - 12, pageHeight - 7.5, { align: 'right' });
+  }
 
   doc.save(`${classData.name}_student_list.pdf`);
 }
 
 export function exportContactListPDF() {
   const classData = getActiveClassData();
+  const appState = getAppState();
   if (!classData) {
     alert('No class data to export.');
     return;
@@ -1780,66 +1921,103 @@ export function exportContactListPDF() {
 
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
+  const schoolLogoDataUrl = appState?.gradebook_data?.branding?.schoolLogoDataUrl || null;
+
+  const drawSchoolLogo = (logoDataUrl) => {
+    if (!logoDataUrl) return;
+    const formatMatch = logoDataUrl.match(/^data:image\/(png|jpeg|jpg|webp);base64,/i);
+    const format = formatMatch ? formatMatch[1].toUpperCase().replace('JPG', 'JPEG') : 'PNG';
+    try {
+      doc.addImage(logoDataUrl, format, pageWidth - 36, 20, 24, 12, undefined, 'FAST');
+    } catch (error) {
+      console.warn('Failed to render school logo in contact list PDF:', error);
+    }
+  };
+  const profile = {
+    name: appState.full_name || 'Teacher',
+    school: appState.school_name || 'School',
+  };
+
+  const theme = {
+    primary: [30, 64, 175],
+    border: [203, 213, 225],
+    muted: [100, 116, 139],
+  };
+
+  const generatedAt = new Date().toLocaleString();
   const students = Object.values(classData.students || {}).sort(
     (a, b) => (a.lastName || '').localeCompare(b.lastName || '') || (a.firstName || '').localeCompare(b.firstName || '')
   );
 
-  const margin = 20;
-  const lineHeight = 7;
-  const indent = 10;
-  const pageHeight = doc.internal.pageSize.height;
-  const pageBottom = pageHeight - margin;
-  let currentY = 30; // Start lower for title
-
-  // --- Title ---
-  doc.setFontSize(16);
-  doc.setFont(undefined, 'bold');
-  doc.text(`${classData.name} - Student Contact List`, margin, 20);
+  const pageWidth = doc.internal.pageSize.getWidth();
+  doc.setFillColor(...theme.primary);
+  doc.rect(0, 0, pageWidth, 18, 'F');
   doc.setFontSize(12);
+  doc.setFont(undefined, 'bold');
+  doc.setTextColor(255, 255, 255);
+  doc.text('Marksheet Pro', 12, 11);
+  doc.setFontSize(9);
   doc.setFont(undefined, 'normal');
+  doc.text(generatedAt, pageWidth - 12, 11, { align: 'right' });
 
-  // --- Student Loop ---
+  doc.setTextColor(15, 23, 42);
+  doc.setFontSize(17);
+  doc.setFont(undefined, 'bold');
+  doc.text('Student Contact List', 12, 28);
+  doc.setFontSize(10);
+  doc.setFont(undefined, 'normal');
+  doc.setTextColor(...theme.muted);
+  doc.text(`${classData.name} | ${profile.school} | Teacher: ${profile.name}`, 12, 34);
+  drawSchoolLogo(schoolLogoDataUrl);
+
+  const bodyRows = [];
   students.forEach((student) => {
-    const contacts = student.contacts || [];
     const studentName = `${student.lastName || ''}, ${student.firstName || ''}`;
+    const contacts = student.contacts || [];
 
-    // --- Calculate block height to prevent splitting a student's info ---
-    let blockHeight = lineHeight; // 1 line for name
-    if (contacts.length > 0) {
-      blockHeight += contacts.length * lineHeight;
-    } else {
-      blockHeight += lineHeight; // 1 line for "no contacts"
-    }
-    blockHeight += 5; // 5 units of spacing after the block
-
-    // Check for page break *before* printing the whole block
-    if (currentY + blockHeight > pageBottom) {
-      doc.addPage();
-      currentY = margin;
+    if (contacts.length === 0) {
+      bodyRows.push([studentName, '-', 'No contacts on file', '-']);
+      return;
     }
 
-    // --- Print Student Name ---
-    doc.setFont(undefined, 'bold');
-    doc.text(studentName, margin, currentY);
-    currentY += lineHeight;
-    doc.setFont(undefined, 'normal');
-
-    // --- Print Contacts ---
-    if (contacts.length > 0) {
-      contacts.forEach((contact) => {
-        const contactType = contact.isParent ? '(Parent/Guardian)' : '';
-        const contactInfo = `${contact.name}: ${contact.info} ${contactType}`;
-        doc.text(contactInfo, margin + indent, currentY);
-        currentY += lineHeight;
-      });
-    } else {
-      doc.text('(No contacts on file)', margin + indent, currentY);
-      currentY += lineHeight;
-    }
-
-    // Add spacing after the block
-    currentY += 5;
+    contacts.forEach((contact) => {
+      bodyRows.push([
+        studentName,
+        contact.name || '-',
+        contact.info || '-',
+        contact.isParent ? 'Parent/Guardian' : 'Contact',
+      ]);
+    });
   });
+
+  doc.autoTable({
+    startY: 40,
+    head: [['Student', 'Contact Name', 'Contact Info', 'Relationship']],
+    body: bodyRows,
+    theme: 'grid',
+    headStyles: { fillColor: theme.primary, textColor: [255, 255, 255], fontStyle: 'bold' },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+    styles: { fontSize: 9, cellPadding: 2, lineColor: theme.border, lineWidth: 0.2 },
+    columnStyles: {
+      0: { cellWidth: 45, fontStyle: 'bold' },
+      1: { cellWidth: 45 },
+      2: { cellWidth: 70 },
+      3: { cellWidth: 28, halign: 'center' },
+    },
+  });
+
+  const totalPages = doc.getNumberOfPages();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  for (let pageNumber = 1; pageNumber <= totalPages; pageNumber++) {
+    doc.setPage(pageNumber);
+    doc.setDrawColor(...theme.border);
+    doc.setLineWidth(0.2);
+    doc.line(12, pageHeight - 12, pageWidth - 12, pageHeight - 12);
+    doc.setFontSize(8);
+    doc.setTextColor(...theme.muted);
+    doc.text(`${classData.name} - Student Contact List`, 12, pageHeight - 7.5);
+    doc.text(`Page ${pageNumber} of ${totalPages}`, pageWidth - 12, pageHeight - 7.5, { align: 'right' });
+  }
 
   doc.save(`${classData.name}_contact_list.pdf`);
 }

@@ -406,6 +406,7 @@ async function saveProfile() {
   const schoolName = document.getElementById('school-name-input').value.trim();
   const roomNumber = document.getElementById('room-number-input').value.trim();
   const birthday = document.getElementById('birthday-input').value;
+  const schoolLogoDataUrl = document.getElementById('school-logo-data-url')?.value?.trim() || '';
   const newPassword = document.getElementById('new-password-input').value;
   const feedbackEl = document.getElementById('account-feedback');
 
@@ -437,7 +438,19 @@ async function saveProfile() {
     }
   }
 
-  const newState = { ...appState, ...updates };
+  const currentGradebookData = appState.gradebook_data || {};
+  const currentBranding = currentGradebookData.branding || {};
+  const newState = {
+    ...appState,
+    ...updates,
+    gradebook_data: {
+      ...currentGradebookData,
+      branding: {
+        ...currentBranding,
+        schoolLogoDataUrl: schoolLogoDataUrl || null,
+      },
+    },
+  };
   setAppState(newState);
 
   clearTimeout(autoSaveTimer);
