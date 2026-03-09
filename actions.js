@@ -1540,7 +1540,11 @@ function exportClassPDF({ studentIds = [], includeMissingAssignments = false }) 
       const avgs = calculateStudentAverages(student, classData);
       if (index > 0) doc.addPage();
 
-      drawStandardHeader(doc, 'Student Progress Report', `${profile.school} | ${profile.class} | Teacher: ${profile.name}`);
+      drawStandardHeader(
+        doc,
+        'Student Progress Report',
+        `${profile.school} | ${profile.class} | Teacher: ${profile.name}`
+      );
 
       const studentName = `${student.firstName || ''} ${student.lastName || ''}`.trim();
       doc.setFontSize(11);
@@ -1554,7 +1558,10 @@ function exportClassPDF({ studentIds = [], includeMissingAssignments = false }) 
         body: [
           ['Overall Mark', avgs.overallGrade !== null ? `${avgs.overallGrade.toFixed(1)}%` : 'N/A'],
           ['Term Mark', avgs.termMark !== null ? `${avgs.termMark.toFixed(1)}%` : 'N/A'],
-          ['Final Mark', classData.hasFinal ? (avgs.finalMark !== null ? `${avgs.finalMark.toFixed(1)}%` : 'N/A') : 'N/A'],
+          [
+            'Final Mark',
+            classData.hasFinal ? (avgs.finalMark !== null ? `${avgs.finalMark.toFixed(1)}%` : 'N/A') : 'N/A',
+          ],
         ],
         theme: 'grid',
         headStyles: { fillColor: theme.primary, textColor: [255, 255, 255], fontStyle: 'bold' },
@@ -1743,7 +1750,9 @@ export function exportBlankMarksheet() {
   const totalCols = head[1].length + 1;
 
   const body = students.map((student) => {
-    return Array(totalCols).fill('').map((_, i) => (i === 0 ? `${student.lastName}, ${student.firstName}` : ''));
+    return Array(totalCols)
+      .fill('')
+      .map((_, i) => (i === 0 ? `${student.lastName}, ${student.firstName}` : ''));
   });
 
   const desiredRowCount = 20;
