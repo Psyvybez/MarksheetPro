@@ -1595,7 +1595,9 @@ function exportClassPDF({ studentIds = [], includeMissingAssignments = false }) 
 
         if (body.length === 0) return;
 
-        const unitTitle = unit.title || (unit.isFinal ? 'Final Assessment' : `Unit ${unit.order}`);
+        const unitTitle = unit.isFinal
+          ? 'Final Assessment'
+          : `Unit ${unit.order}${unit.title ? `: ${unit.title}` : ''}${unit.subtitle ? ` - ${unit.subtitle}` : ''}`;
         doc.setFillColor(...theme.headerBg);
         doc.setDrawColor(...theme.border);
         doc.roundedRect(12, cursorY - 1.5, doc.internal.pageSize.getWidth() - 24, 7, 1.5, 1.5, 'FD');
