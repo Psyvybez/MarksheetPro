@@ -307,6 +307,34 @@ export function renderGradebook() {
 
   const thead = table.querySelector('thead');
 
+  // Pre-compute assignment weight % within each unit (display only, does not affect grade calc)
+  const catWts = classData.categoryWeights || { k: 25, t: 25, c: 25, a: 25 };
+  const unitAsgWeights = {};
+  Object.values(unitsToDisplay).forEach((unit) => {
+    const asgs = Object.values(unit.assignments || {});
+    let totalFactor = 0;
+    const factors = {};
+    asgs.forEach((asg) => {
+      const w = parseFloat(asg.weight) || 1;
+      let factor;
+      if (unit.isFinal) {
+        factor = w;
+      } else {
+        const uf = ['k', 't', 'c', 'a'].reduce(
+          (s, cat) => s + (parseFloat(asg.categoryTotals?.[cat]) > 0 ? (catWts[cat] || 25) / 100 : 0),
+          0
+        );
+        factor = uf > 0 ? w * uf : 0;
+      }
+      factors[asg.id] = factor;
+      totalFactor += factor;
+    });
+    unitAsgWeights[unit.id] = {};
+    asgs.forEach((asg) => {
+      unitAsgWeights[unit.id][asg.id] = totalFactor > 0 ? Math.round((factors[asg.id] / totalFactor) * 100) : 0;
+    });
+  });
+
   let headerHtml1 = `<tr class="bg-gray-50">
         <th class="${stickyName} ${headerBg} z-30" rowspan="2"></th>
         <th class="${stickyIep} ${headerBg} z-30" rowspan="2"></th>
@@ -330,7 +358,12 @@ export function renderGradebook() {
       const subtitleText = unit.subtitle ? ` - ${unit.subtitle}` : '';
       const displayTitle = unit.isFinal ? 'Final Assessment' : `Unit ${unit.order}${titleText}${subtitleText}`;
 
-      headerHtml1 += `<th colspan="${colspan || 1}" class="p-3 text-sm font-semibold tracking-wide text-center border-l-2 border-gray-400">${displayTitle}</th>`;
+      const unitWtBadge =
+        !unit.isFinal && unit.weight != null
+          ? `<span class="block text-[10px] font-normal text-blue-400 mt-0.5">${parseFloat(unit.weight).toFixed(1)}% of term</span>`
+          : '';
+
+      headerHtml1 += `<th colspan="${colspan || 1}" class="p-3 text-sm font-semibold tracking-wide text-center border-l-2 border-gray-400">${displayTitle}${unitWtBadge}</th>`;
 
       if (assignments.length === 0) {
         headerHtml2 += `<td colspan="${colspan || 1}" class="p-3 text-center text-xs text-gray-400 border-l-2 border-gray-400 italic">No assignments</td>`;
@@ -348,10 +381,18 @@ export function renderGradebook() {
           const toggleHtml = `<div class="mt-1 flex items-center justify-center gap-1"><input type="checkbox" class="assignment-status-toggle" data-unit-id="${unit.id}" data-assignment-id="${asg.id}" ${checked}><label class="text-[9px] text-blue-600 font-bold uppercase cursor-pointer">Submitted</label></div>`;
 
           if (unit.isFinal) {
-            headerHtml2 += `<th class="p-3 text-xs font-medium text-gray-500 tracking-wider text-center border-l-2 border-gray-400 ${submittedClass}">${asg.name}<br>${weightText}${toggleHtml}</th>`;
+            const asgPctFinal = unitAsgWeights[unit.id]?.[asg.id];
+            const asgPctTagFinal =
+              asgPctFinal != null
+                ? `<span class="block text-[9px] font-bold text-teal-600">~${asgPctFinal}% of unit</span>`
+                : '';
+            headerHtml2 += `<th class="p-3 text-xs font-medium text-gray-500 tracking-wider text-center border-l-2 border-gray-400 ${submittedClass}">${asg.name}<br>${weightText}${asgPctTagFinal}${toggleHtml}</th>`;
             headerHtml3 += `<th class="p-2 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border-l-2 border-gray-400 assignment-header-cell ${submittedClass}">Score<br><input type="number" class="assignment-total-input font-normal w-12 text-center bg-transparent border-b border-transparent hover:border-gray-400 focus:border-blue-500 p-0" data-unit-id="${unit.id}" data-assignment-id="${asg.id}" value="${asg.total || 0}"></th>`;
           } else {
-            headerHtml2 += `<th colspan="4" class="p-3 text-xs font-medium text-gray-500 tracking-wider text-center border-l-2 border-gray-400 ${submittedClass}">${asg.name}<br>${weightText}${toggleHtml}</th>`;
+            const asgPct = unitAsgWeights[unit.id]?.[asg.id];
+            const asgPctTag =
+              asgPct != null ? `<span class="block text-[9px] font-bold text-teal-600">~${asgPct}% of unit</span>` : '';
+            headerHtml2 += `<th colspan="4" class="p-3 text-xs font-medium text-gray-500 tracking-wider text-center border-l-2 border-gray-400 ${submittedClass}">${asg.name}<br>${weightText}${asgPctTag}${toggleHtml}</th>`;
             ['k', 't', 'c', 'a'].forEach((cat) => {
               const borderClass = cat === 'k' ? 'border-l-2 border-gray-400' : 'border-l';
               const catTotal = asg.categoryTotals?.[cat] || 0;
@@ -1234,99 +1275,396 @@ export function renderAnalyticsModal() {
     return;
   }
 
+  // --- Pre-compute data for breakdown charts ---
+  const analyticsCatWts = classData.categoryWeights || { k: 25, t: 25, c: 25, a: 25 };
+  const termUnits = Object.values(classData.units || {})
+    .filter((u) => !u.isFinal)
+    .sort((a, b) => a.order - b.order);
+  const allAnalyticsUnits = Object.values(classData.units || {}).sort((a, b) => a.order - b.order);
+
+  // Helper: compute each assignment's % weight within its unit
+  function computeAsgWeights(unit) {
+    const asgs = Object.values(unit.assignments || {}).sort((a, b) => a.order - b.order);
+    let totalFactor = 0;
+    const factors = asgs.map((asg) => {
+      const w = parseFloat(asg.weight) || 1;
+      let factor;
+      if (unit.isFinal) {
+        factor = w;
+      } else {
+        const uf = ['k', 't', 'c', 'a'].reduce(
+          (s, cat) => s + (parseFloat(asg.categoryTotals?.[cat]) > 0 ? (analyticsCatWts[cat] || 25) / 100 : 0),
+          0
+        );
+        factor = uf > 0 ? w * uf : 0;
+      }
+      totalFactor += factor;
+      return { asg, factor };
+    });
+    return factors.map(({ asg, factor }) => ({
+      name: asg.name,
+      id: asg.id,
+      pct: totalFactor > 0 ? (factor / totalFactor) * 100 : 0,
+      isSubmitted: asg.isSubmitted,
+    }));
+  }
+
+  // Helper: compute per-assignment avg performance (read-only, no stored changes)
+  function computeAsgPerformance(unit, studentFilter) {
+    const parseGradeLocal = (val) => {
+      if (val === undefined || val === null || val === '') return null;
+      if (typeof val === 'string' && val.trim().toUpperCase() === 'M') return 0;
+      const n = parseFloat(val);
+      return isNaN(n) ? null : n;
+    };
+    const asgs = Object.values(unit.assignments || {})
+      .filter((a) => !a.isSubmitted)
+      .sort((a, b) => a.order - b.order);
+    const students =
+      studentFilter && studentFilter !== '__class__'
+        ? [classData.students[studentFilter]].filter(Boolean)
+        : Object.values(classData.students || {});
+    return asgs.map((asg) => {
+      let earned = 0;
+      let possible = 0;
+      students.forEach((student) => {
+        const grade = student.grades?.[asg.id];
+        if (!grade) return;
+        if (unit.isFinal) {
+          const s = parseGradeLocal(grade.grade);
+          const t = parseFloat(asg.total) || 0;
+          if (s !== null && t > 0) {
+            earned += s;
+            possible += t;
+          }
+        } else {
+          ['k', 't', 'c', 'a'].forEach((cat) => {
+            const s = parseGradeLocal(grade[cat]);
+            const t = parseFloat(asg.categoryTotals?.[cat]) || 0;
+            if (s !== null && t > 0) {
+              earned += s;
+              possible += t;
+            }
+          });
+        }
+      });
+      return {
+        name: asg.name,
+        avg: possible > 0 ? (earned / possible) * 100 : null,
+      };
+    });
+  }
+
+  // Build filter options HTML
+  const unitOptions = allAnalyticsUnits
+    .map((u, i) => {
+      const label = u.isFinal ? 'Final Assessment' : u.title ? `Unit ${u.order}: ${u.title}` : `Unit ${u.order}`;
+      return `<option value="${u.id}" ${i === 0 ? 'selected' : ''}>${label}</option>`;
+    })
+    .join('');
+
+  const studentList = Object.values(classData.students || {})
+    .sort((a, b) => String(a.lastName).localeCompare(String(b.lastName)))
+    .map((s) => `<option value="${s.id}">${s.lastName}, ${s.firstName}</option>`)
+    .join('');
+
   const content = `
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div class="bg-gray-50 p-4 rounded-lg border">
-                <h4 class="text-sm font-bold text-gray-500 uppercase mb-4 text-center">Grade Distribution</h4>
-                <div class="relative h-64 w-full">
-                    <canvas id="chart-distribution"></canvas>
-                </div>
-            </div>
-            <div class="bg-gray-50 p-4 rounded-lg border">
-                <h4 class="text-sm font-bold text-gray-500 uppercase mb-4 text-center">Category Performance</h4>
-                <div class="relative h-64 w-full">
-                    <canvas id="chart-categories"></canvas>
-                </div>
-            </div>
+    <div class="space-y-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-gray-50 p-4 rounded-lg border">
+          <h4 class="text-sm font-bold text-gray-500 uppercase mb-4 text-center">Grade Distribution</h4>
+          <div class="relative h-64 w-full"><canvas id="chart-distribution"></canvas></div>
         </div>
-    `;
+        <div class="bg-gray-50 p-4 rounded-lg border">
+          <h4 class="text-sm font-bold text-gray-500 uppercase mb-4 text-center">Category Performance</h4>
+          <div class="relative h-64 w-full"><canvas id="chart-categories"></canvas></div>
+        </div>
+      </div>
+
+      <div class="border-t border-gray-200 pt-5">
+        <h3 class="text-sm font-bold text-gray-600 uppercase tracking-wider mb-4">Curriculum Weight Breakdown</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="bg-gray-50 p-4 rounded-lg border">
+            <h4 class="text-sm font-bold text-gray-500 uppercase mb-3 text-center">Unit Weights (% of Term)</h4>
+            <div id="chart-unit-weights-wrap" class="relative h-56 w-full"><canvas id="chart-unit-weights"></canvas></div>
+          </div>
+          <div class="bg-gray-50 p-4 rounded-lg border">
+            <div class="flex items-center justify-between mb-3">
+              <h4 class="text-sm font-bold text-gray-500 uppercase">Assignment Weight in Unit</h4>
+              <select id="asg-unit-filter" class="text-xs border border-gray-300 rounded-md px-2 py-1 bg-white">${unitOptions}</select>
+            </div>
+            <div id="chart-asg-weights-wrap" class="relative h-52 w-full"><canvas id="chart-asg-weights"></canvas></div>
+            <p id="asg-unit-pct-note" class="text-xs text-gray-400 text-center mt-2"></p>
+          </div>
+        </div>
+      </div>
+
+      <div class="border-t border-gray-200 pt-5">
+        <div class="flex flex-wrap items-center gap-3 mb-4">
+          <h3 class="text-sm font-bold text-gray-600 uppercase tracking-wider">Assignment Performance</h3>
+          <select id="perf-unit-filter" class="text-xs border border-gray-300 rounded-md px-2 py-1 bg-white">${unitOptions}</select>
+          <select id="perf-student-filter" class="text-xs border border-gray-300 rounded-md px-2 py-1 bg-white min-w-[140px]">
+            <option value="__class__">Class Average</option>
+            ${studentList}
+          </select>
+        </div>
+        <div class="bg-gray-50 p-4 rounded-lg border">
+          <div id="chart-asg-perf-wrap" class="relative h-64 w-full"><canvas id="chart-asg-perf"></canvas></div>
+        </div>
+      </div>
+    </div>
+  `;
 
   showModal({
     title: `Class Analytics: ${classData.name}`,
-    content: content,
+    content,
     modalWidth: 'max-w-5xl',
     confirmText: null,
     cancelText: 'Close',
   });
 
-  // Wait for DOM to update, then render charts
   setTimeout(() => {
-    // 1. Distribution Chart
-    const ctxDist = document.getElementById('chart-distribution').getContext('2d');
-    new Chart(ctxDist, {
-      type: 'bar',
-      data: {
-        labels: Object.keys(stats.distribution),
-        datasets: [
-          {
-            label: '# of Students',
-            data: Object.values(stats.distribution),
-            backgroundColor: [
-              'rgba(34, 197, 94, 0.6)', // Green (L4)
-              'rgba(234, 179, 8, 0.6)', // Yellow (L3)
-              'rgba(249, 115, 22, 0.6)', // Orange (L2)
-              'rgba(239, 68, 68, 0.6)', // Red (L1)
-              'rgba(153, 27, 27, 0.6)', // Dark Red (R)
-            ],
-            borderColor: [
-              'rgba(34, 197, 94, 1)',
-              'rgba(234, 179, 8, 1)',
-              'rgba(249, 115, 22, 1)',
-              'rgba(239, 68, 68, 1)',
-              'rgba(153, 27, 27, 1)',
-            ],
-            borderWidth: 1,
-          },
-        ],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-          y: { beginAtZero: true, ticks: { stepSize: 1 } },
+    // 1. Grade Distribution
+    const ctxDist = document.getElementById('chart-distribution')?.getContext('2d');
+    if (ctxDist) {
+      new Chart(ctxDist, {
+        type: 'bar',
+        data: {
+          labels: Object.keys(stats.distribution),
+          datasets: [
+            {
+              label: '# of Students',
+              data: Object.values(stats.distribution),
+              backgroundColor: [
+                'rgba(34, 197, 94, 0.6)',
+                'rgba(234, 179, 8, 0.6)',
+                'rgba(249, 115, 22, 0.6)',
+                'rgba(239, 68, 68, 0.6)',
+                'rgba(153, 27, 27, 0.6)',
+              ],
+              borderColor: [
+                'rgba(34, 197, 94, 1)',
+                'rgba(234, 179, 8, 1)',
+                'rgba(249, 115, 22, 1)',
+                'rgba(239, 68, 68, 1)',
+                'rgba(153, 27, 27, 1)',
+              ],
+              borderWidth: 1,
+            },
+          ],
         },
-        plugins: { legend: { display: false } },
-      },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
+          plugins: { legend: { display: false } },
+        },
+      });
+    }
+
+    // 2. Category Radar
+    const ctxCat = document.getElementById('chart-categories')?.getContext('2d');
+    if (ctxCat) {
+      new Chart(ctxCat, {
+        type: 'radar',
+        data: {
+          labels: ['Knowledge', 'Thinking', 'Communication', 'Application'],
+          datasets: [
+            {
+              label: 'Class Average %',
+              data: [stats.catAverages.k, stats.catAverages.t, stats.catAverages.c, stats.catAverages.a],
+              backgroundColor: 'rgba(59, 130, 246, 0.2)',
+              borderColor: 'rgba(59, 130, 246, 1)',
+              pointBackgroundColor: 'rgba(59, 130, 246, 1)',
+              borderWidth: 2,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: { r: { angleLines: { display: true }, suggestedMin: 50, suggestedMax: 100 } },
+        },
+      });
+    }
+
+    // 3. Unit Weights Donut
+    const uwWrap = document.getElementById('chart-unit-weights-wrap');
+    if (uwWrap) {
+      if (termUnits.length === 0) {
+        uwWrap.innerHTML = '<p class="text-xs text-gray-400 text-center pt-10">No term units configured.</p>';
+      } else {
+        const unitColors = [
+          'rgba(59, 130, 246, 0.75)',
+          'rgba(16, 185, 129, 0.75)',
+          'rgba(245, 158, 11, 0.75)',
+          'rgba(239, 68, 68, 0.75)',
+          'rgba(139, 92, 246, 0.75)',
+          'rgba(236, 72, 153, 0.75)',
+          'rgba(20, 184, 166, 0.75)',
+          'rgba(249, 115, 22, 0.75)',
+        ];
+        const ctxUw = document.getElementById('chart-unit-weights')?.getContext('2d');
+        if (ctxUw) {
+          new Chart(ctxUw, {
+            type: 'doughnut',
+            data: {
+              labels: termUnits.map((u) => (u.title ? `Unit ${u.order}: ${u.title}` : `Unit ${u.order}`)),
+              datasets: [
+                {
+                  data: termUnits.map((u) => parseFloat(u.weight) || 0),
+                  backgroundColor: termUnits.map((_, i) => unitColors[i % unitColors.length]),
+                  borderWidth: 2,
+                  borderColor: '#fff',
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { position: 'bottom', labels: { font: { size: 11 } } },
+                tooltip: { callbacks: { label: (ctx) => ` ${ctx.label}: ${Number(ctx.raw).toFixed(1)}%` } },
+              },
+            },
+          });
+        }
+      }
+    }
+
+    // 4. Assignment Weight Bar (with unit filter)
+    function renderAsgWeightChart(unitId) {
+      const wrap = document.getElementById('chart-asg-weights-wrap');
+      if (!wrap) return;
+      const unit = classData.units[unitId];
+      if (!unit) return;
+      const weights = computeAsgWeights(unit);
+      const note = document.getElementById('asg-unit-pct-note');
+      if (note) {
+        const lbl = unit.isFinal ? 'Final Assessment' : `Unit ${unit.order}${unit.title ? `: ${unit.title}` : ''}`;
+        const termNote =
+          !unit.isFinal && unit.weight != null
+            ? ` · This unit is ${parseFloat(unit.weight).toFixed(1)}% of the term grade.`
+            : '';
+        note.textContent = `${lbl}${termNote}`;
+      }
+      wrap.innerHTML = '<canvas id="chart-asg-weights"></canvas>';
+      if (weights.length === 0) {
+        wrap.innerHTML = '<p class="text-xs text-gray-400 text-center pt-10">No assignments in this unit.</p>';
+        return;
+      }
+      const ctx = document.getElementById('chart-asg-weights')?.getContext('2d');
+      if (!ctx) return;
+      const barBg = weights.map((w) => (w.isSubmitted ? 'rgba(156, 163, 175, 0.6)' : 'rgba(59, 130, 246, 0.7)'));
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: weights.map((w) => w.name),
+          datasets: [
+            {
+              label: '% of Unit Grade',
+              data: weights.map((w) => parseFloat(w.pct.toFixed(1))),
+              backgroundColor: barBg,
+              borderColor: barBg.map((c) => c.replace('0.7', '1').replace('0.6', '1')),
+              borderWidth: 1,
+            },
+          ],
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: { beginAtZero: true, max: 100, ticks: { callback: (v) => `${v}%` } },
+          },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => {
+                  const w = weights[ctx.dataIndex];
+                  return ` ${Number(ctx.raw).toFixed(1)}% of unit${w?.isSubmitted ? ' (submitted/ungraded)' : ''}`;
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+
+    if (allAnalyticsUnits.length > 0) renderAsgWeightChart(allAnalyticsUnits[0].id);
+    document.getElementById('asg-unit-filter')?.addEventListener('change', (e) => {
+      renderAsgWeightChart(e.target.value);
     });
 
-    // 2. Category Radar Chart
-    const ctxCat = document.getElementById('chart-categories').getContext('2d');
-    new Chart(ctxCat, {
-      type: 'radar',
-      data: {
-        labels: ['Knowledge', 'Thinking', 'Communication', 'Application'],
-        datasets: [
-          {
-            label: 'Class Average %',
-            data: [stats.catAverages.k, stats.catAverages.t, stats.catAverages.c, stats.catAverages.a],
-            backgroundColor: 'rgba(59, 130, 246, 0.2)',
-            borderColor: 'rgba(59, 130, 246, 1)',
-            pointBackgroundColor: 'rgba(59, 130, 246, 1)',
-            borderWidth: 2,
+    // 5. Assignment Performance Bar (with unit + student filters)
+    function renderPerfChart(unitId, studentFilter) {
+      const wrap = document.getElementById('chart-asg-perf-wrap');
+      if (!wrap) return;
+      const unit = classData.units[unitId];
+      if (!unit) return;
+      const perfData = computeAsgPerformance(unit, studentFilter);
+      wrap.innerHTML = '<canvas id="chart-asg-perf"></canvas>';
+      if (perfData.length === 0) {
+        wrap.innerHTML = '<p class="text-xs text-gray-400 text-center pt-10">No graded assignments in this unit.</p>';
+        return;
+      }
+      const ctx = document.getElementById('chart-asg-perf')?.getContext('2d');
+      if (!ctx) return;
+      const perfLabel =
+        studentFilter && studentFilter !== '__class__'
+          ? (() => {
+              const s = classData.students[studentFilter];
+              return s ? `${s.firstName} ${s.lastName}` : 'Student';
+            })()
+          : 'Class Avg %';
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: perfData.map((d) => d.name),
+          datasets: [
+            {
+              label: perfLabel,
+              data: perfData.map((d) => (d.avg != null ? parseFloat(d.avg.toFixed(1)) : null)),
+              backgroundColor: perfData.map((d) => {
+                if (d.avg === null) return 'rgba(209, 213, 219, 0.5)';
+                if (d.avg >= 80) return 'rgba(34, 197, 94, 0.7)';
+                if (d.avg >= 70) return 'rgba(59, 130, 246, 0.7)';
+                if (d.avg >= 60) return 'rgba(234, 179, 8, 0.7)';
+                if (d.avg >= 50) return 'rgba(249, 115, 22, 0.7)';
+                return 'rgba(239, 68, 68, 0.7)';
+              }),
+              borderWidth: 1,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: { beginAtZero: true, max: 100, ticks: { callback: (v) => `${v}%` } },
           },
-        ],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-          r: {
-            angleLines: { display: true },
-            suggestedMin: 50,
-            suggestedMax: 100,
+          plugins: {
+            legend: { display: true },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => (ctx.raw != null ? ` ${Number(ctx.raw).toFixed(1)}%` : ' No data'),
+              },
+            },
           },
         },
-      },
-    });
+      });
+    }
+
+    const perfUnitFilter = document.getElementById('perf-unit-filter');
+    const perfStudentFilter = document.getElementById('perf-student-filter');
+    if (allAnalyticsUnits.length > 0) {
+      renderPerfChart(allAnalyticsUnits[0].id, '__class__');
+    }
+    const updatePerfChart = () => {
+      renderPerfChart(perfUnitFilter?.value || allAnalyticsUnits[0]?.id, perfStudentFilter?.value || '__class__');
+    };
+    perfUnitFilter?.addEventListener('change', updatePerfChart);
+    perfStudentFilter?.addEventListener('change', updatePerfChart);
   }, 100);
 }
