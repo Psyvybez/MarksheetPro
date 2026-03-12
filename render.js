@@ -1446,11 +1446,15 @@ export function renderAnalyticsModal() {
   });
 
   setTimeout(() => {
-    const destroyChartByCanvasId = (canvasId) => {
-      const canvas = document.getElementById(canvasId);
-      if (!canvas || typeof Chart?.getChart !== 'function') return;
-      const existing = Chart.getChart(canvas);
-      if (existing) existing.destroy();
+    const chartInstances = {};
+    const rebuildChart = (key, ctx, config) => {
+      if (!ctx) return null;
+      if (chartInstances[key]) {
+        chartInstances[key].destroy();
+      }
+      const instance = new Chart(ctx, config);
+      chartInstances[key] = instance;
+      return instance;
     };
 
     const syncFilterOptions = () => {
@@ -1479,10 +1483,9 @@ export function renderAnalyticsModal() {
       const { stats, termUnits } = getAnalyticsContext();
       if (!stats) return;
 
-      destroyChartByCanvasId('chart-distribution');
       const ctxDist = document.getElementById('chart-distribution')?.getContext('2d');
       if (ctxDist) {
-        new Chart(ctxDist, {
+        rebuildChart('distribution', ctxDist, {
           type: 'bar',
           data: {
             labels: Object.keys(stats.distribution),
@@ -1517,10 +1520,9 @@ export function renderAnalyticsModal() {
         });
       }
 
-      destroyChartByCanvasId('chart-categories');
       const ctxCat = document.getElementById('chart-categories')?.getContext('2d');
       if (ctxCat) {
-        new Chart(ctxCat, {
+        rebuildChart('categories', ctxCat, {
           type: 'radar',
           data: {
             labels: ['Knowledge', 'Thinking', 'Communication', 'Application'],
@@ -1563,7 +1565,7 @@ export function renderAnalyticsModal() {
       ];
       const ctxUw = document.getElementById('chart-unit-weights')?.getContext('2d');
       if (!ctxUw) return;
-      new Chart(ctxUw, {
+      rebuildChart('unitWeights', ctxUw, {
         type: 'doughnut',
         data: {
           labels: termUnits.map((u) => (u.title ? `Unit ${u.order}: ${u.title}` : `Unit ${u.order}`)),
@@ -1620,7 +1622,7 @@ export function renderAnalyticsModal() {
       const ctx = document.getElementById('chart-asg-weights')?.getContext('2d');
       if (!ctx) return;
       const barBg = weights.map((w) => (w.isSubmitted ? 'rgba(156, 163, 175, 0.6)' : 'rgba(59, 130, 246, 0.7)'));
-      new Chart(ctx, {
+      rebuildChart('assignmentWeights', ctx, {
         type: 'bar',
         data: {
           labels: weights.map((w) => w.name),
@@ -1684,7 +1686,7 @@ export function renderAnalyticsModal() {
             })()
           : 'Class Avg %';
 
-      new Chart(ctx, {
+      rebuildChart('assignmentPerformance', ctx, {
         type: 'bar',
         data: {
           labels: perfData.map((d) => d.name),
@@ -1733,11 +1735,7 @@ export function renderAnalyticsModal() {
     perfUnitFilter?.addEventListener('change', updatePerfChart);
     perfStudentFilter?.addEventListener('change', updatePerfChart);
 
-    const refreshIntervalId = setInterval(() => {
-      if (!document.getElementById('custom-modal')) {
-        clearInterval(refreshIntervalId);
-        return;
-      }
+    const refreshAllAnalyticsCharts = () => {
       syncFilterOptions();
       renderTopCharts();
       renderAsgWeightChart(document.getElementById('asg-unit-filter')?.value);
@@ -1745,6 +1743,30 @@ export function renderAnalyticsModal() {
         document.getElementById('perf-unit-filter')?.value,
         document.getElementById('perf-student-filter')?.value || '__class__'
       );
+    };
+
+    const cleanupRefreshHandlers = () => {
+      Object.values(chartInstances).forEach((chart) => chart?.destroy?.());
+      clearInterval(refreshIntervalId);
+      document.removeEventListener('marksheet:data-changed', handleDataChanged);
+    };
+
+    const handleDataChanged = () => {
+      if (!document.getElementById('custom-modal')) {
+        cleanupRefreshHandlers();
+        return;
+      }
+      refreshAllAnalyticsCharts();
+    };
+
+    document.addEventListener('marksheet:data-changed', handleDataChanged);
+
+    const refreshIntervalId = setInterval(() => {
+      if (!document.getElementById('custom-modal')) {
+        cleanupRefreshHandlers();
+        return;
+      }
+      refreshAllAnalyticsCharts();
     }, 1200);
   }, 100);
 }

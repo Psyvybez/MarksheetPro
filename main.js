@@ -252,6 +252,7 @@ export function triggerAutoSave() {
   if (appState.gradebook_data) {
     appState.gradebook_data.lastModified = new Date().toISOString();
   }
+  document.dispatchEvent(new CustomEvent('marksheet:data-changed'));
   if (currentUser) {
     localStorage.setItem(`marksheetProData-${currentUser.id}`, JSON.stringify(appState));
     updateSaveStatus('Saved locally', 'pending');
