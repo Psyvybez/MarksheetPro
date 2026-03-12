@@ -5,6 +5,106 @@ import { renderGradebook, updateUIFromState } from './render.js';
 import { calculateStudentAverages } from './calculations.js';
 // --- Class & Semester Actions ---
 
+function getAssignmentFactorForUnit(unit, classData) {
+  const catWeights = classData.categoryWeights || { k: 25, t: 25, c: 25, a: 25 };
+  const assignments = Object.values(unit.assignments || {});
+
+  return assignments.reduce((sum, asg) => {
+    const asgWeight = parseFloat(asg.weight) || 1;
+    if (unit.isFinal) return sum + asgWeight;
+
+    const categoryFactor = ['k', 't', 'c', 'a'].reduce((catSum, cat) => {
+      const hasCategory = (parseFloat(asg.categoryTotals?.[cat]) || 0) > 0;
+      if (!hasCategory) return catSum;
+      return catSum + (parseFloat(catWeights[cat]) || 0) / 100;
+    }, 0);
+
+    return sum + asgWeight * categoryFactor;
+  }, 0);
+}
+
+function normalizeWeightsToTarget(units, target = 100) {
+  if (!units.length) return;
+  const total = units.reduce((sum, unit) => sum + (parseFloat(unit.weight) || 0), 0);
+
+  if (total <= 0) {
+    const even = target / units.length;
+    units.forEach((unit, idx) => {
+      unit.weight = idx === units.length - 1 ? target - even * (units.length - 1) : even;
+    });
+    return;
+  }
+
+  let allocated = 0;
+  units.forEach((unit, idx) => {
+    if (idx === units.length - 1) {
+      unit.weight = Math.max(0, target - allocated);
+      return;
+    }
+    const nextWeight = (parseFloat(unit.weight) / total) * target;
+    unit.weight = nextWeight;
+    allocated += nextWeight;
+  });
+}
+
+function applyAutoUnitWeights(classData) {
+  if (!classData?.units) return;
+
+  const termUnits = Object.values(classData.units)
+    .filter((u) => !u.isFinal)
+    .sort((a, b) => a.order - b.order);
+  if (!termUnits.length) return;
+
+  classData.unitWeightOverrides = classData.unitWeightOverrides || {};
+
+  Object.keys(classData.unitWeightOverrides).forEach((unitId) => {
+    if (!classData.units[unitId] || classData.units[unitId].isFinal) {
+      delete classData.unitWeightOverrides[unitId];
+    }
+  });
+
+  const lockedUnits = termUnits.filter((unit) => Boolean(classData.unitWeightOverrides[unit.id]));
+  const unlockedUnits = termUnits.filter((unit) => !classData.unitWeightOverrides[unit.id]);
+  const lockedTotal = lockedUnits.reduce((sum, unit) => sum + (parseFloat(unit.weight) || 0), 0);
+  const remaining = Math.max(0, 100 - lockedTotal);
+
+  if (!unlockedUnits.length) {
+    normalizeWeightsToTarget(termUnits, 100);
+    return;
+  }
+
+  const weightedFactors = unlockedUnits.map((unit) => ({
+    unit,
+    factor: getAssignmentFactorForUnit(unit, classData),
+  }));
+  const factorTotal = weightedFactors.reduce((sum, entry) => sum + entry.factor, 0);
+
+  if (factorTotal <= 0) {
+    const even = remaining / unlockedUnits.length;
+    let allocated = 0;
+    unlockedUnits.forEach((unit, idx) => {
+      if (idx === unlockedUnits.length - 1) {
+        unit.weight = Math.max(0, remaining - allocated);
+      } else {
+        unit.weight = even;
+        allocated += even;
+      }
+    });
+    return;
+  }
+
+  let allocated = 0;
+  weightedFactors.forEach(({ unit, factor }, idx) => {
+    if (idx === weightedFactors.length - 1) {
+      unit.weight = Math.max(0, remaining - allocated);
+      return;
+    }
+    const nextWeight = (factor / factorTotal) * remaining;
+    unit.weight = nextWeight;
+    allocated += nextWeight;
+  });
+}
+
 export function switchSemester(semester) {
   const appState = getAppState();
   if (!appState.gradebook_data) return;
@@ -300,6 +400,15 @@ export function editUnits() {
   const classData = getActiveClassData();
   if (!classData) return;
 
+  const workingUnits = JSON.parse(JSON.stringify(classData.units || {}));
+  const workingState = {
+    ...classData,
+    units: workingUnits,
+    unitWeightOverrides: { ...(classData.unitWeightOverrides || {}) },
+  };
+  applyAutoUnitWeights(workingState);
+  const unitWeightOverrides = { ...workingState.unitWeightOverrides };
+
   let draggedItem = null;
   let dragArmedUnitItem = null;
 
@@ -320,6 +429,7 @@ export function editUnits() {
                 <input type="text" data-field="title" class="p-1 border rounded-md flex-grow" value="${unit.title || ''}" placeholder="Custom Title (e.g., Algebra)">
                 <input type="text" data-field="subtitle" class="p-1 border rounded-md flex-grow" value="${unit.subtitle || ''}" placeholder="Subtitle (optional)">
                 <input type="number" step="0.01" data-field="weight" class="p-1 border rounded-md w-24 text-right" value="${parseFloat(unit.weight).toFixed(2)}">
+                <span class="text-[10px] ${unitWeightOverrides[unit.id] ? 'text-amber-600' : 'text-gray-400'}">${unitWeightOverrides[unit.id] ? 'Manual' : 'Auto'}</span>
                 <span class="font-medium">%</span>
                 <button class="delete-unit-btn delete-btn" data-unit-id="${unit.id}">&times;</button>
             </div>
@@ -403,8 +513,13 @@ export function editUnits() {
   showModal({
     title: 'Edit Units & Weights',
     modalWidth: 'max-w-4xl',
-    content: renderUnitsEditor(classData.units, classData.hasFinal, classData.finalWeight),
-    footerContent: `<button id="add-unit-btn" class="bg-blue-500 text-white font-bold py-2 px-4 rounded-lg text-sm">+ Add Unit</button>`,
+    content: renderUnitsEditor(workingState.units, classData.hasFinal, classData.finalWeight),
+    footerContent: `
+      <div class="flex flex-wrap gap-2">
+        <button id="reset-unit-weights-auto-btn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg text-sm">Reset All to Auto</button>
+        <button id="add-unit-btn" class="bg-blue-500 text-white font-bold py-2 px-4 rounded-lg text-sm">+ Add Unit</button>
+      </div>
+    `,
     confirmText: 'Save Changes',
     confirmClasses: 'bg-primary hover:bg-primary-dark',
     onConfirm: () => {
@@ -435,7 +550,8 @@ export function editUnits() {
       const unitsChanged =
         existingUnitsState !== nextUnitsState ||
         Boolean(classData.hasFinal) !== Boolean(newState.hasFinal) ||
-        Number(classData.finalWeight || 0) !== Number(newState.finalWeight || 0);
+        Number(classData.finalWeight || 0) !== Number(newState.finalWeight || 0) ||
+        JSON.stringify(classData.unitWeightOverrides || {}) !== JSON.stringify(unitWeightOverrides || {});
 
       if (!unitsChanged) return true;
 
@@ -443,6 +559,7 @@ export function editUnits() {
       classData.units = newState.units;
       classData.hasFinal = newState.hasFinal;
       classData.finalWeight = newState.finalWeight;
+      classData.unitWeightOverrides = { ...unitWeightOverrides };
 
       updateUIFromState();
       triggerAutoSave();
@@ -459,16 +576,77 @@ export function editUnits() {
     modalContent.innerHTML = renderUnitsEditor(tempUnits, hasFinal, finalWeight);
   };
 
+  const updateTermWeightTotalDisplay = (modalState) => {
+    const display = modal.querySelector('#term-weight-total-display');
+    if (!display) return;
+    const termUnits = Object.values(modalState.units).filter((u) => !u.isFinal);
+    const totalWeight = termUnits.reduce((sum, unit) => sum + (parseFloat(unit.weight) || 0), 0);
+    display.textContent = `Term Weight Total: ${totalWeight.toFixed(2)}%`;
+    display.className = `text-right font-bold mb-4 ${Math.abs(totalWeight - 100) < 0.1 ? 'text-green-600' : 'text-red-600'}`;
+  };
+
+  const rebalanceWeightsAfterManualInput = (modalState, changedUnitId, changedWeight) => {
+    const termUnits = Object.values(modalState.units).filter((u) => !u.isFinal);
+    const changedUnit = termUnits.find((u) => u.id === changedUnitId);
+    if (!changedUnit) return;
+
+    const clampedChangedWeight = Math.max(0, Math.min(100, changedWeight));
+    changedUnit.weight = clampedChangedWeight;
+
+    const otherUnits = termUnits.filter((u) => u.id !== changedUnitId);
+    if (!otherUnits.length) return;
+
+    const remaining = Math.max(0, 100 - clampedChangedWeight);
+    const otherTotal = otherUnits.reduce((sum, u) => sum + (parseFloat(u.weight) || 0), 0);
+
+    if (otherTotal <= 0) {
+      const even = remaining / otherUnits.length;
+      let allocated = 0;
+      otherUnits.forEach((unit, idx) => {
+        if (idx === otherUnits.length - 1) {
+          unit.weight = Math.max(0, remaining - allocated);
+        } else {
+          unit.weight = even;
+          allocated += even;
+        }
+      });
+      return;
+    }
+
+    let allocated = 0;
+    otherUnits.forEach((unit, idx) => {
+      if (idx === otherUnits.length - 1) {
+        unit.weight = Math.max(0, remaining - allocated);
+      } else {
+        const nextWeight = ((parseFloat(unit.weight) || 0) / otherTotal) * remaining;
+        unit.weight = nextWeight;
+        allocated += nextWeight;
+      }
+    });
+  };
+
+  const syncWeightInputsFromState = (modalState) => {
+    const rows = modal.querySelectorAll('#unit-list .unit-item');
+    rows.forEach((row) => {
+      const unitId = row.dataset.unitId;
+      const unit = modalState.units[unitId];
+      const input = row.querySelector('input[data-field="weight"]');
+      if (input && unit) input.value = (parseFloat(unit.weight) || 0).toFixed(2);
+    });
+  };
+
   modal.addEventListener('input', (e) => {
     if (e.target.matches('.unit-item input[data-field="weight"]')) {
-      const display = modal.querySelector('#term-weight-total-display');
       const state = getStateFromModalDOM(modal);
-      const termUnits = Object.values(state.units).filter((u) => !u.isFinal);
-      const totalWeight = termUnits.reduce((sum, unit) => sum + unit.weight, 0);
-      if (display) {
-        display.textContent = `Term Weight Total: ${totalWeight.toFixed(2)}%`;
-        display.className = `text-right font-bold mb-4 ${Math.abs(totalWeight - 100) < 0.1 ? 'text-green-600' : 'text-red-600'}`;
-      }
+      const unitItem = e.target.closest('.unit-item');
+      const changedUnitId = unitItem?.dataset.unitId;
+      const changedWeight = parseFloat(e.target.value) || 0;
+      if (!changedUnitId) return;
+
+      unitWeightOverrides[changedUnitId] = true;
+      rebalanceWeightsAfterManualInput(state, changedUnitId, changedWeight);
+      syncWeightInputsFromState(state);
+      updateTermWeightTotalDisplay(state);
     }
   });
 
@@ -480,21 +658,26 @@ export function editUnits() {
   });
 
   modal.addEventListener('click', (e) => {
-    if (e.target.id === 'add-unit-btn') {
+    if (e.target.id === 'reset-unit-weights-auto-btn') {
+      const state = getStateFromModalDOM(modal);
+      Object.values(state.units)
+        .filter((u) => !u.isFinal)
+        .forEach((unit) => {
+          unitWeightOverrides[unit.id] = false;
+        });
+
+      const tempClassData = {
+        ...classData,
+        units: state.units,
+        unitWeightOverrides,
+      };
+      applyAutoUnitWeights(tempClassData);
+
+      reRenderModalContent(state.units, state.hasFinal, state.finalWeight);
+    } else if (e.target.id === 'add-unit-btn') {
       const state = getStateFromModalDOM(modal);
       const termUnits = Object.values(state.units).filter((u) => !u.isFinal);
-
-      // Logic: Add new unit -> Take evenly from others
       const count = termUnits.length;
-      const newUnitWeight = 100 / (count + 1); // e.g. 100/4 = 25
-      const weightToSubtractPerUnit = newUnitWeight / count; // e.g. 25/3 = 8.333
-
-      // Update existing weights
-      Object.keys(state.units).forEach((key) => {
-        if (!state.units[key].isFinal) {
-          state.units[key].weight = Math.max(0, state.units[key].weight - weightToSubtractPerUnit);
-        }
-      });
 
       // Add new unit
       const newId = `unit_${Date.now()}`;
@@ -503,34 +686,35 @@ export function editUnits() {
         order: count + 1,
         title: ``,
         subtitle: '',
-        weight: newUnitWeight,
+        weight: 0,
         assignments: {},
       };
+
+      unitWeightOverrides[newId] = false;
+      const tempClassData = {
+        ...classData,
+        units: state.units,
+        unitWeightOverrides,
+      };
+      applyAutoUnitWeights(tempClassData);
 
       reRenderModalContent(state.units, state.hasFinal, state.finalWeight);
     } else if (e.target.classList.contains('delete-unit-btn')) {
       const unitIdToDelete = e.target.dataset.unitId;
       const state = getStateFromModalDOM(modal);
-      const termUnits = Object.values(state.units).filter((u) => !u.isFinal);
+      if (!state.units[unitIdToDelete]) return;
 
-      // Logic: Delete unit -> Spread weight evenly to others
-      const unitToDelete = state.units[unitIdToDelete];
-      if (unitToDelete) {
-        const weightToDistribute = unitToDelete.weight;
-        const remainingCount = termUnits.length - 1;
+      delete state.units[unitIdToDelete];
+      delete unitWeightOverrides[unitIdToDelete];
 
-        if (remainingCount > 0) {
-          const weightToAddPerUnit = weightToDistribute / remainingCount;
-          Object.keys(state.units).forEach((key) => {
-            if (key !== unitIdToDelete && !state.units[key].isFinal) {
-              state.units[key].weight += weightToAddPerUnit;
-            }
-          });
-        }
+      const tempClassData = {
+        ...classData,
+        units: state.units,
+        unitWeightOverrides,
+      };
+      applyAutoUnitWeights(tempClassData);
 
-        delete state.units[unitIdToDelete];
-        reRenderModalContent(state.units, state.hasFinal, state.finalWeight);
-      }
+      reRenderModalContent(state.units, state.hasFinal, state.finalWeight);
     }
   });
 
@@ -749,6 +933,7 @@ export function manageAssignments() {
 
       captureHistoryPoint();
       classData.units[activeUnitId].assignments = nextAssignments;
+      applyAutoUnitWeights(classData);
       updateUIFromState();
       triggerAutoSave();
     },

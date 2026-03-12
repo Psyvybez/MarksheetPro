@@ -12,8 +12,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 const UPDATES_FEED = [
   {
-    id: '2026-03-workflow-safety',
-    title: 'March 2026 - Workflow & Safety Update',
+    id: '2026-03-major-platform-update',
+    title: 'March 2026 - Major Platform Update',
     tag: 'Latest',
     items: [
       'Added Undo/Redo controls with keyboard shortcuts (<strong>Ctrl/Cmd + Z</strong>, <strong>Ctrl/Cmd + Y</strong>).',
@@ -21,14 +21,24 @@ const UPDATES_FEED = [
       'Added class status badge (Active/Archived) beside the class title.',
       'Archived classes can now be unarchived directly from the class toolbar.',
       'Added protected class deletion with typed confirmation (<strong>DELETE</strong>).',
+      'Added a <strong>What\'s New</strong> first-login update notification and a <strong>New</strong> badge on Instructions until updates are viewed.',
+      'PDF exports were redesigned with a professional layout: branded headers, metadata lines, cleaner tables, and page footers.',
+      'Added school logo upload (with preview and remove) in Account settings for branded PDF exports.',
+      'Added school logo validation for file type (PNG/JPG/WEBP) and size limit (5MB).',
+      'Unit headings in reports now include full context (for example: <strong>Unit 1: Title - Subtitle</strong>).',
+      'Gradebook now shows each assignment\'s approximate contribution to its unit percentage.',
+      'Analytics now includes unit-weight and assignment-weight percentage charts with filter controls.',
+      'Unit weights can now auto-calculate from assignments by default, with manual override support.',
+      'Manual unit-weight edits now rebalance other units proportionally, and <strong>Reset All to Auto</strong> restores assignment-based distribution.',
     ],
   },
 ];
 
 const UPDATES_IMPACT_ITEMS = [
-  'Safer editing with easy recovery from mistakes.',
-  'Cleaner class management with archive/unarchive and deletion guards.',
-  'More transparency about new features through this updates section.',
+  'Safer daily workflows with stronger recovery, deletion protections, and clearer class state controls.',
+  'Better reporting quality with professional exports and school branding support.',
+  'More transparent grading structure through assignment/unit percentage visibility and analytics filters.',
+  'Faster setup and maintenance with assignment-based auto unit weighting plus manual override tools.',
 ];
 
 export function getLatestUpdateMeta() {
