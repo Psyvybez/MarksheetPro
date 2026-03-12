@@ -751,6 +751,37 @@ function setupEventListeners() {
     const modal = document.getElementById('custom-modal');
     const hasModifier = e.ctrlKey || e.metaKey;
     const key = e.key.toLowerCase();
+    const textTarget = e.target;
+
+    const isTextBoxForNavigation = (el) => {
+      if (!(el instanceof HTMLElement)) return false;
+      if (el.classList.contains('grade-input')) return false;
+      if (el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA') return false;
+      if (el.tagName === 'TEXTAREA') return true;
+      const type = String(el.type || '').toLowerCase();
+      return ['text', 'number', 'search', 'email', 'password', 'url', 'tel'].includes(type);
+    };
+
+    const getNavigableTextboxes = (activeEl) => {
+      const scope = activeEl.closest('#custom-modal') || activeEl.closest('#content-wrapper') || document;
+      return Array.from(scope.querySelectorAll('input, textarea')).filter((inputEl) => {
+        if (!isTextBoxForNavigation(inputEl)) return false;
+        if (inputEl.disabled || inputEl.readOnly) return false;
+        return inputEl.getClientRects().length > 0;
+      });
+    };
+
+    const moveTextboxFocus = (currentInput, direction) => {
+      const allInputs = getNavigableTextboxes(currentInput);
+      const currentIndex = allInputs.indexOf(currentInput);
+      if (currentIndex < 0) return;
+      const nextIndex = currentIndex + direction;
+      if (nextIndex < 0 || nextIndex >= allInputs.length) return;
+      allInputs[nextIndex].focus();
+      if (typeof allInputs[nextIndex].select === 'function') {
+        allInputs[nextIndex].select();
+      }
+    };
 
     if (!modal && hasModifier && key === 'z' && !e.shiftKey) {
       e.preventDefault();
@@ -764,6 +795,46 @@ function setupEventListeners() {
       return;
     }
 
+    if (isTextBoxForNavigation(textTarget)) {
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        moveTextboxFocus(textTarget, -1);
+        return;
+      }
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        moveTextboxFocus(textTarget, 1);
+        return;
+      }
+
+      const supportsSelection =
+        typeof textTarget.selectionStart === 'number' && typeof textTarget.selectionEnd === 'number';
+      const valueLength = typeof textTarget.value === 'string' ? textTarget.value.length : 0;
+
+      if (
+        e.key === 'ArrowLeft' &&
+        supportsSelection &&
+        textTarget.selectionStart === 0 &&
+        textTarget.selectionEnd === 0
+      ) {
+        e.preventDefault();
+        moveTextboxFocus(textTarget, -1);
+        return;
+      }
+
+      if (
+        e.key === 'ArrowRight' &&
+        supportsSelection &&
+        textTarget.selectionStart === valueLength &&
+        textTarget.selectionEnd === valueLength
+      ) {
+        e.preventDefault();
+        moveTextboxFocus(textTarget, 1);
+        return;
+      }
+    }
+
     if (modal && document.body.classList.contains('modal-open') && e.key === 'Enter') {
       const target = e.target;
       if ((target.tagName === 'INPUT' || target.tagName === 'SELECT') && modal.contains(target)) {
@@ -772,6 +843,48 @@ function setupEventListeners() {
       }
     }
   });
+
+  let pendingFirstClickSelectInput = null;
+  const isTextBoxForFirstSelect = (el) => {
+    if (!(el instanceof HTMLElement)) return false;
+    if (el.classList.contains('grade-input')) return false;
+    if (el.tagName === 'TEXTAREA') return true;
+    if (el.tagName !== 'INPUT') return false;
+    const type = String(el.type || '').toLowerCase();
+    return ['text', 'number', 'search', 'email', 'password', 'url', 'tel'].includes(type);
+  };
+
+  document.addEventListener(
+    'mousedown',
+    (e) => {
+      const target = e.target?.closest('input, textarea');
+      if (!isTextBoxForFirstSelect(target)) {
+        pendingFirstClickSelectInput = null;
+        return;
+      }
+
+      // Only auto-select when entering a textbox from outside it.
+      pendingFirstClickSelectInput = document.activeElement === target ? null : target;
+    },
+    true
+  );
+
+  document.addEventListener(
+    'focusin',
+    () => {
+      const activeEl = document.activeElement;
+      if (!isTextBoxForFirstSelect(activeEl)) return;
+      if (pendingFirstClickSelectInput !== activeEl) return;
+
+      setTimeout(() => {
+        if (document.activeElement === activeEl && typeof activeEl.select === 'function') {
+          activeEl.select();
+        }
+      }, 0);
+      pendingFirstClickSelectInput = null;
+    },
+    true
+  );
 
   if (contentWrapper) {
     contentWrapper.addEventListener('click', (e) => {

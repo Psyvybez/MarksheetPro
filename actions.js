@@ -625,13 +625,15 @@ export function editUnits() {
     });
   };
 
-  const syncWeightInputsFromState = (modalState) => {
+  const syncWeightInputsFromState = (modalState, skipUnitId = null) => {
     const rows = modal.querySelectorAll('#unit-list .unit-item');
     rows.forEach((row) => {
       const unitId = row.dataset.unitId;
       const unit = modalState.units[unitId];
       const input = row.querySelector('input[data-field="weight"]');
-      if (input && unit) input.value = (parseFloat(unit.weight) || 0).toFixed(2);
+      if (!input || !unit) return;
+      if (skipUnitId && unitId === skipUnitId) return;
+      input.value = (parseFloat(unit.weight) || 0).toFixed(2);
     });
   };
 
@@ -645,7 +647,7 @@ export function editUnits() {
 
       unitWeightOverrides[changedUnitId] = true;
       rebalanceWeightsAfterManualInput(state, changedUnitId, changedWeight);
-      syncWeightInputsFromState(state);
+      syncWeightInputsFromState(state, changedUnitId);
       updateTermWeightTotalDisplay(state);
     }
   });
