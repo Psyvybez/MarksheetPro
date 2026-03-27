@@ -405,6 +405,10 @@ ul {
   margin-bottom: 1rem;
 }
 
+.library-manual-add-btn {
+  align-self: flex-start;
+}
+
 .search-input {
   width: 100%;
   padding: 0.625rem 0.875rem;
@@ -698,6 +702,35 @@ ul {
   font-weight: 700;
   margin-bottom: 1rem;
   padding-right: 2rem;
+}
+
+.manual-form {
+  display: flex;
+  flex-direction: column;
+}
+
+.manual-form-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.5rem;
+}
+
+.manual-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  margin-top: 0.25rem;
+}
+
+.manual-textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+.manual-date-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0.5rem;
 }
 
 /* Book action modal */

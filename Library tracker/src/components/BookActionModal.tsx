@@ -71,6 +71,19 @@ export function BookActionModal({
             {book.publisher && <p className="modal-book-publisher">{book.publisher}</p>}
             {book.datePublished && <p className="modal-book-year">{book.datePublished}</p>}
             <p className="modal-book-isbn">ISBN: {book.isbn13 || book.isbn}</p>
+            {book.category && <p className="modal-book-isbn">Category: {book.category}</p>}
+            {book.genre && <p className="modal-book-isbn">Genre: {book.genre}</p>}
+            {book.age && <p className="modal-book-isbn">Age: {book.age}</p>}
+            {book.binding && <p className="modal-book-isbn">Binding: {book.binding}</p>}
+            {book.conditionCoverBindingIntegrity && (
+              <p className="modal-book-isbn">Cover/Binding Condition: {book.conditionCoverBindingIntegrity}</p>
+            )}
+            {book.conditionPageQuality && (
+              <p className="modal-book-isbn">Page Quality Condition: {book.conditionPageQuality}</p>
+            )}
+            {book.conditionOverallAppearance && (
+              <p className="modal-book-isbn">Overall Condition: {book.conditionOverallAppearance}</p>
+            )}
           </div>
         </div>
 

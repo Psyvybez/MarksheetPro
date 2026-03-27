@@ -7,7 +7,17 @@ const API_KEY_KEY = 'lt_api_key';
 export function getBooks(): Book[] {
   try {
     const raw = localStorage.getItem(BOOKS_KEY);
-    return raw ? (JSON.parse(raw) as Book[]) : [];
+    if (!raw) return [];
+
+    const parsed = JSON.parse(raw) as Array<Book & { subjects?: string[] }>;
+    return parsed.map((book) => ({
+      ...book,
+      searchTags: Array.isArray(book.searchTags)
+        ? book.searchTags
+        : Array.isArray(book.subjects)
+          ? book.subjects
+          : [],
+    }));
   } catch {
     return [];
   }

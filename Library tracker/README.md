@@ -1,11 +1,11 @@
 # 📚 Class Library Tracker
 
-A mobile-friendly book tracker for a small classroom library. Scan ISBN barcodes with your phone camera to check books in and out, powered by the [ISBNdb](https://isbndb.com) book database.
+A mobile-friendly book tracker for a small classroom library. Scan ISBN barcodes with your phone camera to check books in and out, powered by a built-in local catalog.
 
 ## Features
 
 - **ISBN barcode scanning** — uses the phone/tablet camera (rear-facing)
-- **Automatic book lookup** — title, author, cover image, and synopsis from ISBNdb
+- **Automatic book lookup** — title and metadata from an in-app catalog (`src/services/catalog.ts`)
 - **Check-out & Check-in** — log which student has which book, with a 2-week due date
 - **Overdue alerts** — dashboard highlights books past their due date
 - **Local storage** — all data is saved in the browser (no server needed)
@@ -13,11 +13,7 @@ A mobile-friendly book tracker for a small classroom library. Scan ISBN barcodes
 
 ## Getting Started
 
-### 1. Get an ISBNdb API Key
-
-Sign up for a free account at [isbndb.com](https://isbndb.com) and copy your API key from the dashboard.
-
-### 2. Install and Run
+### 1. Install and Run
 
 ```bash
 npm install
@@ -26,17 +22,18 @@ npm run dev
 
 The app will start at `http://localhost:5173` and is also accessible from other devices on your local Wi-Fi network (the terminal will show the network URL, e.g. `http://192.168.x.x:5173`).
 
-### 3. Enter Your API Key
-
-Open the app in your browser, tap the ⚙️ icon in the top-right corner, and paste your ISBNdb API key.
-
-### 4. Scan Books
+### 2. Scan Books
 
 - Tap **Scan** (camera icon) to open the barcode scanner
 - Point the camera at the ISBN barcode on the back of a book
-- The book details will appear automatically
+- If the ISBN exists in `src/services/catalog.ts`, book details appear automatically
 - **First scan:** tap **Add to Library** to add the book
 - **Subsequent scans:** tap **Check Out** to lend it, or **Return** to check it back in
+- If a book is not in the catalog, open the **Library** tab and use **Add Manually**
+
+### 3. Add More Books to the Built-in Catalog
+
+If a scanned ISBN is not found, add it in `src/services/catalog.ts` using the same object shape as the existing entries.
 
 ## Using from a Phone
 
@@ -60,5 +57,5 @@ Camera access requires HTTPS in production. Any free static hosting provider wil
 
 - **React 18** + TypeScript + Vite
 - **@zxing/browser** — barcode scanning via Web APIs
-- **ISBNdb REST API v2** — book data
+- **Local in-app catalog** — book data (`src/services/catalog.ts`)
 - Browser `localStorage` — data persistence (no database)

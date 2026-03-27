@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import type { Book, CheckoutRecord } from '../types';
 import { getBooks, saveBooks, getCheckouts, saveCheckouts } from '../services/storage';
-import { fetchBookByIsbn } from '../services/isbndb';
+import { lookupCatalogBook } from '../services/catalog';
 
 export interface BookStatus {
   book: Book;
@@ -10,44 +10,82 @@ export interface BookStatus {
   isAvailable: boolean;
 }
 
-export function useLibrary(apiKey: string) {
+export interface ManualBookInput {
+  title: string;
+  authors: string[];
+  publisher?: string;
+  category?: string;
+  genre?: string;
+  age?: string;
+  binding?: string;
+  conditionCoverBindingIntegrity?: string;
+  conditionPageQuality?: string;
+  conditionOverallAppearance?: string;
+  isbn?: string;
+  isbn13?: string;
+  synopsis?: string;
+  searchTags?: string[];
+  datePublished?: string;
+  coverImage?: string;
+  copies?: number;
+}
+
+function normalizeIsbn(value: string): string {
+  return value.replace(/[^0-9X]/gi, '').toUpperCase();
+}
+
+export function useLibrary() {
   const [books, setBooks] = useState<Book[]>(getBooks);
   const [checkouts, setCheckouts] = useState<CheckoutRecord[]>(getCheckouts);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  /** Look up a book by ISBN (local first, then ISBNdb). Does NOT add it to the library. */
+  /** Look up a book by ISBN (local library first, then built-in catalog). */
   const lookupBook = useCallback(
     async (isbn: string): Promise<Book | null> => {
-      const norm = isbn.trim();
-      const existing = books.find((b) => b.isbn === norm || b.isbn13 === norm);
+      const normalizedInput = normalizeIsbn(isbn);
+      const existing = books.find(
+        (b) => normalizeIsbn(b.isbn) === normalizedInput || normalizeIsbn(b.isbn13) === normalizedInput
+      );
       if (existing) return existing;
 
       setLoading(true);
       setError(null);
       try {
-        const raw = await fetchBookByIsbn(norm, apiKey);
+        const raw = lookupCatalogBook(normalizedInput);
+        if (!raw) {
+          setError('Book not found in local catalog. Add it to src/services/catalog.ts to enable this ISBN.');
+          return null;
+        }
+
         return {
-          isbn: raw.isbn ?? norm,
-          isbn13: raw.isbn13 ?? norm,
+          isbn: raw.isbn || normalizedInput,
+          isbn13: raw.isbn13 || normalizedInput,
           title: raw.title,
           authors: raw.authors ?? [],
           publisher: raw.publisher ?? 'Unknown',
-          coverImage: raw.image ?? '',
+          category: raw.category ?? '',
+          genre: raw.genre ?? '',
+          age: raw.age ?? '',
+          binding: raw.binding ?? '',
+          conditionCoverBindingIntegrity: raw.conditionCoverBindingIntegrity ?? '',
+          conditionPageQuality: raw.conditionPageQuality ?? '',
+          conditionOverallAppearance: raw.conditionOverallAppearance ?? '',
+          coverImage: raw.coverImage ?? '',
           synopsis: raw.synopsis ?? '',
-          subjects: raw.subjects ?? [],
-          datePublished: raw.date_published ?? '',
+          searchTags: raw.searchTags ?? [],
+          datePublished: raw.datePublished ?? '',
           addedAt: '',
           copies: 0,
         };
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch book');
+        setError(err instanceof Error ? err.message : 'Failed to look up book in local catalog');
         return null;
       } finally {
         setLoading(false);
       }
     },
-    [books, apiKey]
+    [books]
   );
 
   /** Add a book to the library (increments copies if ISBN already exists). */
@@ -56,17 +94,30 @@ export function useLibrary(apiKey: string) {
       setLoading(true);
       setError(null);
       try {
-        const raw = await fetchBookByIsbn(isbn.trim(), apiKey);
+        const normalizedInput = normalizeIsbn(isbn);
+        const raw = lookupCatalogBook(normalizedInput);
+        if (!raw) {
+          setError('Book not found in local catalog. Add it to src/services/catalog.ts to enable this ISBN.');
+          return null;
+        }
+
         const newBook: Book = {
-          isbn: raw.isbn ?? isbn,
-          isbn13: raw.isbn13 ?? isbn,
+          isbn: raw.isbn || normalizedInput,
+          isbn13: raw.isbn13 || normalizedInput,
           title: raw.title,
           authors: raw.authors ?? [],
           publisher: raw.publisher ?? 'Unknown',
-          coverImage: raw.image ?? '',
+          category: raw.category ?? '',
+          genre: raw.genre ?? '',
+          age: raw.age ?? '',
+          binding: raw.binding ?? '',
+          conditionCoverBindingIntegrity: raw.conditionCoverBindingIntegrity ?? '',
+          conditionPageQuality: raw.conditionPageQuality ?? '',
+          conditionOverallAppearance: raw.conditionOverallAppearance ?? '',
+          coverImage: raw.coverImage ?? '',
           synopsis: raw.synopsis ?? '',
-          subjects: raw.subjects ?? [],
-          datePublished: raw.date_published ?? '',
+          searchTags: raw.searchTags ?? [],
+          datePublished: raw.datePublished ?? '',
           addedAt: new Date().toISOString(),
           copies: 1,
         };
@@ -87,14 +138,72 @@ export function useLibrary(apiKey: string) {
 
         return result;
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to add book');
+        setError(err instanceof Error ? err.message : 'Failed to add book from local catalog');
         return null;
       } finally {
         setLoading(false);
       }
     },
-    [apiKey]
+    []
   );
+
+  /** Add a custom/manual book directly from form input. */
+  const addManualBook = useCallback((input: ManualBookInput): Book | null => {
+    const title = input.title.trim();
+    if (!title) {
+      setError('Book title is required.');
+      return null;
+    }
+
+    const isbn10 = normalizeIsbn(input.isbn ?? '');
+    const isbn13 = normalizeIsbn(input.isbn13 ?? '');
+    const canonicalId = isbn13 || isbn10 || `MANUAL-${Date.now()}`;
+    const copies = Math.max(1, Math.floor(input.copies ?? 1));
+
+    const newBook: Book = {
+      isbn: isbn10 || canonicalId,
+      isbn13: isbn13 || canonicalId,
+      title,
+      authors: input.authors.filter(Boolean),
+      publisher: input.publisher?.trim() || 'Unknown',
+      category: input.category?.trim() || '',
+      genre: input.genre?.trim() || '',
+      age: input.age?.trim() || '',
+      binding: input.binding?.trim() || '',
+      conditionCoverBindingIntegrity: input.conditionCoverBindingIntegrity?.trim() || '',
+      conditionPageQuality: input.conditionPageQuality?.trim() || '',
+      conditionOverallAppearance: input.conditionOverallAppearance?.trim() || '',
+      coverImage: input.coverImage?.trim() || '',
+      synopsis: input.synopsis?.trim() || '',
+      searchTags: (input.searchTags ?? []).filter(Boolean),
+      datePublished: input.datePublished?.trim() || '',
+      addedAt: new Date().toISOString(),
+      copies,
+    };
+
+    let result = newBook;
+    setBooks((prev) => {
+      const match = prev.find(
+        (b) =>
+          normalizeIsbn(b.isbn13) === normalizeIsbn(newBook.isbn13) ||
+          normalizeIsbn(b.isbn) === normalizeIsbn(newBook.isbn)
+      );
+
+      if (match) {
+        result = { ...match, copies: match.copies + copies };
+        const updated = prev.map((b) => (b.isbn === match.isbn ? result : b));
+        saveBooks(updated);
+        return updated;
+      }
+
+      const updated = [...prev, newBook];
+      saveBooks(updated);
+      return updated;
+    });
+
+    setError(null);
+    return result;
+  }, []);
 
   /** Remove a book entirely from the library (and all its checkouts). */
   const removeBook = useCallback((isbn: string) => {
@@ -170,6 +279,7 @@ export function useLibrary(apiKey: string) {
     setError,
     lookupBook,
     addBook,
+    addManualBook,
     removeBook,
     checkoutBook,
     returnBook,

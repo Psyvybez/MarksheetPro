@@ -1,34 +1,27 @@
 import { useState, useCallback } from 'react';
 import { useLibrary } from './hooks/useLibrary';
-import { getStoredApiKey } from './services/storage';
 import { Scanner } from './components/Scanner';
 import { BookActionModal } from './components/BookActionModal';
 import { LibraryView } from './components/LibraryView';
 import { DashboardView } from './components/DashboardView';
 import { NavBar } from './components/NavBar';
-import { SettingsModal } from './components/SettingsModal';
+import { ManualBookModal } from './components/ManualBookModal';
 import type { AppView, Book } from './types';
 
 export default function App() {
-  const [apiKey, setApiKeyState] = useState(getStoredApiKey);
   const [view, setView] = useState<AppView>('dashboard');
-  const [showSettings, setShowSettings] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
+  const [showManualAdd, setShowManualAdd] = useState(false);
   const [activeBook, setActiveBook] = useState<Book | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
 
-  const library = useLibrary(apiKey);
+  const library = useLibrary();
 
   // After a successful scan: look up the book and show the action modal
   const handleScan = useCallback(
     async (isbn: string) => {
       setShowScanner(false);
       setScanError(null);
-
-      if (!apiKey) {
-        setShowSettings(true);
-        return;
-      }
 
       const book = await library.lookupBook(isbn);
       if (book) {
@@ -37,7 +30,7 @@ export default function App() {
         setScanError(library.error ?? 'Could not look up that barcode.');
       }
     },
-    [apiKey, library]
+    [library]
   );
 
   const handleNavChange = useCallback((next: AppView) => {
@@ -49,17 +42,30 @@ export default function App() {
   }, []);
 
   const handleScanFromDash = useCallback(() => {
-    if (!apiKey) {
-      setShowSettings(true);
-      return;
-    }
     setShowScanner(true);
-  }, [apiKey]);
-
-  const handleSettingsClose = useCallback(() => {
-    setApiKeyState(getStoredApiKey());
-    setShowSettings(false);
   }, []);
+
+  const handleManualAdd = useCallback(
+    (input: {
+      title: string;
+      authors: string[];
+      publisher?: string;
+      isbn?: string;
+      isbn13?: string;
+      synopsis?: string;
+      searchTags?: string[];
+      datePublished?: string;
+      coverImage?: string;
+      copies?: number;
+    }) => {
+      const added = library.addManualBook(input);
+      if (added) {
+        setShowManualAdd(false);
+        setActiveBook(added);
+      }
+    },
+    [library]
+  );
 
   const handleAddToLibrary = useCallback(async () => {
     if (!activeBook) return;
@@ -100,23 +106,7 @@ export default function App() {
       {/* Header */}
       <header className="app-header">
         <h1 className="app-title">📚 Class Library</h1>
-        <button
-          className="header-settings-btn"
-          onClick={() => setShowSettings(true)}
-          aria-label="Settings"
-          title="Settings"
-        >
-          ⚙️
-        </button>
       </header>
-
-      {/* API key warning banner */}
-      {!apiKey && (
-        <div className="api-key-banner" role="alert">
-          <span>⚠️ ISBNdb API key not set.</span>
-          <button onClick={() => setShowSettings(true)}>Add Key</button>
-        </div>
-      )}
 
       {/* Scan error banner */}
       {scanError && (
@@ -142,6 +132,7 @@ export default function App() {
             checkouts={library.checkouts}
             onBookClick={(book) => setActiveBook(book)}
             onScanClick={handleScanFromDash}
+            onManualAddClick={() => setShowManualAdd(true)}
           />
         )}
       </main>
@@ -168,8 +159,8 @@ export default function App() {
         />
       )}
 
-      {/* Settings modal */}
-      {showSettings && <SettingsModal onClose={handleSettingsClose} />}
+      {/* Manual add modal */}
+      {showManualAdd && <ManualBookModal onSave={handleManualAdd} onClose={() => setShowManualAdd(false)} />}
     </div>
   );
 }

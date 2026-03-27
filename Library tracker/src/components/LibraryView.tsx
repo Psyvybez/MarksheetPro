@@ -9,9 +9,10 @@ interface LibraryViewProps {
   checkouts: CheckoutRecord[];
   onBookClick: (book: Book) => void;
   onScanClick: () => void;
+  onManualAddClick: () => void;
 }
 
-export function LibraryView({ books, checkouts, onBookClick, onScanClick }: LibraryViewProps) {
+export function LibraryView({ books, checkouts, onBookClick, onScanClick, onManualAddClick }: LibraryViewProps) {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<FilterMode>('all');
 
@@ -33,6 +34,10 @@ export function LibraryView({ books, checkouts, onBookClick, onScanClick }: Libr
         !q ||
         book.title.toLowerCase().includes(q) ||
         book.authors.some((a) => a.toLowerCase().includes(q)) ||
+        book.category.toLowerCase().includes(q) ||
+        book.genre.toLowerCase().includes(q) ||
+        book.age.toLowerCase().includes(q) ||
+        book.binding.toLowerCase().includes(q) ||
         book.isbn.includes(q) ||
         book.isbn13.includes(q);
 
@@ -67,6 +72,9 @@ export function LibraryView({ books, checkouts, onBookClick, onScanClick }: Libr
             </button>
           ))}
         </div>
+        <button className="btn btn-secondary library-manual-add-btn" onClick={onManualAddClick}>
+          + Add Manually
+        </button>
       </div>
 
       {books.length === 0 ? (
@@ -76,6 +84,9 @@ export function LibraryView({ books, checkouts, onBookClick, onScanClick }: Libr
           <p>Scan the ISBN barcode on any book to add it to your library.</p>
           <button className="btn btn-primary" onClick={onScanClick}>
             Scan a Book
+          </button>
+          <button className="btn btn-secondary" onClick={onManualAddClick}>
+            Add Manually
           </button>
         </div>
       ) : filtered.length === 0 ? (

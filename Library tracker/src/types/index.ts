@@ -5,9 +5,16 @@ export interface Book {
   title: string;
   authors: string[];
   publisher: string;
+  category: string;
+  genre: string;
+  age: string;
+  binding: string;
+  conditionCoverBindingIntegrity: string;
+  conditionPageQuality: string;
+  conditionOverallAppearance: string;
   coverImage: string;
   synopsis: string;
-  subjects: string[];
+  searchTags: string[];
   datePublished: string;
   addedAt: string;
   copies: number;
