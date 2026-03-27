@@ -31,11 +31,7 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
             </label>
             <p className="settings-hint">
               Get a free key at{' '}
-              <a
-                href="https://isbndb.com/apidocs/v2"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
+              <a href="https://isbndb.com/apidocs/v2" target="_blank" rel="noopener noreferrer">
                 isbndb.com
               </a>
               . Required to look up book information from ISBN barcodes.
@@ -52,11 +48,7 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
             />
           </div>
           <div className="modal-actions" style={{ marginTop: '1rem' }}>
-            <button
-              type="submit"
-              className="btn btn-primary btn-full"
-              disabled={!key.trim()}
-            >
+            <button type="submit" className="btn btn-primary btn-full" disabled={!key.trim()}>
               {saved ? '✓ Saved!' : 'Save API Key'}
             </button>
           </div>

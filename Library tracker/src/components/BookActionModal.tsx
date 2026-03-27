@@ -67,15 +67,9 @@ export function BookActionModal({
           </div>
           <div className="modal-book-meta">
             <h2 className="modal-book-title">{book.title}</h2>
-            {book.authors.length > 0 && (
-              <p className="modal-book-author">{book.authors.join(', ')}</p>
-            )}
-            {book.publisher && (
-              <p className="modal-book-publisher">{book.publisher}</p>
-            )}
-            {book.datePublished && (
-              <p className="modal-book-year">{book.datePublished}</p>
-            )}
+            {book.authors.length > 0 && <p className="modal-book-author">{book.authors.join(', ')}</p>}
+            {book.publisher && <p className="modal-book-publisher">{book.publisher}</p>}
+            {book.datePublished && <p className="modal-book-year">{book.datePublished}</p>}
             <p className="modal-book-isbn">ISBN: {book.isbn13 || book.isbn}</p>
           </div>
         </div>
@@ -104,11 +98,7 @@ export function BookActionModal({
                       Due {formatDate(c.dueDate)}
                     </span>
                   </div>
-                  <button
-                    className="btn btn-return"
-                    onClick={() => onReturn(c.id)}
-                    disabled={loading}
-                  >
+                  <button className="btn btn-return" onClick={() => onReturn(c.id)} disabled={loading}>
                     Return
                   </button>
                 </li>
@@ -125,11 +115,7 @@ export function BookActionModal({
               Add to Library
             </button>
           ) : isAvailable && !showCheckoutForm ? (
-            <button
-              className="btn btn-primary btn-full"
-              onClick={() => setShowCheckoutForm(true)}
-              disabled={loading}
-            >
+            <button className="btn btn-primary btn-full" onClick={() => setShowCheckoutForm(true)} disabled={loading}>
               Check Out
             </button>
           ) : isAvailable && showCheckoutForm ? (
@@ -149,18 +135,10 @@ export function BookActionModal({
                 maxLength={100}
               />
               <div className="checkout-form-btns">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => setShowCheckoutForm(false)}
-                >
+                <button type="button" className="btn btn-secondary" onClick={() => setShowCheckoutForm(false)}>
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  disabled={!borrowerName.trim() || loading}
-                >
+                <button type="submit" className="btn btn-primary" disabled={!borrowerName.trim() || loading}>
                   Confirm Checkout
                 </button>
               </div>

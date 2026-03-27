@@ -37,7 +37,7 @@ export default function App() {
         setScanError(library.error ?? 'Could not look up that barcode.');
       }
     },
-    [apiKey, library],
+    [apiKey, library]
   );
 
   const handleNavChange = useCallback((next: AppView) => {
@@ -79,7 +79,7 @@ export default function App() {
       if (status) setActiveBook(status.book);
       else setActiveBook({ ...activeBook });
     },
-    [activeBook, library],
+    [activeBook, library]
   );
 
   const handleReturn = useCallback(
@@ -90,12 +90,10 @@ export default function App() {
         if (status) setActiveBook(status.book);
       }
     },
-    [activeBook, library],
+    [activeBook, library]
   );
 
-  const activeStatus = activeBook
-    ? library.getBookStatus(activeBook.isbn13 || activeBook.isbn)
-    : null;
+  const activeStatus = activeBook ? library.getBookStatus(activeBook.isbn13 || activeBook.isbn) : null;
 
   return (
     <div className="app">
@@ -152,9 +150,7 @@ export default function App() {
       <NavBar currentView={view} onChange={handleNavChange} />
 
       {/* Scanner overlay */}
-      {showScanner && (
-        <Scanner onScan={handleScan} onClose={() => setShowScanner(false)} />
-      )}
+      {showScanner && <Scanner onScan={handleScan} onClose={() => setShowScanner(false)} />}
 
       {/* Book action modal */}
       {activeBook && (

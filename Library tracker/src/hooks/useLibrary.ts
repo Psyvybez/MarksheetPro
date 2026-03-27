@@ -47,7 +47,7 @@ export function useLibrary(apiKey: string) {
         setLoading(false);
       }
     },
-    [books, apiKey],
+    [books, apiKey]
   );
 
   /** Add a book to the library (increments copies if ISBN already exists). */
@@ -73,14 +73,10 @@ export function useLibrary(apiKey: string) {
 
         let result = newBook;
         setBooks((prev) => {
-          const match = prev.find(
-            (b) => b.isbn13 === newBook.isbn13 || b.isbn === newBook.isbn,
-          );
+          const match = prev.find((b) => b.isbn13 === newBook.isbn13 || b.isbn === newBook.isbn);
           if (match) {
             result = { ...match, copies: match.copies + 1 };
-            const updated = prev.map((b) =>
-              b.isbn === match.isbn ? result : b,
-            );
+            const updated = prev.map((b) => (b.isbn === match.isbn ? result : b));
             saveBooks(updated);
             return updated;
           }
@@ -97,7 +93,7 @@ export function useLibrary(apiKey: string) {
         setLoading(false);
       }
     },
-    [apiKey],
+    [apiKey]
   );
 
   /** Remove a book entirely from the library (and all its checkouts). */
@@ -115,37 +111,32 @@ export function useLibrary(apiKey: string) {
   }, []);
 
   /** Check out a copy of a book to a borrower. Returns the new record. */
-  const checkoutBook = useCallback(
-    (isbn: string, bookTitle: string, borrowerName: string): CheckoutRecord => {
-      const due = new Date();
-      due.setDate(due.getDate() + 14); // 2-week loan period
+  const checkoutBook = useCallback((isbn: string, bookTitle: string, borrowerName: string): CheckoutRecord => {
+    const due = new Date();
+    due.setDate(due.getDate() + 14); // 2-week loan period
 
-      const record: CheckoutRecord = {
-        id: crypto.randomUUID(),
-        isbn,
-        bookTitle,
-        borrowerName: borrowerName.trim(),
-        checkedOutAt: new Date().toISOString(),
-        dueDate: due.toISOString(),
-      };
+    const record: CheckoutRecord = {
+      id: crypto.randomUUID(),
+      isbn,
+      bookTitle,
+      borrowerName: borrowerName.trim(),
+      checkedOutAt: new Date().toISOString(),
+      dueDate: due.toISOString(),
+    };
 
-      setCheckouts((prev) => {
-        const updated = [...prev, record];
-        saveCheckouts(updated);
-        return updated;
-      });
+    setCheckouts((prev) => {
+      const updated = [...prev, record];
+      saveCheckouts(updated);
+      return updated;
+    });
 
-      return record;
-    },
-    [],
-  );
+    return record;
+  }, []);
 
   /** Return a checked-out book by checkout record ID. */
   const returnBook = useCallback((checkoutId: string) => {
     setCheckouts((prev) => {
-      const updated = prev.map((c) =>
-        c.id === checkoutId ? { ...c, returnedAt: new Date().toISOString() } : c,
-      );
+      const updated = prev.map((c) => (c.id === checkoutId ? { ...c, returnedAt: new Date().toISOString() } : c));
       saveCheckouts(updated);
       return updated;
     });
@@ -158,7 +149,7 @@ export function useLibrary(apiKey: string) {
       if (!book) return null;
 
       const activeCheckouts = checkouts.filter(
-        (c) => (c.isbn === book.isbn || c.isbn === book.isbn13) && !c.returnedAt,
+        (c) => (c.isbn === book.isbn || c.isbn === book.isbn13) && !c.returnedAt
       );
 
       return {
@@ -168,7 +159,7 @@ export function useLibrary(apiKey: string) {
         isAvailable: activeCheckouts.length < book.copies,
       };
     },
-    [books, checkouts],
+    [books, checkouts]
   );
 
   return {

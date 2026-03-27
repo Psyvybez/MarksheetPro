@@ -16,10 +16,7 @@ export interface IsbnDbBookRaw {
  * Fetch a book from ISBNdb by its ISBN-10 or ISBN-13.
  * Throws an error with a descriptive message on failure.
  */
-export async function fetchBookByIsbn(
-  isbn: string,
-  apiKey: string,
-): Promise<IsbnDbBookRaw> {
+export async function fetchBookByIsbn(isbn: string, apiKey: string): Promise<IsbnDbBookRaw> {
   // Basic sanitization — only allow digits and hyphens
   const sanitized = isbn.replace(/[^0-9X-]/gi, '');
 

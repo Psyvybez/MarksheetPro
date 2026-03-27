@@ -17,9 +17,7 @@ export function LibraryView({ books, checkouts, onBookClick, onScanClick }: Libr
 
   const bookStatuses = useMemo(() => {
     return books.map((book) => {
-      const active = checkouts.filter(
-        (c) => (c.isbn === book.isbn || c.isbn === book.isbn13) && !c.returnedAt,
-      );
+      const active = checkouts.filter((c) => (c.isbn === book.isbn || c.isbn === book.isbn13) && !c.returnedAt);
       return {
         book,
         activeCheckouts: active,

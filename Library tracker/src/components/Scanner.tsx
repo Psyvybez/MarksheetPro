@@ -55,7 +55,7 @@ export function Scanner({ onScan, onClose }: ScannerProps) {
               // NotFoundException just means "no barcode in frame yet" — normal
               console.debug('Scanner error:', err);
             }
-          },
+          }
         );
 
         if (!cancelled) {
@@ -66,8 +66,7 @@ export function Scanner({ onScan, onClose }: ScannerProps) {
         }
       } catch (err) {
         if (!cancelled) {
-          const msg =
-            err instanceof Error ? err.message : String(err);
+          const msg = err instanceof Error ? err.message : String(err);
           if (msg.toLowerCase().includes('permission') || msg.toLowerCase().includes('denied')) {
             setCameraError('Camera permission was denied. Please allow camera access and try again.');
           } else if (msg.toLowerCase().includes('found') || msg.toLowerCase().includes('device')) {
@@ -107,13 +106,7 @@ export function Scanner({ onScan, onClose }: ScannerProps) {
           </div>
         ) : (
           <>
-            <video
-              ref={videoRef}
-              className="scanner-video"
-              autoPlay
-              muted
-              playsInline
-            />
+            <video ref={videoRef} className="scanner-video" autoPlay muted playsInline />
             <div className="scanner-frame">
               <div className="scanner-frame-corner tl" />
               <div className="scanner-frame-corner tr" />
@@ -131,9 +124,7 @@ export function Scanner({ onScan, onClose }: ScannerProps) {
         )}
       </div>
 
-      <p className="scanner-hint">
-        Point the camera at the barcode on the back of the book
-      </p>
+      <p className="scanner-hint">Point the camera at the barcode on the back of the book</p>
     </div>
   );
 }

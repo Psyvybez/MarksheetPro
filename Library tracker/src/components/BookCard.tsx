@@ -23,12 +23,8 @@ export function BookCard({ book, activeCheckouts, availableCopies, onClick }: Bo
       </div>
       <div className="book-card-info">
         <h3 className="book-card-title">{book.title}</h3>
-        <p className="book-card-author">
-          {book.authors.length > 0 ? book.authors.join(', ') : 'Unknown author'}
-        </p>
-        {book.publisher && (
-          <p className="book-card-publisher">{book.publisher}</p>
-        )}
+        <p className="book-card-author">{book.authors.length > 0 ? book.authors.join(', ') : 'Unknown author'}</p>
+        {book.publisher && <p className="book-card-publisher">{book.publisher}</p>}
         <div className="book-card-footer">
           <span className={`status-badge ${isAvailable ? 'status-available' : 'status-out'}`}>
             {isAvailable

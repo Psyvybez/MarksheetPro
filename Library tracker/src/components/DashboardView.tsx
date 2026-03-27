@@ -20,12 +20,7 @@ function isDue(dueDateIso: string): boolean {
   return new Date(dueDateIso) < new Date();
 }
 
-export function DashboardView({
-  books,
-  checkouts,
-  onScanClick,
-  onLibraryClick,
-}: DashboardViewProps) {
+export function DashboardView({ books, checkouts, onScanClick, onLibraryClick }: DashboardViewProps) {
   const stats = useMemo(() => {
     const totalCopies = books.reduce((s, b) => s + b.copies, 0);
     const activeCheckouts = checkouts.filter((c) => !c.returnedAt);
@@ -43,8 +38,7 @@ export function DashboardView({
     return [...checkouts]
       .sort(
         (a, b) =>
-          new Date(b.returnedAt ?? b.checkedOutAt).getTime() -
-          new Date(a.returnedAt ?? a.checkedOutAt).getTime(),
+          new Date(b.returnedAt ?? b.checkedOutAt).getTime() - new Date(a.returnedAt ?? a.checkedOutAt).getTime()
       )
       .slice(0, 5);
   }, [checkouts]);
