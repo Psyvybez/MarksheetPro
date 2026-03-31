@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { StudentCard } from '../types';
+import { DigitalCardViewer } from './DigitalCardViewer';
 
 interface StudentCardsModalProps {
   cards: StudentCard[];
@@ -24,6 +25,7 @@ const EMPTY_FORM: CardFormState = {
 export function StudentCardsModal({ cards, onAddCard, onUpdateCard, onDeleteCard, onClose }: StudentCardsModalProps) {
   const [query, setQuery] = useState('');
   const [editingCardId, setEditingCardId] = useState<string | null>(null);
+  const [viewingCardId, setViewingCardId] = useState<string | null>(null);
   const [form, setForm] = useState<CardFormState>(EMPTY_FORM);
   const [error, setError] = useState<string | null>(null);
 
@@ -181,6 +183,9 @@ export function StudentCardsModal({ cards, onAddCard, onUpdateCard, onDeleteCard
                   {card.notes && <span className="loan-item-meta">{card.notes}</span>}
                 </div>
                 <div className="checkout-form-btns" style={{ width: 'auto' }}>
+                  <button type="button" className="btn btn-primary" onClick={() => setViewingCardId(card.id)}>
+                    Generate
+                  </button>
                   <button type="button" className="btn btn-secondary" onClick={() => handleEdit(card)}>
                     Edit
                   </button>
@@ -200,6 +205,13 @@ export function StudentCardsModal({ cards, onAddCard, onUpdateCard, onDeleteCard
           </ul>
         )}
       </div>
+
+      {viewingCardId && (
+        <DigitalCardViewer
+          card={cards.find((c) => c.id === viewingCardId)!}
+          onClose={() => setViewingCardId(null)}
+        />
+      )}
     </div>
   );
 }
