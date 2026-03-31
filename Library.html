@@ -165,6 +165,7 @@
       const SECRET_HASH_HEX = '9bed3905e9c47e8485b8570d87ef9a80f5f9d81d1a9d23534b7942f5823825e2';
 
       const TAB_UNLOCK_KEY = 'marksheet_private_library_unlocked';
+      const ENTRY_TICKET_KEY = 'marksheet_library_entry_ticket';
       const MAX_FAILED_ATTEMPTS = 3;
       const REDIRECT_DELAY_MS = 1500;
       let failedAttempts = 0;
@@ -282,6 +283,15 @@
       (async function init() {
         const allowed = await checkOwnerSession();
         if (!allowed) return;
+
+        const openedFromLibraryButton = sessionStorage.getItem(ENTRY_TICKET_KEY) === '1';
+        if (openedFromLibraryButton) {
+          sessionStorage.removeItem(ENTRY_TICKET_KEY);
+          sessionStorage.setItem(TAB_UNLOCK_KEY, '1');
+          showApp();
+          setStatus('Vault auto-unlocked from Marksheet button.', 'success');
+          return;
+        }
 
         if (sessionStorage.getItem(TAB_UNLOCK_KEY) === '1') {
           showApp();
