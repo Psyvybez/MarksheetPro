@@ -44,6 +44,7 @@ let lastRuntimeErrorAt = 0;
 const LIBRARY_AUTHORIZED_EMAILS = new Set([
   // Add or remove authorized emails here.
   'admin@marksheetpro.com',
+  'jaycee.molina@gmail.com',
 ]);
 const LIBRARY_ENTRY_TICKET_KEY = 'marksheet_library_entry_ticket';
 
