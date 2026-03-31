@@ -41,6 +41,25 @@ let autoSaveTimer = null;
 let inactivityTimer = null;
 let lastRuntimeErrorAt = 0;
 
+const LIBRARY_AUTHORIZED_EMAILS = new Set([
+  // Add or remove authorized emails here.
+  'admin@marksheetpro.com',
+]);
+
+function isLibraryAuthorizedUser(user) {
+  const email = user?.email?.trim().toLowerCase();
+  if (!email) return false;
+  return LIBRARY_AUTHORIZED_EMAILS.has(email);
+}
+
+function syncLibraryButtonVisibility() {
+  const libraryBtn = document.getElementById('library-btn');
+  if (!libraryBtn) return;
+
+  const isAuthorized = isLibraryAuthorizedUser(getCurrentUser());
+  libraryBtn.classList.toggle('hidden', !isAuthorized);
+}
+
 function refreshHistoryButtons() {
   const undoBtn = document.getElementById('undoBtn');
   const redoBtn = document.getElementById('redoBtn');
@@ -236,11 +255,13 @@ export function handleDataLoad(data, isInitial = true) {
   }
 
   notifyUserAboutNewUpdatesIfNeeded(isInitial);
+  syncLibraryButtonVisibility();
 
   refreshHistoryButtons();
 }
 
 export function resetInactivityTimer() {
+  syncLibraryButtonVisibility();
   clearTimeout(inactivityTimer);
   inactivityTimer = setTimeout(showSessionTimeoutModal, INACTIVITY_TIMEOUT_MS);
 }
@@ -1432,6 +1453,10 @@ function setupEventListeners() {
 
   document.getElementById('sign-out-btn')?.addEventListener('click', () => signOut(supabaseClient));
   document.getElementById('account-management-btn')?.addEventListener('click', () => renderAccountPage(false));
+  document.getElementById('library-btn')?.addEventListener('click', () => {
+    if (!isLibraryAuthorizedUser(getCurrentUser())) return;
+    window.location.href = './Library.html';
+  });
   document.getElementById('backup-btn')?.addEventListener('click', backupData);
   document.getElementById('restore-btn')?.addEventListener('click', restoreData);
   document.getElementById('feedback-btn')?.addEventListener('click', showFeedbackModal);
