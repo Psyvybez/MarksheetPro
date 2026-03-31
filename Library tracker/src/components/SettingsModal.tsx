@@ -92,20 +92,24 @@ export function SettingsModal({ onDataImported, onLoadDemoData, onClose }: Setti
         <form onSubmit={handleSave}>
           <div className="settings-field">
             <label htmlFor="api-key" className="settings-label">
-              ISBNdb API Key
+              Google Books API Key
             </label>
             <p className="settings-hint">
-              Get a free key at{' '}
-              <a href="https://isbndb.com/apidocs/v2" target="_blank" rel="noopener noreferrer">
-                isbndb.com
+              Create a key in{' '}
+              <a
+                href="https://console.cloud.google.com/apis/library/books.googleapis.com"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Google Cloud Console
               </a>
-              . Required to look up book information from ISBN barcodes.
+              . Optional but recommended for higher request limits when scanning ISBN barcodes.
             </p>
             <input
               id="api-key"
               className="checkout-input"
               type="password"
-              placeholder="Paste your ISBNdb API key…"
+              placeholder="Paste your Google Books API key..."
               value={key}
               onChange={(e) => setKey(e.target.value)}
               autoComplete="off"
@@ -114,7 +118,7 @@ export function SettingsModal({ onDataImported, onLoadDemoData, onClose }: Setti
           </div>
           <div className="modal-actions" style={{ marginTop: '1rem' }}>
             <button type="submit" className="btn btn-primary btn-full" disabled={!key.trim()}>
-              {saved ? '✓ Saved!' : 'Save API Key'}
+              {saved ? '✓ Saved!' : 'Save Google Books Key'}
             </button>
           </div>
         </form>

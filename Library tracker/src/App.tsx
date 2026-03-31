@@ -132,7 +132,7 @@ export default function App() {
       {/* API key reminder */}
       {!hasApiKey && !dismissedApiBanner && (
         <div className="api-key-banner" role="status" aria-live="polite">
-          <span>Add an ISBNdb API key for richer metadata lookup.</span>
+          <span>Add a Google Books API key for higher metadata lookup limits.</span>
           <div>
             <button
               onClick={() => {
