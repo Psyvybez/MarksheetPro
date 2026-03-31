@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ManualBookInput } from '../hooks/useLibrary';
+import type { Book } from '../types';
 
 const CATEGORY_OPTIONS = [
   'Biography',
@@ -68,11 +69,16 @@ function getDaysInMonth(year: string, month: string): number {
 
 interface ManualBookModalProps {
   initialData?: Partial<ManualBookInput>;
+  existingBooks: Book[];
   onSave: (input: ManualBookInput) => void;
   onClose: () => void;
 }
 
-export function ManualBookModal({ initialData, onSave, onClose }: ManualBookModalProps) {
+function normalizeIsbn(value: string): string {
+  return value.replace(/[^0-9X]/gi, '').toUpperCase();
+}
+
+export function ManualBookModal({ initialData, existingBooks, onSave, onClose }: ManualBookModalProps) {
   const [title, setTitle] = useState(initialData?.title || '');
   const [authors, setAuthors] = useState(initialData?.authors?.join(', ') || '');
   const [publisher, setPublisher] = useState(initialData?.publisher || '');
@@ -95,6 +101,28 @@ export function ManualBookModal({ initialData, onSave, onClose }: ManualBookModa
   const [synopsis, setSynopsis] = useState(initialData?.synopsis || '');
   const [copies, setCopies] = useState(String(initialData?.copies || '1'));
   const [coverImage] = useState(initialData?.coverImage || '');
+  const [duplicateConfirmed, setDuplicateConfirmed] = useState(false);
+
+  const duplicateMatch = useMemo(() => {
+    const candidate10 = normalizeIsbn(isbn);
+    const candidate13 = normalizeIsbn(isbn13);
+    if (!candidate10 && !candidate13) return null;
+
+    return (
+      existingBooks.find((book) => {
+        const book10 = normalizeIsbn(book.isbn);
+        const book13 = normalizeIsbn(book.isbn13);
+        return (
+          (candidate10 && (candidate10 === book10 || candidate10 === book13)) ||
+          (candidate13 && (candidate13 === book10 || candidate13 === book13))
+        );
+      }) ?? null
+    );
+  }, [isbn, isbn13, existingBooks]);
+
+  useEffect(() => {
+    setDuplicateConfirmed(false);
+  }, [isbn, isbn13, title]);
 
   const dayCount = getDaysInMonth(publishedYear, publishedMonth);
   const dayOptions = Array.from({ length: dayCount }, (_, i) => String(i + 1).padStart(2, '0'));
@@ -104,6 +132,11 @@ export function ManualBookModal({ initialData, onSave, onClose }: ManualBookModa
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
+
+    if (duplicateMatch && !duplicateConfirmed) {
+      setDuplicateConfirmed(true);
+      return;
+    }
 
     const payload: ManualBookInput = {
       title,
@@ -143,6 +176,13 @@ export function ManualBookModal({ initialData, onSave, onClose }: ManualBookModa
         <h2 className="modal-title">Add Book Manually</h2>
 
         <form className="manual-form" onSubmit={handleSubmit}>
+          {duplicateMatch && (
+            <div className={`duplicate-warning ${duplicateConfirmed ? 'confirmed' : ''}`} role="alert">
+              <strong>Duplicate ISBN detected:</strong> this ISBN already exists for "{duplicateMatch.title}".
+              {duplicateConfirmed ? ' Saving will merge copies into that existing record.' : ' Press save again to confirm merge.'}
+            </div>
+          )}
+
           <div className="manual-form-grid">
             <label className="manual-label" htmlFor="manual-title">
               Title *
@@ -410,7 +450,7 @@ export function ManualBookModal({ initialData, onSave, onClose }: ManualBookModa
               Cancel
             </button>
             <button type="submit" className="btn btn-primary" disabled={!title.trim()}>
-              Save Book
+              {duplicateMatch && duplicateConfirmed ? 'Save and Merge Copies' : 'Save Book'}
             </button>
           </div>
         </form>

@@ -233,6 +233,12 @@ export function useLibrary() {
     [books, checkouts]
   );
 
+  /** Reload in-memory state from localStorage (useful after backup import). */
+  const syncFromStorage = useCallback(() => {
+    setBooks(getBooks());
+    setCheckouts(getCheckouts());
+  }, []);
+
   return {
     books,
     checkouts,
@@ -245,5 +251,6 @@ export function useLibrary() {
     checkoutBook,
     returnBook,
     getBookStatus,
+    syncFromStorage,
   };
 }

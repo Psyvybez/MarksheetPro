@@ -1,19 +1,68 @@
-import { useState } from 'react';
-import { getStoredApiKey, saveApiKey } from '../services/storage';
+import { useRef, useState } from 'react';
+import { exportLibraryBackup, getStoredApiKey, importLibraryBackup, saveApiKey } from '../services/storage';
 
 interface SettingsModalProps {
+  onDataImported: () => void;
   onClose: () => void;
 }
 
-export function SettingsModal({ onClose }: SettingsModalProps) {
+export function SettingsModal({ onDataImported, onClose }: SettingsModalProps) {
   const [key, setKey] = useState(getStoredApiKey);
   const [saved, setSaved] = useState(false);
+  const [backupMessage, setBackupMessage] = useState<string | null>(null);
+  const [backupError, setBackupError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     saveApiKey(key.trim());
     setSaved(true);
     setTimeout(onClose, 800);
+  };
+
+  const handleExportBackup = () => {
+    setBackupError(null);
+    setBackupMessage(null);
+    try {
+      const payload = exportLibraryBackup();
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const date = new Date().toISOString().slice(0, 10);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `library-backup-${date}.json`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      URL.revokeObjectURL(url);
+      setBackupMessage('Backup exported successfully.');
+    } catch (err) {
+      setBackupError(err instanceof Error ? err.message : 'Failed to export backup.');
+    }
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleImportChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setBackupError(null);
+    setBackupMessage(null);
+
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text) as unknown;
+      importLibraryBackup(parsed);
+      onDataImported();
+      setBackupMessage('Backup imported successfully.');
+    } catch (err) {
+      setBackupError(err instanceof Error ? err.message : 'Failed to import backup.');
+    } finally {
+      event.target.value = '';
+    }
   };
 
   return (
@@ -53,6 +102,28 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
             </button>
           </div>
         </form>
+
+        <div className="settings-backup-box">
+          <h3 className="settings-label">Library Backup</h3>
+          <p className="settings-hint">Export and import your book catalog and checkout history as JSON.</p>
+          <div className="settings-backup-actions">
+            <button type="button" className="btn btn-secondary" onClick={handleExportBackup}>
+              Export Backup
+            </button>
+            <button type="button" className="btn btn-secondary" onClick={handleImportClick}>
+              Import Backup
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/json,.json"
+              onChange={handleImportChange}
+              style={{ display: 'none' }}
+            />
+          </div>
+          {backupMessage && <p className="settings-success" role="status">{backupMessage}</p>}
+          {backupError && <p className="settings-error" role="alert">{backupError}</p>}
+        </div>
       </div>
     </div>
   );

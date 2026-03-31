@@ -107,6 +107,9 @@ export default function App() {
   );
 
   const activeStatus = activeBook ? library.getBookStatus(activeBook.isbn13 || activeBook.isbn) : null;
+  const borrowerSuggestions = [...new Set(library.checkouts.map((c) => c.borrowerName.trim()).filter(Boolean))].sort(
+    (a, b) => a.localeCompare(b)
+  );
 
   return (
     <div className="app">
@@ -164,6 +167,7 @@ export default function App() {
           <LibraryView
             books={library.books}
             checkouts={library.checkouts}
+            onReturnCheckout={handleReturn}
             onBookClick={(book) => setActiveBook(book)}
             onScanClick={handleScanFromDash}
             onManualAddClick={() => {
@@ -186,6 +190,7 @@ export default function App() {
           book={activeBook}
           status={activeStatus}
           loading={library.loading}
+          borrowerSuggestions={borrowerSuggestions}
           onCheckout={handleCheckout}
           onReturn={handleReturn}
           onClose={() => {
@@ -199,6 +204,7 @@ export default function App() {
       {showManualAdd && (
         <ManualBookModal 
           initialData={initialManualData ?? undefined} 
+          existingBooks={library.books}
           onSave={handleManualAdd} 
           onClose={() => {
             setShowManualAdd(false);
@@ -210,6 +216,10 @@ export default function App() {
       {/* Settings modal */}
       {showSettings && (
         <SettingsModal
+          onDataImported={() => {
+            library.syncFromStorage();
+            setActiveBook(null);
+          }}
           onClose={() => {
             setShowSettings(false);
             const keyExists = Boolean(getStoredApiKey().trim());

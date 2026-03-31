@@ -1,20 +1,45 @@
 import { useState, useMemo } from 'react';
 import type { Book, CheckoutRecord } from '../types';
 import { BookCard } from './BookCard';
+import { ManageLoansModal } from './ManageLoansModal';
 
 type FilterMode = 'all' | 'available' | 'out';
 
 interface LibraryViewProps {
   books: Book[];
   checkouts: CheckoutRecord[];
+  onReturnCheckout: (checkoutId: string) => void;
   onBookClick: (book: Book) => void;
   onScanClick: () => void;
   onManualAddClick: () => void;
 }
 
-export function LibraryView({ books, checkouts, onBookClick, onScanClick, onManualAddClick }: LibraryViewProps) {
+export function LibraryView({
+  books,
+  checkouts,
+  onReturnCheckout,
+  onBookClick,
+  onScanClick,
+  onManualAddClick,
+}: LibraryViewProps) {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<FilterMode>('all');
+  const [borrowerFilter, setBorrowerFilter] = useState('');
+  const [showLoanManager, setShowLoanManager] = useState(false);
+
+  const activeCheckouts = useMemo(() => checkouts.filter((c) => !c.returnedAt), [checkouts]);
+
+  const borrowerOptions = useMemo(() => {
+    const names = new Set(activeCheckouts.map((c) => c.borrowerName.trim()).filter(Boolean));
+    return [...names].sort((a, b) => a.localeCompare(b));
+  }, [activeCheckouts]);
+
+  const borrowerCheckouts = useMemo(() => {
+    if (!borrowerFilter) return [];
+    return activeCheckouts
+      .filter((c) => c.borrowerName === borrowerFilter)
+      .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+  }, [activeCheckouts, borrowerFilter]);
 
   const bookStatuses = useMemo(() => {
     return books.map((book) => {
@@ -46,9 +71,12 @@ export function LibraryView({ books, checkouts, onBookClick, onScanClick, onManu
         (filter === 'available' && availableCopies > 0) ||
         (filter === 'out' && availableCopies === 0);
 
-      return matchesQuery && matchesFilter;
+      const matchesBorrower =
+        !borrowerFilter || activeCheckouts.some((c) => (c.isbn === book.isbn || c.isbn === book.isbn13) && c.borrowerName === borrowerFilter);
+
+      return matchesQuery && matchesFilter && matchesBorrower;
     });
-  }, [bookStatuses, query, filter]);
+  }, [bookStatuses, query, filter, borrowerFilter, activeCheckouts]);
 
   return (
     <div className="view library-view">
@@ -72,10 +100,49 @@ export function LibraryView({ books, checkouts, onBookClick, onScanClick, onManu
             </button>
           ))}
         </div>
+        <select
+          className="search-input"
+          value={borrowerFilter}
+          onChange={(e) => setBorrowerFilter(e.target.value)}
+          aria-label="Filter by borrower"
+        >
+          <option value="">All borrowers</option>
+          {borrowerOptions.map((name) => (
+            <option key={name} value={name}>
+              {name}
+            </option>
+          ))}
+        </select>
         <button className="btn btn-secondary library-manual-add-btn" onClick={onManualAddClick}>
           + Add Manually
         </button>
+        <button className="btn btn-secondary library-manual-add-btn" onClick={() => setShowLoanManager(true)}>
+          Manage Loans
+        </button>
       </div>
+
+      {borrowerFilter && (
+        <div className="borrower-panel" role="region" aria-label="Borrower checkouts">
+          <h3 className="borrower-panel-title">{borrowerFilter} currently has {borrowerCheckouts.length} book(s)</h3>
+          {borrowerCheckouts.length === 0 ? (
+            <p className="borrower-panel-empty">No active checkouts for this borrower.</p>
+          ) : (
+            <ul className="borrower-checkout-list">
+              {borrowerCheckouts.map((checkout) => (
+                <li key={checkout.id} className="borrower-checkout-item">
+                  <div className="borrower-checkout-info">
+                    <span className="borrower-checkout-title">{checkout.bookTitle}</span>
+                    <span className="borrower-checkout-due">Due {new Date(checkout.dueDate).toLocaleDateString()}</span>
+                  </div>
+                  <button className="btn btn-return" onClick={() => onReturnCheckout(checkout.id)}>
+                    Quick Return
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       {books.length === 0 ? (
         <div className="empty-state">
@@ -107,6 +174,14 @@ export function LibraryView({ books, checkouts, onBookClick, onScanClick, onManu
             />
           ))}
         </div>
+      )}
+
+      {showLoanManager && (
+        <ManageLoansModal
+          checkouts={checkouts}
+          onReturnCheckout={onReturnCheckout}
+          onClose={() => setShowLoanManager(false)}
+        />
       )}
     </div>
   );

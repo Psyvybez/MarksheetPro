@@ -8,6 +8,7 @@ interface BookActionModalProps {
   /** Status from the library */
   status: BookStatus | null;
   loading: boolean;
+  borrowerSuggestions: string[];
   onCheckout: (borrowerName: string) => void;
   onReturn: (checkoutId: string) => void;
   onClose: () => void;
@@ -29,6 +30,7 @@ export function BookActionModal({
   book,
   status,
   loading,
+  borrowerSuggestions,
   onCheckout,
   onReturn,
   onClose,
@@ -137,10 +139,16 @@ export function BookActionModal({
                 placeholder="Enter name…"
                 value={borrowerName}
                 onChange={(e) => setBorrowerName(e.target.value)}
+                list="borrower-suggestions"
                 autoFocus
                 autoComplete="off"
                 maxLength={100}
               />
+              <datalist id="borrower-suggestions">
+                {borrowerSuggestions.map((name) => (
+                  <option key={name} value={name} />
+                ))}
+              </datalist>
               <div className="checkout-form-btns">
                 <button type="button" className="btn btn-secondary" onClick={() => setShowCheckoutForm(false)}>
                   Cancel
