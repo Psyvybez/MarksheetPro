@@ -1,0 +1,48 @@
+name: Sync Library App
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'Library tracker/**'
+      - 'Library.html'
+      - '.github/workflows/sync-library-app.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'Library tracker/package-lock.json'
+
+      - name: Install library tracker dependencies
+        run: npm ci
+        working-directory: Library tracker
+
+      - name: Build library tracker
+        run: npm run build
+        working-directory: Library tracker
+
+      - name: Sync built files to library-app
+        run: |
+          rm -rf library-app
+          mkdir -p library-app
+          cp -R "Library tracker/dist/." library-app/
+
+      - name: Commit synced files
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: 'chore: sync library-app build output'
+          file_pattern: library-app/**

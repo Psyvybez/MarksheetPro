@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CheckoutRecord } from '../types';
 
 interface ManageLoansModalProps {
@@ -14,6 +14,18 @@ function isOverdue(dueDateIso: string): boolean {
 export function ManageLoansModal({ checkouts, onReturnCheckout, onClose }: ManageLoansModalProps) {
   const [query, setQuery] = useState('');
   const [showOnlyOverdue, setShowOnlyOverdue] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    searchInputRef.current?.focus();
+
+    const handleEsc = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [onClose]);
 
   const activeCheckouts = useMemo(() => checkouts.filter((c) => !c.returnedAt), [checkouts]);
 
@@ -49,16 +61,29 @@ export function ManageLoansModal({ checkouts, onReturnCheckout, onClose }: Manag
   };
 
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Manage loans">
+    <div
+      className="modal-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="manage-loans-title"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
       <div className="modal-sheet">
         <button className="modal-close-btn" onClick={onClose} aria-label="Close manage loans">
           ✕
         </button>
 
-        <h2 className="modal-title">Manage Loans</h2>
+        <h2 id="manage-loans-title" className="modal-title">Manage Loans</h2>
+
+        <p className="loan-summary" aria-live="polite">
+          Active: {activeCheckouts.length} | Overdue: {overdueCheckouts.length} | Showing: {filtered.length}
+        </p>
 
         <div className="loan-toolbar">
           <input
+            ref={searchInputRef}
             className="search-input"
             type="search"
             placeholder="Filter by borrower or title"
@@ -78,10 +103,16 @@ export function ManageLoansModal({ checkouts, onReturnCheckout, onClose }: Manag
             className="btn btn-secondary"
             onClick={handleReturnAllOverdue}
             disabled={overdueCheckouts.length === 0}
+            aria-label={`Return all overdue books (${overdueCheckouts.length})`}
           >
             Return All Overdue ({overdueCheckouts.length})
           </button>
-          <button className="btn btn-secondary" onClick={handleReturnFiltered} disabled={filtered.length === 0}>
+          <button
+            className="btn btn-secondary"
+            onClick={handleReturnFiltered}
+            disabled={filtered.length === 0}
+            aria-label={`Return all currently filtered books (${filtered.length})`}
+          >
             Return Filtered ({filtered.length})
           </button>
         </div>
@@ -109,7 +140,11 @@ export function ManageLoansModal({ checkouts, onReturnCheckout, onClose }: Manag
                     Due {new Date(record.dueDate).toLocaleDateString()}
                   </span>
                 </div>
-                <button className="btn btn-return" onClick={() => onReturnCheckout(record.id)}>
+                <button
+                  className="btn btn-return"
+                  onClick={() => onReturnCheckout(record.id)}
+                  aria-label={`Return ${record.bookTitle} for ${record.borrowerName}`}
+                >
                   Return
                 </button>
               </li>

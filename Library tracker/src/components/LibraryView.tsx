@@ -72,13 +72,13 @@ export function LibraryView({
         (filter === 'available' && availableCopies > 0) ||
         (filter === 'out' && availableCopies === 0);
 
-        const filterText = borrowerFilter.trim().toLowerCase();
-        const matchesBorrower =
-          !filterText ||
-          activeCheckouts.some(
-            (c) =>
-              (c.isbn === book.isbn || c.isbn === book.isbn13) && c.borrowerName.toLowerCase().includes(filterText)
-          );
+      const filterText = borrowerFilter.trim().toLowerCase();
+      const matchesBorrower =
+        !filterText ||
+        activeCheckouts.some(
+          (c) =>
+            (c.isbn === book.isbn || c.isbn === book.isbn13) && c.borrowerName.toLowerCase().includes(filterText)
+        );
 
       return matchesQuery && matchesFilter && matchesBorrower;
     });
@@ -113,20 +113,33 @@ export function LibraryView({
           onChange={(e) => setBorrowerFilter(e.target.value)}
           placeholder="Filter by borrower name"
           list="borrower-filter-options"
-          aria-label="Filter by borrower"
+          aria-label="Filter books by borrower name"
         />
         <datalist id="borrower-filter-options">
           {borrowerOptions.map((name) => (
             <option key={name} value={name} />
           ))}
         </datalist>
+        {borrowerFilter && (
+          <button className="btn btn-secondary library-manual-add-btn" onClick={() => setBorrowerFilter('')}>
+            Clear Borrower Filter
+          </button>
+        )}
         <button className="btn btn-secondary library-manual-add-btn" onClick={onManualAddClick}>
           + Add Manually
         </button>
-        <button className="btn btn-secondary library-manual-add-btn" onClick={() => setShowLoanManager(true)}>
+        <button
+          className="btn btn-secondary library-manual-add-btn"
+          onClick={() => setShowLoanManager(true)}
+          aria-haspopup="dialog"
+        >
           Manage Loans
         </button>
       </div>
+
+      <p className="library-results-meta" aria-live="polite">
+        Showing {filtered.length} of {books.length} books
+      </p>
 
       {borrowerFilter && (
         <div className="borrower-panel" role="region" aria-label="Borrower checkouts">
