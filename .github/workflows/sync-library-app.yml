@@ -1,0 +1,11 @@
+name: Sync Library App (Manual Placeholder)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  placeholder:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Manual mode notice
+        run: echo "Manual publish mode is enabled. No automatic sync runs on push."
