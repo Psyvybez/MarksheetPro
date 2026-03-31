@@ -36,6 +36,11 @@ function normalizeIsbn(value: string): string {
   return value.replace(/[^0-9X]/gi, '').toUpperCase();
 }
 
+function isSameIsbn(a: string | undefined, b: string | undefined): boolean {
+  if (!a || !b) return false;
+  return normalizeIsbn(a) === normalizeIsbn(b);
+}
+
 function normalizePublishedDate(value?: string): string {
   if (!value) return '';
   const [year, month, day] = value.split('-');
@@ -189,13 +194,16 @@ export function useLibrary() {
 
   /** Remove a book entirely from the library (and all its checkouts). */
   const removeBook = useCallback((isbn: string) => {
+    const normalizedTarget = normalizeIsbn(isbn);
     setBooks((prev) => {
-      const updated = prev.filter((b) => b.isbn !== isbn && b.isbn13 !== isbn);
+      const updated = prev.filter(
+        (b) => normalizeIsbn(b.isbn) !== normalizedTarget && normalizeIsbn(b.isbn13) !== normalizedTarget
+      );
       saveBooks(updated);
       return updated;
     });
     setCheckouts((prev) => {
-      const updated = prev.filter((c) => c.isbn !== isbn);
+      const updated = prev.filter((c) => normalizeIsbn(c.isbn) !== normalizedTarget);
       saveCheckouts(updated);
       return updated;
     });
@@ -203,12 +211,13 @@ export function useLibrary() {
 
   /** Check out a copy of a book to a borrower. Returns the new record. */
   const checkoutBook = useCallback((isbn: string, bookTitle: string, borrowerName: string): CheckoutRecord => {
+    const normalizedIsbn = normalizeIsbn(isbn);
     const due = new Date();
     due.setDate(due.getDate() + 14); // 2-week loan period
 
     const record: CheckoutRecord = {
       id: crypto.randomUUID(),
-      isbn,
+      isbn: normalizedIsbn,
       bookTitle,
       borrowerName: borrowerName.trim(),
       checkedOutAt: new Date().toISOString(),
@@ -236,11 +245,11 @@ export function useLibrary() {
   /** Get availability info for a given ISBN. Returns null if not in library. */
   const getBookStatus = useCallback(
     (isbn: string): BookStatus | null => {
-      const book = books.find((b) => b.isbn === isbn || b.isbn13 === isbn);
+      const book = books.find((b) => isSameIsbn(b.isbn, isbn) || isSameIsbn(b.isbn13, isbn));
       if (!book) return null;
 
       const activeCheckouts = checkouts.filter(
-        (c) => (c.isbn === book.isbn || c.isbn === book.isbn13) && !c.returnedAt
+        (c) => (isSameIsbn(c.isbn, book.isbn) || isSameIsbn(c.isbn, book.isbn13)) && !c.returnedAt
       );
 
       return {

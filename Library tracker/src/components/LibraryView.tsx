@@ -3,6 +3,15 @@ import type { Book, CheckoutRecord } from '../types';
 import { BookCard } from './BookCard';
 import { ManageLoansModal } from './ManageLoansModal';
 
+function normalizeIsbn(value: string): string {
+  return value.replace(/[^0-9X]/gi, '').toUpperCase();
+}
+
+function isSameIsbn(a: string | undefined, b: string | undefined): boolean {
+  if (!a || !b) return false;
+  return normalizeIsbn(a) === normalizeIsbn(b);
+}
+
 type FilterMode = 'all' | 'available' | 'out';
 
 interface LibraryViewProps {
@@ -44,7 +53,9 @@ export function LibraryView({
 
   const bookStatuses = useMemo(() => {
     return books.map((book) => {
-      const active = checkouts.filter((c) => (c.isbn === book.isbn || c.isbn === book.isbn13) && !c.returnedAt);
+      const active = checkouts.filter(
+        (c) => (isSameIsbn(c.isbn, book.isbn) || isSameIsbn(c.isbn, book.isbn13)) && !c.returnedAt
+      );
       return {
         book,
         activeCheckouts: active,
@@ -76,7 +87,9 @@ export function LibraryView({
       const matchesBorrower =
         !filterText ||
         activeCheckouts.some(
-          (c) => (c.isbn === book.isbn || c.isbn === book.isbn13) && c.borrowerName.toLowerCase().includes(filterText)
+          (c) =>
+            (isSameIsbn(c.isbn, book.isbn) || isSameIsbn(c.isbn, book.isbn13)) &&
+            c.borrowerName.toLowerCase().includes(filterText)
         );
 
       return matchesQuery && matchesFilter && matchesBorrower;
