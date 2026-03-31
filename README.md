@@ -12,8 +12,7 @@ Setup steps:
 
 - Open `Library.html` and set `ALLOWED_OWNER_EMAIL` to your own account email.
 - Replace `SECRET_HASH_HEX` with your own SHA-256 passphrase hash.
-- Rebuild and publish is automated on push to `main` via GitHub Actions (`Sync Library App`).
-- Manual fallback (if needed):
+- Rebuild and publish manually whenever source changes:
   - `cd "Library tracker" && npm run build`
   - `cd .. && rm -rf library-app && mkdir -p library-app && cp -R "Library tracker/dist/." library-app/`
 
