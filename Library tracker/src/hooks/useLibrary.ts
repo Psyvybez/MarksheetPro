@@ -1,8 +1,9 @@
 import { useState, useCallback } from 'react';
 import type { Book, CheckoutRecord } from '../types';
-import { getBooks, saveBooks, getCheckouts, saveCheckouts } from '../services/storage';
+import { getBooks, saveBooks, getCheckouts, saveCheckouts, getStoredApiKey } from '../services/storage';
 import { lookupCatalogBook } from '../services/catalog';
 import { fetchGoogleBooksMetadata } from '../services/api';
+import { fetchBookByIsbn } from '../services/isbndb';
 
 export interface BookStatus {
   book: Book;
@@ -35,6 +36,15 @@ function normalizeIsbn(value: string): string {
   return value.replace(/[^0-9X]/gi, '').toUpperCase();
 }
 
+function normalizePublishedDate(value?: string): string {
+  if (!value) return '';
+  const [year, month, day] = value.split('-');
+  if (!year) return '';
+  const safeMonth = month ? month.padStart(2, '0') : '01';
+  const safeDay = day ? day.padStart(2, '0') : '01';
+  return `${year}-${safeMonth}-${safeDay}`;
+}
+
 export function useLibrary() {
   const [books, setBooks] = useState<Book[]>(getBooks);
   const [checkouts, setCheckouts] = useState<CheckoutRecord[]>(getCheckouts);
@@ -55,7 +65,34 @@ export function useLibrary() {
           return raw; // CatalogBook shape is compatible with Partial<ManualBookInput>
         }
 
-        // 2. Fallback to searching Google Books online
+        // 2. If user configured ISBNdb, try that before public fallback sources.
+        const apiKey = getStoredApiKey().trim();
+        if (apiKey) {
+          try {
+            const isbndbBook = await fetchBookByIsbn(normalizedInput, apiKey);
+            if (isbndbBook) {
+              return {
+                title: isbndbBook.title || '',
+                authors: isbndbBook.authors || [],
+                publisher: isbndbBook.publisher || '',
+                synopsis: isbndbBook.synopsis || '',
+                coverImage: isbndbBook.image?.replace('http:', 'https:') || '',
+                isbn:
+                  normalizeIsbn(isbndbBook.isbn || '') ||
+                  (normalizedInput.length === 10 ? normalizedInput : undefined),
+                isbn13:
+                  normalizeIsbn(isbndbBook.isbn13 || '') ||
+                  (normalizedInput.length >= 13 ? normalizedInput : undefined),
+                searchTags: isbndbBook.subjects || [],
+                datePublished: normalizePublishedDate(isbndbBook.date_published),
+              };
+            }
+          } catch (err) {
+            console.warn('ISBNdb lookup failed, falling back to Google Books.', err);
+          }
+        }
+
+        // 3. Fallback to searching Google Books online
         const internetData = await fetchGoogleBooksMetadata(normalizedInput);
         if (internetData) {
           return internetData;

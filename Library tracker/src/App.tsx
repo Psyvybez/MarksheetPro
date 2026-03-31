@@ -6,15 +6,20 @@ import { LibraryView } from './components/LibraryView';
 import { DashboardView } from './components/DashboardView';
 import { NavBar } from './components/NavBar';
 import { ManualBookModal } from './components/ManualBookModal';
+import { SettingsModal } from './components/SettingsModal';
+import { getStoredApiKey } from './services/storage';
 import type { AppView, Book } from './types';
 
 export default function App() {
   const [view, setView] = useState<AppView>('dashboard');
   const [showScanner, setShowScanner] = useState(false);
   const [showManualAdd, setShowManualAdd] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [initialManualData, setInitialManualData] = useState<Partial<ManualBookInput> | null>(null);
   const [activeBook, setActiveBook] = useState<Book | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
+  const [hasApiKey, setHasApiKey] = useState(() => Boolean(getStoredApiKey().trim()));
+  const [dismissedApiBanner, setDismissedApiBanner] = useState(false);
 
   const library = useLibrary();
 
@@ -108,7 +113,34 @@ export default function App() {
       {/* Header */}
       <header className="app-header">
         <h1 className="app-title">📚 Class Library</h1>
+        <button
+          className="header-settings-btn"
+          onClick={() => setShowSettings(true)}
+          aria-label="Open settings"
+          title="Settings"
+        >
+          ⚙️
+        </button>
       </header>
+
+      {/* API key reminder */}
+      {!hasApiKey && !dismissedApiBanner && (
+        <div className="api-key-banner" role="status" aria-live="polite">
+          <span>Add an ISBNdb API key for richer metadata lookup.</span>
+          <div>
+            <button
+              onClick={() => {
+                setShowSettings(true);
+              }}
+            >
+              Add Key
+            </button>
+            <button onClick={() => setDismissedApiBanner(true)} style={{ marginLeft: '0.75rem' }}>
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Scan error banner */}
       {scanError && (
@@ -172,6 +204,18 @@ export default function App() {
             setShowManualAdd(false);
             setInitialManualData(null);
           }} 
+        />
+      )}
+
+      {/* Settings modal */}
+      {showSettings && (
+        <SettingsModal
+          onClose={() => {
+            setShowSettings(false);
+            const keyExists = Boolean(getStoredApiKey().trim());
+            setHasApiKey(keyExists);
+            if (keyExists) setDismissedApiBanner(false);
+          }}
         />
       )}
     </div>
