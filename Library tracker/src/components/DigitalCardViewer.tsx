@@ -1,4 +1,5 @@
-import { useRef } from 'react';
+import { useRef, useEffect, useState } from 'react';
+import QRCode from 'qrcode';
 import type { StudentCard } from '../types';
 
 interface DigitalCardViewerProps {
@@ -8,6 +9,27 @@ interface DigitalCardViewerProps {
 
 export function DigitalCardViewer({ card, onClose }: DigitalCardViewerProps) {
   const cardRef = useRef<HTMLDivElement>(null);
+  const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
+
+  // Generate QR code on mount
+  useEffect(() => {
+    const generateQR = async () => {
+      try {
+        // Encode card information: card number and student name
+        const qrData = `CARD|${card.cardNumber}|${card.studentName}`;
+        const url = await QRCode.toDataURL(qrData, {
+          errorCorrectionLevel: 'H',
+          type: 'image/png',
+          width: 150,
+        });
+        setQrCodeUrl(url);
+      } catch (error) {
+        console.error('Failed to generate QR code:', error);
+      }
+    };
+
+    generateQR();
+  }, [card.cardNumber, card.studentName]);
 
   const handlePrint = () => {
     if (!cardRef.current) return;
@@ -61,7 +83,7 @@ export function DigitalCardViewer({ card, onClose }: DigitalCardViewerProps) {
   const handleDownloadPNG = () => {
     if (!cardRef.current) return;
 
-    // Use html2canvas-like functionality with canvas
+    // Create a canvas with the card element
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
 
@@ -70,7 +92,6 @@ export function DigitalCardViewer({ card, onClose }: DigitalCardViewerProps) {
       return;
     }
 
-    // Set canvas size (approximate, since we're using a simple approach)
     const width = 400;
     const height = 250;
     canvas.width = width * 2;
@@ -99,7 +120,20 @@ export function DigitalCardViewer({ card, onClose }: DigitalCardViewerProps) {
     ctx.font = '11px system-ui';
     ctx.fillText(card.isActive ? '✓ Active' : '✗ Inactive', width / 2, 220);
 
-    // Trigger download
+    // Draw QR code on canvas if available
+    if (qrCodeUrl) {
+      const qrImg = new Image();
+      qrImg.onload = () => {
+        ctx.drawImage(qrImg, width - 110, 10, 100, 100);
+        finalizePNGDownload(canvas);
+      };
+      qrImg.src = qrCodeUrl;
+    } else {
+      finalizePNGDownload(canvas);
+    }
+  };
+
+  const finalizePNGDownload = (canvas: HTMLCanvasElement) => {
     canvas.toBlob((blob) => {
       if (!blob) {
         alert('Failed to create image. Please try again.');
@@ -117,6 +151,11 @@ export function DigitalCardViewer({ card, onClose }: DigitalCardViewerProps) {
   };
 
   const handleDownloadSVG = () => {
+    let qrCodeElement = '';
+    if (qrCodeUrl) {
+      qrCodeElement = `<image href="${qrCodeUrl}" x="300" y="10" width="100" height="100" />`;
+    }
+
     const svgContent = `
       <svg width="400" height="250" xmlns="http://www.w3.org/2000/svg">
         <defs>
@@ -131,6 +170,7 @@ export function DigitalCardViewer({ card, onClose }: DigitalCardViewerProps) {
         <text x="200" y="130" font-size="12" fill="white" text-anchor="middle">Card Number</text>
         <text x="200" y="180" font-size="28" font-weight="bold" fill="white" text-anchor="middle" font-family="monospace">${card.cardNumber}</text>
         <text x="200" y="220" font-size="11" fill="white" text-anchor="middle">${card.isActive ? '✓ Active' : '✗ Inactive'}</text>
+        ${qrCodeElement}
       </svg>
     `;
 
@@ -170,8 +210,34 @@ export function DigitalCardViewer({ card, onClose }: DigitalCardViewerProps) {
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'space-between',
+            position: 'relative',
           }}
         >
+          {/* QR Code - Top Right */}
+          {qrCodeUrl && (
+            <div
+              style={{
+                position: 'absolute',
+                top: '12px',
+                right: '12px',
+                background: 'white',
+                padding: '6px',
+                borderRadius: '6px',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+              }}
+            >
+              <img
+                src={qrCodeUrl}
+                alt="Card QR Code"
+                style={{
+                  width: '100px',
+                  height: '100px',
+                  display: 'block',
+                }}
+              />
+            </div>
+          )}
+
           {/* Card Header */}
           <div>
             <div style={{ fontSize: '14px', opacity: 0.9, marginBottom: '12px', fontWeight: '600' }}>
