@@ -83,6 +83,18 @@ function catalogToBook(isbn: string, copies: number): Book | null {
   };
 }
 
+function generateStudentCardNumber(existingCards: StudentCard[]): string {
+  const maxNumber = existingCards.reduce((maxValue, card) => {
+    const match = card.cardNumber.match(/(\d+)$/);
+    if (!match) return maxValue;
+    const parsed = parseInt(match[1], 10);
+    if (!Number.isFinite(parsed)) return maxValue;
+    return Math.max(maxValue, parsed);
+  }, 0);
+
+  return `LIB-${String(maxNumber + 1).padStart(5, '0')}`;
+}
+
 export function useLibrary() {
   const [books, setBooks] = useState<Book[]>(getBooks);
   const [checkouts, setCheckouts] = useState<CheckoutRecord[]>(getCheckouts);
@@ -284,14 +296,12 @@ export function useLibrary() {
   }, []);
 
   const addStudentCard = useCallback(
-    (input: Omit<StudentCard, 'id' | 'createdAt' | 'updatedAt'>): StudentCard => {
+    (input: Omit<StudentCard, 'id' | 'cardNumber' | 'createdAt' | 'updatedAt'>): StudentCard => {
       const now = new Date().toISOString();
       const card: StudentCard = {
         id: crypto.randomUUID(),
         studentName: input.studentName.trim(),
-        cardNumber: input.cardNumber.trim(),
-        gradeLevel: input.gradeLevel?.trim() || '',
-        homeroom: input.homeroom?.trim() || '',
+        cardNumber: generateStudentCardNumber(studentCards),
         notes: input.notes?.trim() || '',
         isActive: input.isActive,
         createdAt: now,
@@ -313,9 +323,7 @@ export function useLibrary() {
         ...existing,
         ...updates,
         studentName: (updates.studentName ?? existing.studentName).trim(),
-        cardNumber: (updates.cardNumber ?? existing.cardNumber).trim(),
-        gradeLevel: (updates.gradeLevel ?? existing.gradeLevel ?? '').trim(),
-        homeroom: (updates.homeroom ?? existing.homeroom ?? '').trim(),
+        cardNumber: existing.cardNumber,
         notes: (updates.notes ?? existing.notes ?? '').trim(),
         updatedAt: new Date().toISOString(),
       };

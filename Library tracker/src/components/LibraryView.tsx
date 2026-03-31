@@ -23,7 +23,7 @@ interface LibraryViewProps {
   onBookClick: (book: Book) => void;
   onScanClick: () => void;
   onManualAddClick: () => void;
-  onAddStudentCard: (input: Omit<StudentCard, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  onAddStudentCard: (input: Omit<StudentCard, 'id' | 'cardNumber' | 'createdAt' | 'updatedAt'>) => void;
   onUpdateStudentCard: (cardId: string, updates: Partial<Omit<StudentCard, 'id' | 'createdAt'>>) => void;
   onDeleteStudentCard: (cardId: string) => void;
 }

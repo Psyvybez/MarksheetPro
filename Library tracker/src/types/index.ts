@@ -36,8 +36,6 @@ export interface StudentCard {
   id: string;
   studentName: string;
   cardNumber: string;
-  gradeLevel?: string;
-  homeroom?: string;
   notes?: string;
   isActive: boolean;
   createdAt: string;

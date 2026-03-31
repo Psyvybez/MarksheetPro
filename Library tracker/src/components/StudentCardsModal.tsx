@@ -3,7 +3,7 @@ import type { StudentCard } from '../types';
 
 interface StudentCardsModalProps {
   cards: StudentCard[];
-  onAddCard: (input: Omit<StudentCard, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  onAddCard: (input: Omit<StudentCard, 'id' | 'cardNumber' | 'createdAt' | 'updatedAt'>) => void;
   onUpdateCard: (cardId: string, updates: Partial<Omit<StudentCard, 'id' | 'createdAt'>>) => void;
   onDeleteCard: (cardId: string) => void;
   onClose: () => void;
@@ -11,18 +11,12 @@ interface StudentCardsModalProps {
 
 interface CardFormState {
   studentName: string;
-  cardNumber: string;
-  gradeLevel: string;
-  homeroom: string;
   notes: string;
   isActive: boolean;
 }
 
 const EMPTY_FORM: CardFormState = {
   studentName: '',
-  cardNumber: '',
-  gradeLevel: '',
-  homeroom: '',
   notes: '',
   isActive: true,
 };
@@ -43,8 +37,7 @@ export function StudentCardsModal({ cards, onAddCard, onUpdateCard, onDeleteCard
       return (
         card.studentName.toLowerCase().includes(q) ||
         card.cardNumber.toLowerCase().includes(q) ||
-        (card.gradeLevel || '').toLowerCase().includes(q) ||
-        (card.homeroom || '').toLowerCase().includes(q)
+        (card.notes || '').toLowerCase().includes(q)
       );
     });
   }, [query, sortedCards]);
@@ -59,9 +52,6 @@ export function StudentCardsModal({ cards, onAddCard, onUpdateCard, onDeleteCard
     setEditingCardId(card.id);
     setForm({
       studentName: card.studentName,
-      cardNumber: card.cardNumber,
-      gradeLevel: card.gradeLevel || '',
-      homeroom: card.homeroom || '',
       notes: card.notes || '',
       isActive: card.isActive,
     });
@@ -73,35 +63,20 @@ export function StudentCardsModal({ cards, onAddCard, onUpdateCard, onDeleteCard
     setError(null);
 
     const studentName = form.studentName.trim();
-    const cardNumber = form.cardNumber.trim();
-    if (!studentName || !cardNumber) {
-      setError('Student name and card number are required.');
-      return;
-    }
-
-    const duplicate = cards.find(
-      (card) => card.cardNumber.toLowerCase() === cardNumber.toLowerCase() && card.id !== editingCardId
-    );
-    if (duplicate) {
-      setError('Card number already exists.');
+    if (!studentName) {
+      setError('Student name is required.');
       return;
     }
 
     if (editingCardId) {
       onUpdateCard(editingCardId, {
         studentName,
-        cardNumber,
-        gradeLevel: form.gradeLevel,
-        homeroom: form.homeroom,
         notes: form.notes,
         isActive: form.isActive,
       });
     } else {
       onAddCard({
         studentName,
-        cardNumber,
-        gradeLevel: form.gradeLevel,
-        homeroom: form.homeroom,
         notes: form.notes,
         isActive: form.isActive,
       });
@@ -123,7 +98,7 @@ export function StudentCardsModal({ cards, onAddCard, onUpdateCard, onDeleteCard
           <input
             className="search-input"
             type="search"
-            placeholder="Search by student, card number, grade, or homeroom"
+            placeholder="Search by student, card number, or notes"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             aria-label="Search student cards"
@@ -146,45 +121,7 @@ export function StudentCardsModal({ cards, onAddCard, onUpdateCard, onDeleteCard
               required
             />
 
-            <label className="manual-label" htmlFor="card-number">
-              Card Number
-            </label>
-            <input
-              id="card-number"
-              className="checkout-input"
-              type="text"
-              value={form.cardNumber}
-              onChange={(e) => setForm((prev) => ({ ...prev, cardNumber: e.target.value }))}
-              placeholder="ex: LIB-10042"
-              maxLength={40}
-              required
-            />
-
-            <label className="manual-label" htmlFor="card-grade-level">
-              Grade Level
-            </label>
-            <input
-              id="card-grade-level"
-              className="checkout-input"
-              type="text"
-              value={form.gradeLevel}
-              onChange={(e) => setForm((prev) => ({ ...prev, gradeLevel: e.target.value }))}
-              placeholder="ex: Grade 7"
-              maxLength={30}
-            />
-
-            <label className="manual-label" htmlFor="card-homeroom">
-              Homeroom
-            </label>
-            <input
-              id="card-homeroom"
-              className="checkout-input"
-              type="text"
-              value={form.homeroom}
-              onChange={(e) => setForm((prev) => ({ ...prev, homeroom: e.target.value }))}
-              placeholder="ex: 7A"
-              maxLength={30}
-            />
+            <p className="settings-hint">Card number is auto-generated when adding a new student card.</p>
 
             <label className="manual-label" htmlFor="card-notes">
               Notes
@@ -241,11 +178,6 @@ export function StudentCardsModal({ cards, onAddCard, onUpdateCard, onDeleteCard
                     {card.studentName} {!card.isActive && <span style={{ color: '#dc2626' }}>(Inactive)</span>}
                   </span>
                   <span className="loan-item-meta">Card: {card.cardNumber}</span>
-                  {(card.gradeLevel || card.homeroom) && (
-                    <span className="loan-item-meta">
-                      {[card.gradeLevel, card.homeroom].filter(Boolean).join(' • ')}
-                    </span>
-                  )}
                   {card.notes && <span className="loan-item-meta">{card.notes}</span>}
                 </div>
                 <div className="checkout-form-btns" style={{ width: 'auto' }}>
