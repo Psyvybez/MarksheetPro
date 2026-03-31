@@ -12,8 +12,9 @@ Setup steps:
 
 - Open `Library.html` and set `ALLOWED_OWNER_EMAIL` to your own account email.
 - Replace `SECRET_HASH_HEX` with your own SHA-256 passphrase hash.
-- Rebuild the tracker app once whenever source changes:
+- Rebuild and publish the tracker app whenever source changes:
   - `cd "Library tracker" && npm run build`
+  - `cd .. && rm -rf library-app && mkdir -p library-app && cp -R "Library tracker/dist/." library-app/`
 
 To generate your own hash on Linux/macOS:
 
