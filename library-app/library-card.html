@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#1e3a8a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Library Card" />
+  <title>Library Card</title>
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100svh;
+      background: #0f172a;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      color: #f1f5f9;
+    }
+
+    /* ── Card ─────────────────────────────── */
+    .card-wrap {
+      width: 100%;
+      max-width: 400px;
+    }
+
+    #card {
+      width: 100%;
+      aspect-ratio: 1.586 / 1;   /* credit-card ratio */
+      border-radius: 18px;
+      background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 55%, #06b6d4 100%);
+      position: relative;
+      overflow: hidden;
+      padding: 22px 24px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.15);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    /* Decorative circles */
+    #card::before, #card::after {
+      content: '';
+      position: absolute;
+      border-radius: 50%;
+      opacity: 0.12;
+    }
+    #card::before {
+      width: 280px; height: 280px;
+      background: #fff;
+      top: -80px; right: -60px;
+    }
+    #card::after {
+      width: 180px; height: 180px;
+      background: #fff;
+      bottom: -60px; left: -40px;
+    }
+
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      position: relative;
+      z-index: 1;
+    }
+
+    .card-library {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.75);
+      line-height: 1.3;
+    }
+    .card-library strong {
+      display: block;
+      font-size: 1rem;
+      color: #fff;
+      letter-spacing: 0.04em;
+      margin-top: 2px;
+    }
+
+    /* SIM chip */
+    .card-chip {
+      width: 36px;
+      height: 28px;
+      background: linear-gradient(135deg, #fbbf24, #f59e0b);
+      border-radius: 5px;
+      box-shadow: inset 0 0 0 1.5px rgba(0,0,0,0.2);
+      flex-shrink: 0;
+    }
+
+    .card-mid {
+      position: relative;
+      z-index: 1;
+    }
+
+    .card-label {
+      font-size: 0.6rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.55);
+      margin-bottom: 4px;
+    }
+
+    .card-name {
+      font-size: clamp(1.1rem, 5vw, 1.5rem);
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .card-bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      position: relative;
+      z-index: 1;
+    }
+
+    .card-meta-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .card-meta-item {
+      display: flex;
+      flex-direction: column;
+    }
+    .card-meta-label {
+      font-size: 0.55rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.5);
+    }
+    .card-meta-value {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: rgba(255,255,255,0.9);
+    }
+
+    #qr-container canvas,
+    #qr-container img {
+      display: block;
+      border-radius: 6px;
+      width: 62px !important;
+      height: 62px !important;
+      background: #fff;
+      padding: 3px;
+    }
+
+    /* ── Buttons ──────────────────────────── */
+    .actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+      width: 100%;
+      max-width: 400px;
+    }
+
+    .actions button {
+      flex: 1;
+      padding: 12px 0;
+      border: none;
+      border-radius: 10px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    .actions button:active { transform: scale(0.97); }
+    .actions button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    #save-btn {
+      background: #2563eb;
+      color: #fff;
+    }
+    #copy-btn {
+      background: rgba(255,255,255,0.1);
+      color: #f1f5f9;
+      border: 1px solid rgba(255,255,255,0.15) !important;
+    }
+
+    /* ── Hint ─────────────────────────────── */
+    .hint {
+      margin-top: 18px;
+      width: 100%;
+      max-width: 400px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 0.8rem;
+      color: rgba(255,255,255,0.6);
+      line-height: 1.55;
+    }
+    .hint strong { color: rgba(255,255,255,0.85); }
+    .hint p + p { margin-top: 4px; }
+    #platform-hint { display: none; }
+  </style>
+</head>
+<body>
+
+<div class="card-wrap">
+  <div id="card">
+    <div class="card-top">
+      <div class="card-library">
+        Student Library Card
+        <strong id="library-name">School Library</strong>
+      </div>
+      <div class="card-chip"></div>
+    </div>
+
+    <div class="card-mid">
+      <div class="card-label">Cardholder</div>
+      <div class="card-name" id="student-name">Loading…</div>
+    </div>
+
+    <div class="card-bottom">
+      <div class="card-meta-list">
+        <div class="card-meta-item">
+          <span class="card-meta-label">Member Since</span>
+          <span class="card-meta-value" id="member-since">—</span>
+        </div>
+        <div class="card-meta-item">
+          <span class="card-meta-label">Valid</span>
+          <span class="card-meta-value">Academic Year</span>
+        </div>
+      </div>
+      <div id="qr-container"></div>
+    </div>
+  </div>
+</div>
+
+<div class="actions">
+  <button id="save-btn">📥 Save as Image</button>
+  <button id="copy-btn">🔗 Copy Link</button>
+</div>
+
+<div class="hint">
+  <p id="platform-hint"></p>
+  <p><strong>Tip:</strong> Save the image to your Photos app and show it at the library desk.</p>
+</div>
+
+<script>
+  (function () {
+    const params = new URLSearchParams(window.location.search);
+    const name    = (params.get('name')    || 'Student').trim();
+    const library = (params.get('library') || 'School Library').trim();
+    const year    = new Date().getFullYear();
+
+    document.title = name + ' — Library Card';
+    document.getElementById('student-name').textContent  = name;
+    document.getElementById('library-name').textContent  = library;
+    document.getElementById('member-since').textContent  = String(year);
+
+    // QR code — encodes a shareable URL for this card
+    const cardUrl = window.location.href;
+    new QRCode(document.getElementById('qr-container'), {
+      text: cardUrl,
+      width: 62,
+      height: 62,
+      colorDark: '#1e3a8a',
+      colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.M,
+    });
+
+    // Platform-specific "Add to Home Screen" hints
+    const ua = navigator.userAgent;
+    const hintEl = document.getElementById('platform-hint');
+    if (/iPhone|iPad|iPod/.test(ua)) {
+      hintEl.textContent = '📱 iPhone/iPad: tap the Share icon in Safari → "Add to Home Screen" to keep this card on your device.';
+      hintEl.style.display = 'block';
+    } else if (/Android/.test(ua)) {
+      hintEl.textContent = '📱 Android: tap the browser menu (⋮) → "Add to Home screen" to keep this card on your device.';
+      hintEl.style.display = 'block';
+    }
+
+    // Save as image
+    document.getElementById('save-btn').addEventListener('click', function () {
+      const btn = this;
+      btn.disabled = true;
+      btn.textContent = 'Saving…';
+
+      html2canvas(document.getElementById('card'), {
+        scale: 3,
+        useCORS: true,
+        backgroundColor: null,
+      }).then(function (canvas) {
+        const link = document.createElement('a');
+        link.download = name.replace(/[^a-z0-9]/gi, '_') + '_library_card.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        btn.textContent = '✓ Saved!';
+        setTimeout(function () {
+          btn.textContent = '📥 Save as Image';
+          btn.disabled = false;
+        }, 2000);
+      }).catch(function () {
+        alert('Could not save image. Try taking a screenshot instead.');
+        btn.textContent = '📥 Save as Image';
+        btn.disabled = false;
+      });
+    });
+
+    // Copy link
+    document.getElementById('copy-btn').addEventListener('click', function () {
+      const btn = this;
+      navigator.clipboard.writeText(cardUrl).then(function () {
+        btn.textContent = '✓ Copied!';
+        setTimeout(function () { btn.textContent = '🔗 Copy Link'; }, 2000);
+      }).catch(function () {
+        prompt('Copy this link:', cardUrl);
+      });
+    });
+  })();
+</script>
+
+</body>
+</html>
