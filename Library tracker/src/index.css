@@ -619,6 +619,7 @@ ul {
   text-align: left;
   width: 100%;
   box-shadow: var(--shadow-sm);
+  cursor: pointer;
   transition:
     box-shadow 0.15s,
     transform 0.1s;
@@ -689,6 +690,12 @@ ul {
 .book-card-borrower {
   font-size: 0.75rem;
   color: var(--color-text-muted);
+}
+
+.book-card-open-btn {
+  margin-left: auto;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.75rem;
 }
 
 /* Status badge */

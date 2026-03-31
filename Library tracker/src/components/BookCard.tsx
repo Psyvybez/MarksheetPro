@@ -10,8 +10,22 @@ interface BookCardProps {
 export function BookCard({ book, activeCheckouts, availableCopies, onClick }: BookCardProps) {
   const isAvailable = availableCopies > 0;
 
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onClick();
+    }
+  };
+
   return (
-    <button className="book-card" onClick={onClick} aria-label={`View details for ${book.title}`}>
+    <div
+      className="book-card"
+      role="button"
+      tabIndex={0}
+      onClick={onClick}
+      onKeyDown={handleKeyDown}
+      aria-label={`View details for ${book.title}`}
+    >
       <div className="book-card-cover">
         {book.coverImage ? (
           <img src={book.coverImage} alt={`Cover of ${book.title}`} loading="lazy" />
@@ -39,8 +53,18 @@ export function BookCard({ book, activeCheckouts, availableCopies, onClick }: Bo
               {activeCheckouts.length > 1 && ` +${activeCheckouts.length - 1}`}
             </span>
           )}
+          <button
+            type="button"
+            className="btn btn-secondary book-card-open-btn"
+            onClick={(event) => {
+              event.stopPropagation();
+              onClick();
+            }}
+          >
+            View Card
+          </button>
         </div>
       </div>
-    </button>
+    </div>
   );
 }
