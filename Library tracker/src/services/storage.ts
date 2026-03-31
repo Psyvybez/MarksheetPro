@@ -1,14 +1,16 @@
-import type { Book, CheckoutRecord } from '../types';
+import type { Book, CheckoutRecord, StudentCard } from '../types';
 
 const BOOKS_KEY = 'lt_books';
 const CHECKOUTS_KEY = 'lt_checkouts';
 const API_KEY_KEY = 'lt_api_key';
+const STUDENT_CARDS_KEY = 'lt_student_cards';
 
 export interface LibraryBackup {
   version: 1;
   exportedAt: string;
   books: Book[];
   checkouts: CheckoutRecord[];
+  studentCards: StudentCard[];
 }
 
 export function getBooks(): Book[] {
@@ -51,12 +53,26 @@ export function saveApiKey(key: string): void {
   localStorage.setItem(API_KEY_KEY, key);
 }
 
+export function getStudentCards(): StudentCard[] {
+  try {
+    const raw = localStorage.getItem(STUDENT_CARDS_KEY);
+    return raw ? (JSON.parse(raw) as StudentCard[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveStudentCards(cards: StudentCard[]): void {
+  localStorage.setItem(STUDENT_CARDS_KEY, JSON.stringify(cards));
+}
+
 export function exportLibraryBackup(): LibraryBackup {
   return {
     version: 1,
     exportedAt: new Date().toISOString(),
     books: getBooks(),
     checkouts: getCheckouts(),
+    studentCards: getStudentCards(),
   };
 }
 
@@ -72,4 +88,5 @@ export function importLibraryBackup(input: unknown): void {
 
   saveBooks(raw.books as Book[]);
   saveCheckouts(raw.checkouts as CheckoutRecord[]);
+  saveStudentCards(Array.isArray(raw.studentCards) ? (raw.studentCards as StudentCard[]) : []);
 }

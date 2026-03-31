@@ -31,5 +31,18 @@ export interface CheckoutRecord {
   returnedAt?: string;
 }
 
+/** A managed student library card profile */
+export interface StudentCard {
+  id: string;
+  studentName: string;
+  cardNumber: string;
+  gradeLevel?: string;
+  homeroom?: string;
+  notes?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 /** The three main views of the app */
 export type AppView = 'dashboard' | 'library' | 'scanner';

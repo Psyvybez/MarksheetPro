@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react';
-import type { Book, CheckoutRecord } from '../types';
+import type { Book, CheckoutRecord, StudentCard } from '../types';
 import { BookCard } from './BookCard';
 import { ManageLoansModal } from './ManageLoansModal';
+import { StudentCardsModal } from './StudentCardsModal';
 
 function normalizeIsbn(value: string): string {
   return value.replace(/[^0-9X]/gi, '').toUpperCase();
@@ -17,24 +18,33 @@ type FilterMode = 'all' | 'available' | 'out';
 interface LibraryViewProps {
   books: Book[];
   checkouts: CheckoutRecord[];
+  studentCards: StudentCard[];
   onReturnCheckout: (checkoutId: string) => void;
   onBookClick: (book: Book) => void;
   onScanClick: () => void;
   onManualAddClick: () => void;
+  onAddStudentCard: (input: Omit<StudentCard, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  onUpdateStudentCard: (cardId: string, updates: Partial<Omit<StudentCard, 'id' | 'createdAt'>>) => void;
+  onDeleteStudentCard: (cardId: string) => void;
 }
 
 export function LibraryView({
   books,
   checkouts,
+  studentCards,
   onReturnCheckout,
   onBookClick,
   onScanClick,
   onManualAddClick,
+  onAddStudentCard,
+  onUpdateStudentCard,
+  onDeleteStudentCard,
 }: LibraryViewProps) {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<FilterMode>('all');
   const [borrowerFilter, setBorrowerFilter] = useState('');
   const [showLoanManager, setShowLoanManager] = useState(false);
+  const [showStudentCardsManager, setShowStudentCardsManager] = useState(false);
 
   const activeCheckouts = useMemo(() => checkouts.filter((c) => !c.returnedAt), [checkouts]);
 
@@ -147,6 +157,13 @@ export function LibraryView({
         >
           Manage Loans
         </button>
+        <button
+          className="btn btn-secondary library-manual-add-btn"
+          onClick={() => setShowStudentCardsManager(true)}
+          aria-haspopup="dialog"
+        >
+          Student Cards
+        </button>
       </div>
 
       <p className="library-results-meta" aria-live="polite">
@@ -213,6 +230,16 @@ export function LibraryView({
           checkouts={checkouts}
           onReturnCheckout={onReturnCheckout}
           onClose={() => setShowLoanManager(false)}
+        />
+      )}
+
+      {showStudentCardsManager && (
+        <StudentCardsModal
+          cards={studentCards}
+          onAddCard={onAddStudentCard}
+          onUpdateCard={onUpdateStudentCard}
+          onDeleteCard={onDeleteStudentCard}
+          onClose={() => setShowStudentCardsManager(false)}
         />
       )}
     </div>

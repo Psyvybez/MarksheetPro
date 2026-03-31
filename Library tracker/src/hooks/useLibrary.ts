@@ -1,6 +1,14 @@
 import { useState, useCallback } from 'react';
-import type { Book, CheckoutRecord } from '../types';
-import { getBooks, saveBooks, getCheckouts, saveCheckouts, getStoredApiKey } from '../services/storage';
+import type { Book, CheckoutRecord, StudentCard } from '../types';
+import {
+  getBooks,
+  saveBooks,
+  getCheckouts,
+  saveCheckouts,
+  getStoredApiKey,
+  getStudentCards,
+  saveStudentCards,
+} from '../services/storage';
 import { lookupCatalogBook } from '../services/catalog';
 import { fetchGoogleBooksMetadata } from '../services/api';
 import { fetchBookByIsbn } from '../services/isbndb';
@@ -78,8 +86,14 @@ function catalogToBook(isbn: string, copies: number): Book | null {
 export function useLibrary() {
   const [books, setBooks] = useState<Book[]>(getBooks);
   const [checkouts, setCheckouts] = useState<CheckoutRecord[]>(getCheckouts);
+  const [studentCards, setStudentCards] = useState<StudentCard[]>(getStudentCards);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const saveStudentCardsState = useCallback((cards: StudentCard[]) => {
+    setStudentCards(cards);
+    saveStudentCards(cards);
+  }, []);
 
   /** Look up a book online or in the local catalog. Useful for auto-filling the add manual form. */
   const fetchBookMetadata = useCallback(async (isbn: string): Promise<Partial<ManualBookInput> | null> => {
@@ -266,7 +280,58 @@ export function useLibrary() {
   const syncFromStorage = useCallback(() => {
     setBooks(getBooks());
     setCheckouts(getCheckouts());
+    setStudentCards(getStudentCards());
   }, []);
+
+  const addStudentCard = useCallback(
+    (input: Omit<StudentCard, 'id' | 'createdAt' | 'updatedAt'>): StudentCard => {
+      const now = new Date().toISOString();
+      const card: StudentCard = {
+        id: crypto.randomUUID(),
+        studentName: input.studentName.trim(),
+        cardNumber: input.cardNumber.trim(),
+        gradeLevel: input.gradeLevel?.trim() || '',
+        homeroom: input.homeroom?.trim() || '',
+        notes: input.notes?.trim() || '',
+        isActive: input.isActive,
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      saveStudentCardsState([...studentCards, card]);
+      return card;
+    },
+    [studentCards, saveStudentCardsState]
+  );
+
+  const updateStudentCard = useCallback(
+    (cardId: string, updates: Partial<Omit<StudentCard, 'id' | 'createdAt'>>): StudentCard | null => {
+      const existing = studentCards.find((card) => card.id === cardId);
+      if (!existing) return null;
+
+      const updated: StudentCard = {
+        ...existing,
+        ...updates,
+        studentName: (updates.studentName ?? existing.studentName).trim(),
+        cardNumber: (updates.cardNumber ?? existing.cardNumber).trim(),
+        gradeLevel: (updates.gradeLevel ?? existing.gradeLevel ?? '').trim(),
+        homeroom: (updates.homeroom ?? existing.homeroom ?? '').trim(),
+        notes: (updates.notes ?? existing.notes ?? '').trim(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      saveStudentCardsState(studentCards.map((card) => (card.id === cardId ? updated : card)));
+      return updated;
+    },
+    [studentCards, saveStudentCardsState]
+  );
+
+  const removeStudentCard = useCallback(
+    (cardId: string) => {
+      saveStudentCardsState(studentCards.filter((card) => card.id !== cardId));
+    },
+    [studentCards, saveStudentCardsState]
+  );
 
   /** Seed realistic demo data for testing dashboards, checkouts, and overdue workflows. */
   const seedDemoDataset = useCallback(() => {
@@ -342,6 +407,7 @@ export function useLibrary() {
   return {
     books,
     checkouts,
+    studentCards,
     loading,
     error,
     setError,
@@ -352,6 +418,9 @@ export function useLibrary() {
     returnBook,
     getBookStatus,
     syncFromStorage,
+    addStudentCard,
+    updateStudentCard,
+    removeStudentCard,
     seedDemoDataset,
   };
 }

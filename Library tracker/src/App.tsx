@@ -107,9 +107,12 @@ export default function App() {
   );
 
   const activeStatus = activeBook ? library.getBookStatus(activeBook.isbn13 || activeBook.isbn) : null;
-  const borrowerSuggestions = [...new Set(library.checkouts.map((c) => c.borrowerName.trim()).filter(Boolean))].sort(
-    (a, b) => a.localeCompare(b)
-  );
+  const borrowerSuggestions = [
+    ...new Set([
+      ...library.checkouts.map((c) => c.borrowerName.trim()).filter(Boolean),
+      ...library.studentCards.map((card) => card.studentName.trim()).filter(Boolean),
+    ]),
+  ].sort((a, b) => a.localeCompare(b));
 
   return (
     <div className="app">
@@ -167,6 +170,7 @@ export default function App() {
           <LibraryView
             books={library.books}
             checkouts={library.checkouts}
+            studentCards={library.studentCards}
             onReturnCheckout={handleReturn}
             onBookClick={(book) => setActiveBook(book)}
             onScanClick={handleScanFromDash}
@@ -174,6 +178,9 @@ export default function App() {
               setInitialManualData(null);
               setShowManualAdd(true);
             }}
+            onAddStudentCard={library.addStudentCard}
+            onUpdateStudentCard={library.updateStudentCard}
+            onDeleteStudentCard={library.removeStudentCard}
           />
         )}
       </main>
