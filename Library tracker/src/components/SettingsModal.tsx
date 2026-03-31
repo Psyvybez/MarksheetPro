@@ -140,8 +140,16 @@ export function SettingsModal({ onDataImported, onLoadDemoData, onClose }: Setti
               style={{ display: 'none' }}
             />
           </div>
-          {backupMessage && <p className="settings-success" role="status">{backupMessage}</p>}
-          {backupError && <p className="settings-error" role="alert">{backupError}</p>}
+          {backupMessage && (
+            <p className="settings-success" role="status">
+              {backupMessage}
+            </p>
+          )}
+          {backupError && (
+            <p className="settings-error" role="alert">
+              {backupError}
+            </p>
+          )}
         </div>
       </div>
     </div>

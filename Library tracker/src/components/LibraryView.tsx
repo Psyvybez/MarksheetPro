@@ -76,8 +76,7 @@ export function LibraryView({
       const matchesBorrower =
         !filterText ||
         activeCheckouts.some(
-          (c) =>
-            (c.isbn === book.isbn || c.isbn === book.isbn13) && c.borrowerName.toLowerCase().includes(filterText)
+          (c) => (c.isbn === book.isbn || c.isbn === book.isbn13) && c.borrowerName.toLowerCase().includes(filterText)
         );
 
       return matchesQuery && matchesFilter && matchesBorrower;
@@ -143,7 +142,7 @@ export function LibraryView({
 
       {borrowerFilter && (
         <div className="borrower-panel" role="region" aria-label="Borrower checkouts">
-            <h3 className="borrower-panel-title">Matching loans: {borrowerCheckouts.length} book(s)</h3>
+          <h3 className="borrower-panel-title">Matching loans: {borrowerCheckouts.length} book(s)</h3>
           {borrowerCheckouts.length === 0 ? (
             <p className="borrower-panel-empty">No active checkouts for this borrower.</p>
           ) : (

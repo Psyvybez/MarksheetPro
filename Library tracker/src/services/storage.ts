@@ -19,11 +19,7 @@ export function getBooks(): Book[] {
     const parsed = JSON.parse(raw) as Array<Book & { subjects?: string[] }>;
     return parsed.map((book) => ({
       ...book,
-      searchTags: Array.isArray(book.searchTags)
-        ? book.searchTags
-        : Array.isArray(book.subjects)
-          ? book.subjects
-          : [],
+      searchTags: Array.isArray(book.searchTags) ? book.searchTags : Array.isArray(book.subjects) ? book.subjects : [],
     }));
   } catch {
     return [];

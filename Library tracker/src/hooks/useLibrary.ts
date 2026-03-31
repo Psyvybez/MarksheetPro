@@ -77,62 +77,57 @@ export function useLibrary() {
   const [error, setError] = useState<string | null>(null);
 
   /** Look up a book online or in the local catalog. Useful for auto-filling the add manual form. */
-  const fetchBookMetadata = useCallback(
-    async (isbn: string): Promise<Partial<ManualBookInput> | null> => {
-      setLoading(true);
-      setError(null);
-      try {
-        const normalizedInput = normalizeIsbn(isbn);
-        
-        // 1. Try local built-in catalog first
-        const raw = lookupCatalogBook(normalizedInput);
-        if (raw) {
-          return raw; // CatalogBook shape is compatible with Partial<ManualBookInput>
-        }
+  const fetchBookMetadata = useCallback(async (isbn: string): Promise<Partial<ManualBookInput> | null> => {
+    setLoading(true);
+    setError(null);
+    try {
+      const normalizedInput = normalizeIsbn(isbn);
 
-        // 2. If user configured ISBNdb, try that before public fallback sources.
-        const apiKey = getStoredApiKey().trim();
-        if (apiKey) {
-          try {
-            const isbndbBook = await fetchBookByIsbn(normalizedInput, apiKey);
-            if (isbndbBook) {
-              return {
-                title: isbndbBook.title || '',
-                authors: isbndbBook.authors || [],
-                publisher: isbndbBook.publisher || '',
-                synopsis: isbndbBook.synopsis || '',
-                coverImage: isbndbBook.image?.replace('http:', 'https:') || '',
-                isbn:
-                  normalizeIsbn(isbndbBook.isbn || '') ||
-                  (normalizedInput.length === 10 ? normalizedInput : undefined),
-                isbn13:
-                  normalizeIsbn(isbndbBook.isbn13 || '') ||
-                  (normalizedInput.length >= 13 ? normalizedInput : undefined),
-                searchTags: isbndbBook.subjects || [],
-                datePublished: normalizePublishedDate(isbndbBook.date_published),
-              };
-            }
-          } catch (err) {
-            console.warn('ISBNdb lookup failed, falling back to Google Books.', err);
-          }
-        }
-
-        // 3. Fallback to searching Google Books online
-        const internetData = await fetchGoogleBooksMetadata(normalizedInput);
-        if (internetData) {
-          return internetData;
-        }
-
-        return null;
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to look up book metadata');
-        return null;
-      } finally {
-        setLoading(false);
+      // 1. Try local built-in catalog first
+      const raw = lookupCatalogBook(normalizedInput);
+      if (raw) {
+        return raw; // CatalogBook shape is compatible with Partial<ManualBookInput>
       }
-    },
-    []
-  );
+
+      // 2. If user configured ISBNdb, try that before public fallback sources.
+      const apiKey = getStoredApiKey().trim();
+      if (apiKey) {
+        try {
+          const isbndbBook = await fetchBookByIsbn(normalizedInput, apiKey);
+          if (isbndbBook) {
+            return {
+              title: isbndbBook.title || '',
+              authors: isbndbBook.authors || [],
+              publisher: isbndbBook.publisher || '',
+              synopsis: isbndbBook.synopsis || '',
+              coverImage: isbndbBook.image?.replace('http:', 'https:') || '',
+              isbn:
+                normalizeIsbn(isbndbBook.isbn || '') || (normalizedInput.length === 10 ? normalizedInput : undefined),
+              isbn13:
+                normalizeIsbn(isbndbBook.isbn13 || '') || (normalizedInput.length >= 13 ? normalizedInput : undefined),
+              searchTags: isbndbBook.subjects || [],
+              datePublished: normalizePublishedDate(isbndbBook.date_published),
+            };
+          }
+        } catch (err) {
+          console.warn('ISBNdb lookup failed, falling back to Google Books.', err);
+        }
+      }
+
+      // 3. Fallback to searching Google Books online
+      const internetData = await fetchGoogleBooksMetadata(normalizedInput);
+      if (internetData) {
+        return internetData;
+      }
+
+      return null;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to look up book metadata');
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   /** Add a custom/manual book directly from form input. */
   const addManualBook = useCallback((input: ManualBookInput): Book | null => {
@@ -288,7 +283,7 @@ export function useLibrary() {
       {
         id: crypto.randomUUID(),
         isbn: '9780439708180',
-        bookTitle: findDemoBook('9780439708180')?.title ?? 'Harry Potter and the Sorcerer\'s Stone',
+        bookTitle: findDemoBook('9780439708180')?.title ?? "Harry Potter and the Sorcerer's Stone",
         borrowerName: 'Ava Johnson',
         checkedOutAt: daysFromNow(-18),
         dueDate: daysFromNow(-4),
@@ -320,7 +315,7 @@ export function useLibrary() {
       {
         id: crypto.randomUUID(),
         isbn: '9780812550702',
-        bookTitle: findDemoBook('9780812550702')?.title ?? 'Ender\'s Game',
+        bookTitle: findDemoBook('9780812550702')?.title ?? "Ender's Game",
         borrowerName: 'Ethan Brooks',
         checkedOutAt: daysFromNow(-20),
         dueDate: daysFromNow(-6),

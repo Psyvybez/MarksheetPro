@@ -86,18 +86,22 @@ export function ManualBookModal({ initialData, existingBooks, onSave, onClose }:
   const [genre, setGenre] = useState(initialData?.genre || '');
   const [age, setAge] = useState(initialData?.age || '');
   const [binding, setBinding] = useState(initialData?.binding || '');
-  const [conditionCoverBindingIntegrity, setConditionCoverBindingIntegrity] = useState(initialData?.conditionCoverBindingIntegrity || '');
+  const [conditionCoverBindingIntegrity, setConditionCoverBindingIntegrity] = useState(
+    initialData?.conditionCoverBindingIntegrity || ''
+  );
   const [conditionPageQuality, setConditionPageQuality] = useState(initialData?.conditionPageQuality || '');
-  const [conditionOverallAppearance, setConditionOverallAppearance] = useState(initialData?.conditionOverallAppearance || '');
+  const [conditionOverallAppearance, setConditionOverallAppearance] = useState(
+    initialData?.conditionOverallAppearance || ''
+  );
   const [isbn, setIsbn] = useState(initialData?.isbn || '');
   const [isbn13, setIsbn13] = useState(initialData?.isbn13 || '');
   const [searchTags, setSearchTags] = useState(initialData?.searchTags?.join(', ') || '');
-  
+
   const initialDate = initialData?.datePublished || '';
   const [publishedYear, setPublishedYear] = useState(initialDate.split('-')[0] || '');
   const [publishedMonth, setPublishedMonth] = useState(initialDate.split('-')[1] || '');
   const [publishedDay, setPublishedDay] = useState(initialDate.split('-')[2] || '');
-  
+
   const [synopsis, setSynopsis] = useState(initialData?.synopsis || '');
   const [copies, setCopies] = useState(String(initialData?.copies || '1'));
   const [coverImage] = useState(initialData?.coverImage || '');
@@ -179,7 +183,9 @@ export function ManualBookModal({ initialData, existingBooks, onSave, onClose }:
           {duplicateMatch && (
             <div className={`duplicate-warning ${duplicateConfirmed ? 'confirmed' : ''}`} role="alert">
               <strong>Duplicate ISBN detected:</strong> this ISBN already exists for "{duplicateMatch.title}".
-              {duplicateConfirmed ? ' Saving will merge copies into that existing record.' : ' Press save again to confirm merge.'}
+              {duplicateConfirmed
+                ? ' Saving will merge copies into that existing record.'
+                : ' Press save again to confirm merge.'}
             </div>
           )}
 
@@ -255,12 +261,7 @@ export function ManualBookModal({ initialData, existingBooks, onSave, onClose }:
             <label className="manual-label" htmlFor="manual-age">
               Age
             </label>
-            <select
-              id="manual-age"
-              className="checkout-input"
-              value={age}
-              onChange={(e) => setAge(e.target.value)}
-            >
+            <select id="manual-age" className="checkout-input" value={age} onChange={(e) => setAge(e.target.value)}>
               <option value="">Select age range</option>
               {AGE_OPTIONS.map((option) => (
                 <option key={option} value={option}>

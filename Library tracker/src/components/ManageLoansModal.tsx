@@ -33,8 +33,7 @@ export function ManageLoansModal({ checkouts, onReturnCheckout, onClose }: Manag
     const q = query.trim().toLowerCase();
     return activeCheckouts
       .filter((c) => {
-        const matchesQuery =
-          !q || c.borrowerName.toLowerCase().includes(q) || c.bookTitle.toLowerCase().includes(q);
+        const matchesQuery = !q || c.borrowerName.toLowerCase().includes(q) || c.bookTitle.toLowerCase().includes(q);
         const matchesOverdue = !showOnlyOverdue || isOverdue(c.dueDate);
         return matchesQuery && matchesOverdue;
       })
@@ -75,7 +74,9 @@ export function ManageLoansModal({ checkouts, onReturnCheckout, onClose }: Manag
           ✕
         </button>
 
-        <h2 id="manage-loans-title" className="modal-title">Manage Loans</h2>
+        <h2 id="manage-loans-title" className="modal-title">
+          Manage Loans
+        </h2>
 
         <p className="loan-summary" aria-live="polite">
           Active: {activeCheckouts.length} | Overdue: {overdueCheckouts.length} | Showing: {filtered.length}
@@ -92,11 +93,7 @@ export function ManageLoansModal({ checkouts, onReturnCheckout, onClose }: Manag
             aria-label="Search active loans"
           />
           <label className="loan-overdue-toggle">
-            <input
-              type="checkbox"
-              checked={showOnlyOverdue}
-              onChange={(e) => setShowOnlyOverdue(e.target.checked)}
-            />
+            <input type="checkbox" checked={showOnlyOverdue} onChange={(e) => setShowOnlyOverdue(e.target.checked)} />
             <span>Only overdue</span>
           </label>
           <button

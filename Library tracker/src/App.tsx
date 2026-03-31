@@ -202,14 +202,14 @@ export default function App() {
 
       {/* Manual add modal */}
       {showManualAdd && (
-        <ManualBookModal 
-          initialData={initialManualData ?? undefined} 
+        <ManualBookModal
+          initialData={initialManualData ?? undefined}
           existingBooks={library.books}
-          onSave={handleManualAdd} 
+          onSave={handleManualAdd}
           onClose={() => {
             setShowManualAdd(false);
             setInitialManualData(null);
-          }} 
+          }}
         />
       )}
 
