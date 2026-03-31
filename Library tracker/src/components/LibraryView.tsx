@@ -36,8 +36,9 @@ export function LibraryView({
 
   const borrowerCheckouts = useMemo(() => {
     if (!borrowerFilter) return [];
+    const filterText = borrowerFilter.trim().toLowerCase();
     return activeCheckouts
-      .filter((c) => c.borrowerName === borrowerFilter)
+      .filter((c) => c.borrowerName.toLowerCase().includes(filterText))
       .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
   }, [activeCheckouts, borrowerFilter]);
 
@@ -71,8 +72,13 @@ export function LibraryView({
         (filter === 'available' && availableCopies > 0) ||
         (filter === 'out' && availableCopies === 0);
 
-      const matchesBorrower =
-        !borrowerFilter || activeCheckouts.some((c) => (c.isbn === book.isbn || c.isbn === book.isbn13) && c.borrowerName === borrowerFilter);
+        const filterText = borrowerFilter.trim().toLowerCase();
+        const matchesBorrower =
+          !filterText ||
+          activeCheckouts.some(
+            (c) =>
+              (c.isbn === book.isbn || c.isbn === book.isbn13) && c.borrowerName.toLowerCase().includes(filterText)
+          );
 
       return matchesQuery && matchesFilter && matchesBorrower;
     });
@@ -100,19 +106,20 @@ export function LibraryView({
             </button>
           ))}
         </div>
-        <select
+        <input
           className="search-input"
+          type="text"
           value={borrowerFilter}
           onChange={(e) => setBorrowerFilter(e.target.value)}
+          placeholder="Filter by borrower name"
+          list="borrower-filter-options"
           aria-label="Filter by borrower"
-        >
-          <option value="">All borrowers</option>
+        />
+        <datalist id="borrower-filter-options">
           {borrowerOptions.map((name) => (
-            <option key={name} value={name}>
-              {name}
-            </option>
+            <option key={name} value={name} />
           ))}
-        </select>
+        </datalist>
         <button className="btn btn-secondary library-manual-add-btn" onClick={onManualAddClick}>
           + Add Manually
         </button>
@@ -123,7 +130,7 @@ export function LibraryView({
 
       {borrowerFilter && (
         <div className="borrower-panel" role="region" aria-label="Borrower checkouts">
-          <h3 className="borrower-panel-title">{borrowerFilter} currently has {borrowerCheckouts.length} book(s)</h3>
+            <h3 className="borrower-panel-title">Matching loans: {borrowerCheckouts.length} book(s)</h3>
           {borrowerCheckouts.length === 0 ? (
             <p className="borrower-panel-empty">No active checkouts for this borrower.</p>
           ) : (

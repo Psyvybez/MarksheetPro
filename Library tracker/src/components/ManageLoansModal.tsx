@@ -29,11 +29,23 @@ export function ManageLoansModal({ checkouts, onReturnCheckout, onClose }: Manag
       .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
   }, [activeCheckouts, query, showOnlyOverdue]);
 
+  const overdueCheckouts = useMemo(
+    () => activeCheckouts.filter((record) => isOverdue(record.dueDate)),
+    [activeCheckouts]
+  );
+
   const handleReturnFiltered = () => {
     if (filtered.length === 0) return;
     const confirmed = window.confirm(`Return ${filtered.length} currently filtered checkout(s)?`);
     if (!confirmed) return;
     filtered.forEach((record) => onReturnCheckout(record.id));
+  };
+
+  const handleReturnAllOverdue = () => {
+    if (overdueCheckouts.length === 0) return;
+    const confirmed = window.confirm(`Return all ${overdueCheckouts.length} overdue checkout(s)?`);
+    if (!confirmed) return;
+    overdueCheckouts.forEach((record) => onReturnCheckout(record.id));
   };
 
   return (
@@ -62,6 +74,13 @@ export function ManageLoansModal({ checkouts, onReturnCheckout, onClose }: Manag
             />
             <span>Only overdue</span>
           </label>
+          <button
+            className="btn btn-secondary"
+            onClick={handleReturnAllOverdue}
+            disabled={overdueCheckouts.length === 0}
+          >
+            Return All Overdue ({overdueCheckouts.length})
+          </button>
           <button className="btn btn-secondary" onClick={handleReturnFiltered} disabled={filtered.length === 0}>
             Return Filtered ({filtered.length})
           </button>
