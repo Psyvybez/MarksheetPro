@@ -67,29 +67,34 @@ function getDaysInMonth(year: string, month: string): number {
 }
 
 interface ManualBookModalProps {
+  initialData?: Partial<ManualBookInput>;
   onSave: (input: ManualBookInput) => void;
   onClose: () => void;
 }
 
-export function ManualBookModal({ onSave, onClose }: ManualBookModalProps) {
-  const [title, setTitle] = useState('');
-  const [authors, setAuthors] = useState('');
-  const [publisher, setPublisher] = useState('');
-  const [category, setCategory] = useState('');
-  const [genre, setGenre] = useState('');
-  const [age, setAge] = useState('');
-  const [binding, setBinding] = useState('');
-  const [conditionCoverBindingIntegrity, setConditionCoverBindingIntegrity] = useState('');
-  const [conditionPageQuality, setConditionPageQuality] = useState('');
-  const [conditionOverallAppearance, setConditionOverallAppearance] = useState('');
-  const [isbn, setIsbn] = useState('');
-  const [isbn13, setIsbn13] = useState('');
-  const [searchTags, setSearchTags] = useState('');
-  const [publishedYear, setPublishedYear] = useState('');
-  const [publishedMonth, setPublishedMonth] = useState('');
-  const [publishedDay, setPublishedDay] = useState('');
-  const [synopsis, setSynopsis] = useState('');
-  const [copies, setCopies] = useState('1');
+export function ManualBookModal({ initialData, onSave, onClose }: ManualBookModalProps) {
+  const [title, setTitle] = useState(initialData?.title || '');
+  const [authors, setAuthors] = useState(initialData?.authors?.join(', ') || '');
+  const [publisher, setPublisher] = useState(initialData?.publisher || '');
+  const [category, setCategory] = useState(initialData?.category || '');
+  const [genre, setGenre] = useState(initialData?.genre || '');
+  const [age, setAge] = useState(initialData?.age || '');
+  const [binding, setBinding] = useState(initialData?.binding || '');
+  const [conditionCoverBindingIntegrity, setConditionCoverBindingIntegrity] = useState(initialData?.conditionCoverBindingIntegrity || '');
+  const [conditionPageQuality, setConditionPageQuality] = useState(initialData?.conditionPageQuality || '');
+  const [conditionOverallAppearance, setConditionOverallAppearance] = useState(initialData?.conditionOverallAppearance || '');
+  const [isbn, setIsbn] = useState(initialData?.isbn || '');
+  const [isbn13, setIsbn13] = useState(initialData?.isbn13 || '');
+  const [searchTags, setSearchTags] = useState(initialData?.searchTags?.join(', ') || '');
+  
+  const initialDate = initialData?.datePublished || '';
+  const [publishedYear, setPublishedYear] = useState(initialDate.split('-')[0] || '');
+  const [publishedMonth, setPublishedMonth] = useState(initialDate.split('-')[1] || '');
+  const [publishedDay, setPublishedDay] = useState(initialDate.split('-')[2] || '');
+  
+  const [synopsis, setSynopsis] = useState(initialData?.synopsis || '');
+  const [copies, setCopies] = useState(String(initialData?.copies || '1'));
+  const [coverImage] = useState(initialData?.coverImage || '');
 
   const dayCount = getDaysInMonth(publishedYear, publishedMonth);
   const dayOptions = Array.from({ length: dayCount }, (_, i) => String(i + 1).padStart(2, '0'));
@@ -116,6 +121,7 @@ export function ManualBookModal({ onSave, onClose }: ManualBookModalProps) {
       conditionOverallAppearance,
       isbn,
       isbn13,
+      coverImage,
       searchTags: searchTags
         .split(',')
         .map((value) => value.trim())

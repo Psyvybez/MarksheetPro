@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import type { Book, CheckoutRecord } from '../types';
 import { getBooks, saveBooks, getCheckouts, saveCheckouts } from '../services/storage';
 import { lookupCatalogBook } from '../services/catalog';
+import { fetchGoogleBooksMetadata } from '../services/api';
 
 export interface BookStatus {
   book: Book;
@@ -40,105 +41,29 @@ export function useLibrary() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  /** Look up a book by ISBN (local library first, then built-in catalog). */
-  const lookupBook = useCallback(
-    async (isbn: string): Promise<Book | null> => {
-      const normalizedInput = normalizeIsbn(isbn);
-      const existing = books.find(
-        (b) => normalizeIsbn(b.isbn) === normalizedInput || normalizeIsbn(b.isbn13) === normalizedInput
-      );
-      if (existing) return existing;
-
-      setLoading(true);
-      setError(null);
-      try {
-        const raw = lookupCatalogBook(normalizedInput);
-        if (!raw) {
-          setError('Book not found in local catalog. Add it to src/services/catalog.ts to enable this ISBN.');
-          return null;
-        }
-
-        return {
-          isbn: raw.isbn || normalizedInput,
-          isbn13: raw.isbn13 || normalizedInput,
-          title: raw.title,
-          authors: raw.authors ?? [],
-          publisher: raw.publisher ?? 'Unknown',
-          category: raw.category ?? '',
-          genre: raw.genre ?? '',
-          age: raw.age ?? '',
-          binding: raw.binding ?? '',
-          conditionCoverBindingIntegrity: raw.conditionCoverBindingIntegrity ?? '',
-          conditionPageQuality: raw.conditionPageQuality ?? '',
-          conditionOverallAppearance: raw.conditionOverallAppearance ?? '',
-          coverImage: raw.coverImage ?? '',
-          synopsis: raw.synopsis ?? '',
-          searchTags: raw.searchTags ?? [],
-          datePublished: raw.datePublished ?? '',
-          addedAt: '',
-          copies: 0,
-        };
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to look up book in local catalog');
-        return null;
-      } finally {
-        setLoading(false);
-      }
-    },
-    [books]
-  );
-
-  /** Add a book to the library (increments copies if ISBN already exists). */
-  const addBook = useCallback(
-    async (isbn: string): Promise<Book | null> => {
+  /** Look up a book online or in the local catalog. Useful for auto-filling the add manual form. */
+  const fetchBookMetadata = useCallback(
+    async (isbn: string): Promise<Partial<ManualBookInput> | null> => {
       setLoading(true);
       setError(null);
       try {
         const normalizedInput = normalizeIsbn(isbn);
+        
+        // 1. Try local built-in catalog first
         const raw = lookupCatalogBook(normalizedInput);
-        if (!raw) {
-          setError('Book not found in local catalog. Add it to src/services/catalog.ts to enable this ISBN.');
-          return null;
+        if (raw) {
+          return raw; // CatalogBook shape is compatible with Partial<ManualBookInput>
         }
 
-        const newBook: Book = {
-          isbn: raw.isbn || normalizedInput,
-          isbn13: raw.isbn13 || normalizedInput,
-          title: raw.title,
-          authors: raw.authors ?? [],
-          publisher: raw.publisher ?? 'Unknown',
-          category: raw.category ?? '',
-          genre: raw.genre ?? '',
-          age: raw.age ?? '',
-          binding: raw.binding ?? '',
-          conditionCoverBindingIntegrity: raw.conditionCoverBindingIntegrity ?? '',
-          conditionPageQuality: raw.conditionPageQuality ?? '',
-          conditionOverallAppearance: raw.conditionOverallAppearance ?? '',
-          coverImage: raw.coverImage ?? '',
-          synopsis: raw.synopsis ?? '',
-          searchTags: raw.searchTags ?? [],
-          datePublished: raw.datePublished ?? '',
-          addedAt: new Date().toISOString(),
-          copies: 1,
-        };
+        // 2. Fallback to searching Google Books online
+        const internetData = await fetchGoogleBooksMetadata(normalizedInput);
+        if (internetData) {
+          return internetData;
+        }
 
-        let result = newBook;
-        setBooks((prev) => {
-          const match = prev.find((b) => b.isbn13 === newBook.isbn13 || b.isbn === newBook.isbn);
-          if (match) {
-            result = { ...match, copies: match.copies + 1 };
-            const updated = prev.map((b) => (b.isbn === match.isbn ? result : b));
-            saveBooks(updated);
-            return updated;
-          }
-          const updated = [...prev, newBook];
-          saveBooks(updated);
-          return updated;
-        });
-
-        return result;
+        return null;
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to add book from local catalog');
+        setError(err instanceof Error ? err.message : 'Failed to look up book metadata');
         return null;
       } finally {
         setLoading(false);
@@ -277,8 +202,7 @@ export function useLibrary() {
     loading,
     error,
     setError,
-    lookupBook,
-    addBook,
+    fetchBookMetadata,
     addManualBook,
     removeBook,
     checkoutBook,

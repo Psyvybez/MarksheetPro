@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { useLibrary } from './hooks/useLibrary';
+import { useLibrary, type ManualBookInput } from './hooks/useLibrary';
 import { Scanner } from './components/Scanner';
 import { BookActionModal } from './components/BookActionModal';
 import { LibraryView } from './components/LibraryView';
@@ -12,23 +12,44 @@ export default function App() {
   const [view, setView] = useState<AppView>('dashboard');
   const [showScanner, setShowScanner] = useState(false);
   const [showManualAdd, setShowManualAdd] = useState(false);
+  const [initialManualData, setInitialManualData] = useState<Partial<ManualBookInput> | null>(null);
   const [activeBook, setActiveBook] = useState<Book | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
 
   const library = useLibrary();
 
-  // After a successful scan: look up the book and show the action modal
+  // After a successful scan: look up the book and open the appropriate modal
   const handleScan = useCallback(
     async (isbn: string) => {
       setShowScanner(false);
       setScanError(null);
 
-      const book = await library.lookupBook(isbn);
-      if (book) {
-        setActiveBook(book);
-      } else {
-        setScanError(library.error ?? 'Could not look up that barcode.');
+      // Check if already in library
+      const normalized = isbn.replace(/[^0-9X]/gi, '').toUpperCase();
+      const existing = library.books.find(
+        (b) =>
+          b.isbn.replace(/[^0-9X]/gi, '').toUpperCase() === normalized ||
+          b.isbn13.replace(/[^0-9X]/gi, '').toUpperCase() === normalized
+      );
+
+      if (existing) {
+        setActiveBook(existing);
+        return;
       }
+
+      // Not found locally. Fetch metadata.
+      const metadata = await library.fetchBookMetadata(isbn);
+      if (metadata) {
+        setInitialManualData({ ...metadata, copies: 1 });
+      } else {
+        setInitialManualData({
+          isbn: isbn.length === 10 ? isbn : '',
+          isbn13: isbn.length === 13 || isbn.length > 10 ? isbn : '',
+          copies: 1,
+        });
+        setScanError('Could not find book online. Please enter details manually.');
+      }
+      setShowManualAdd(true);
     },
     [library]
   );
@@ -46,35 +67,16 @@ export default function App() {
   }, []);
 
   const handleManualAdd = useCallback(
-    (input: {
-      title: string;
-      authors: string[];
-      publisher?: string;
-      isbn?: string;
-      isbn13?: string;
-      synopsis?: string;
-      searchTags?: string[];
-      datePublished?: string;
-      coverImage?: string;
-      copies?: number;
-    }) => {
+    (input: ManualBookInput) => {
       const added = library.addManualBook(input);
       if (added) {
         setShowManualAdd(false);
+        setInitialManualData(null);
         setActiveBook(added);
       }
     },
     [library]
   );
-
-  const handleAddToLibrary = useCallback(async () => {
-    if (!activeBook) return;
-    const isbn = activeBook.isbn13 || activeBook.isbn;
-    const added = await library.addBook(isbn);
-    if (added) {
-      setActiveBook(added);
-    }
-  }, [activeBook, library]);
 
   const handleCheckout = useCallback(
     (borrowerName: string) => {
@@ -132,7 +134,10 @@ export default function App() {
             checkouts={library.checkouts}
             onBookClick={(book) => setActiveBook(book)}
             onScanClick={handleScanFromDash}
-            onManualAddClick={() => setShowManualAdd(true)}
+            onManualAddClick={() => {
+              setInitialManualData(null);
+              setShowManualAdd(true);
+            }}
           />
         )}
       </main>
@@ -149,7 +154,6 @@ export default function App() {
           book={activeBook}
           status={activeStatus}
           loading={library.loading}
-          onAddToLibrary={handleAddToLibrary}
           onCheckout={handleCheckout}
           onReturn={handleReturn}
           onClose={() => {
@@ -160,7 +164,16 @@ export default function App() {
       )}
 
       {/* Manual add modal */}
-      {showManualAdd && <ManualBookModal onSave={handleManualAdd} onClose={() => setShowManualAdd(false)} />}
+      {showManualAdd && (
+        <ManualBookModal 
+          initialData={initialManualData ?? undefined} 
+          onSave={handleManualAdd} 
+          onClose={() => {
+            setShowManualAdd(false);
+            setInitialManualData(null);
+          }} 
+        />
+      )}
     </div>
   );
 }

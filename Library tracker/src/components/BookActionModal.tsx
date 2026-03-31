@@ -3,12 +3,11 @@ import type { Book, CheckoutRecord } from '../types';
 import type { BookStatus } from '../hooks/useLibrary';
 
 interface BookActionModalProps {
-  /** The book fetched by ISBN (may not be in library yet if copies === 0) */
+  /** The book selected from the library */
   book: Book;
-  /** Status from the library — null means not in library */
+  /** Status from the library */
   status: BookStatus | null;
   loading: boolean;
-  onAddToLibrary: () => void;
   onCheckout: (borrowerName: string) => void;
   onReturn: (checkoutId: string) => void;
   onClose: () => void;
@@ -30,7 +29,6 @@ export function BookActionModal({
   book,
   status,
   loading,
-  onAddToLibrary,
   onCheckout,
   onReturn,
   onClose,
@@ -38,6 +36,7 @@ export function BookActionModal({
   const [borrowerName, setBorrowerName] = useState('');
   const [showCheckoutForm, setShowCheckoutForm] = useState(false);
 
+  // Since we only present the modal for books already saved to the library, status should be present
   const inLibrary = status !== null;
   const isAvailable = status ? status.isAvailable : false;
   const activeCheckouts: CheckoutRecord[] = status ? status.activeCheckouts : [];
@@ -122,12 +121,7 @@ export function BookActionModal({
 
         {/* Action area */}
         <div className="modal-actions">
-          {!inLibrary ? (
-            <button className="btn btn-primary btn-full" onClick={onAddToLibrary} disabled={loading}>
-              {loading ? <span className="spinner-sm" /> : null}
-              Add to Library
-            </button>
-          ) : isAvailable && !showCheckoutForm ? (
+          {isAvailable && !showCheckoutForm ? (
             <button className="btn btn-primary btn-full" onClick={() => setShowCheckoutForm(true)} disabled={loading}>
               Check Out
             </button>
@@ -157,10 +151,10 @@ export function BookActionModal({
               </div>
             </form>
           ) : (
-            // All copies are out — offer to add another copy
-            <button className="btn btn-secondary btn-full" onClick={onAddToLibrary} disabled={loading}>
-              Add Another Copy
-            </button>
+            // All copies are out
+            <div className="btn-secondary btn-full" style={{ textAlign: 'center', opacity: 0.7 }}>
+              All copies are checked out
+            </div>
           )}
         </div>
 
