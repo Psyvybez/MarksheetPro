@@ -220,6 +220,10 @@ export default function App() {
             library.syncFromStorage();
             setActiveBook(null);
           }}
+          onLoadDemoData={() => {
+            library.seedDemoDataset();
+            setActiveBook(null);
+          }}
           onClose={() => {
             setShowSettings(false);
             const keyExists = Boolean(getStoredApiKey().trim());

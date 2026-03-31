@@ -45,6 +45,31 @@ function normalizePublishedDate(value?: string): string {
   return `${year}-${safeMonth}-${safeDay}`;
 }
 
+function catalogToBook(isbn: string, copies: number): Book | null {
+  const catalogBook = lookupCatalogBook(isbn);
+  if (!catalogBook) return null;
+  return {
+    isbn: normalizeIsbn(catalogBook.isbn),
+    isbn13: normalizeIsbn(catalogBook.isbn13),
+    title: catalogBook.title,
+    authors: catalogBook.authors,
+    publisher: catalogBook.publisher,
+    category: catalogBook.category ?? '',
+    genre: catalogBook.genre ?? '',
+    age: catalogBook.age ?? '',
+    binding: catalogBook.binding ?? '',
+    conditionCoverBindingIntegrity: catalogBook.conditionCoverBindingIntegrity ?? '',
+    conditionPageQuality: catalogBook.conditionPageQuality ?? '',
+    conditionOverallAppearance: catalogBook.conditionOverallAppearance ?? '',
+    coverImage: catalogBook.coverImage,
+    synopsis: catalogBook.synopsis,
+    searchTags: catalogBook.searchTags,
+    datePublished: catalogBook.datePublished,
+    addedAt: new Date().toISOString(),
+    copies: Math.max(1, Math.floor(copies)),
+  };
+}
+
 export function useLibrary() {
   const [books, setBooks] = useState<Book[]>(getBooks);
   const [checkouts, setCheckouts] = useState<CheckoutRecord[]>(getCheckouts);
@@ -239,6 +264,77 @@ export function useLibrary() {
     setCheckouts(getCheckouts());
   }, []);
 
+  /** Seed realistic demo data for testing dashboards, checkouts, and overdue workflows. */
+  const seedDemoDataset = useCallback(() => {
+    const demoBooks = [
+      catalogToBook('9780439708180', 3),
+      catalogToBook('9780142407332', 2),
+      catalogToBook('9780061120084', 2),
+      catalogToBook('9780743273565', 1),
+      catalogToBook('9780812550702', 2),
+      catalogToBook('9780060256654', 1),
+    ].filter((book): book is Book => Boolean(book));
+
+    const now = new Date();
+    const daysFromNow = (days: number): string => {
+      const date = new Date(now);
+      date.setDate(date.getDate() + days);
+      return date.toISOString();
+    };
+
+    const findDemoBook = (isbn13: string) => demoBooks.find((book) => book.isbn13 === isbn13);
+
+    const demoCheckouts: CheckoutRecord[] = [
+      {
+        id: crypto.randomUUID(),
+        isbn: '9780439708180',
+        bookTitle: findDemoBook('9780439708180')?.title ?? 'Harry Potter and the Sorcerer\'s Stone',
+        borrowerName: 'Ava Johnson',
+        checkedOutAt: daysFromNow(-18),
+        dueDate: daysFromNow(-4),
+      },
+      {
+        id: crypto.randomUUID(),
+        isbn: '9780142407332',
+        bookTitle: findDemoBook('9780142407332')?.title ?? 'The Lightning Thief',
+        borrowerName: 'Liam Patel',
+        checkedOutAt: daysFromNow(-10),
+        dueDate: daysFromNow(4),
+      },
+      {
+        id: crypto.randomUUID(),
+        isbn: '9780061120084',
+        bookTitle: findDemoBook('9780061120084')?.title ?? 'To Kill a Mockingbird',
+        borrowerName: 'Noah Kim',
+        checkedOutAt: daysFromNow(-15),
+        dueDate: daysFromNow(-1),
+      },
+      {
+        id: crypto.randomUUID(),
+        isbn: '9780743273565',
+        bookTitle: findDemoBook('9780743273565')?.title ?? 'The Great Gatsby',
+        borrowerName: 'Sofia Martinez',
+        checkedOutAt: daysFromNow(-3),
+        dueDate: daysFromNow(11),
+      },
+      {
+        id: crypto.randomUUID(),
+        isbn: '9780812550702',
+        bookTitle: findDemoBook('9780812550702')?.title ?? 'Ender\'s Game',
+        borrowerName: 'Ethan Brooks',
+        checkedOutAt: daysFromNow(-20),
+        dueDate: daysFromNow(-6),
+        returnedAt: daysFromNow(-2),
+      },
+    ];
+
+    saveBooks(demoBooks);
+    saveCheckouts(demoCheckouts);
+    setBooks(demoBooks);
+    setCheckouts(demoCheckouts);
+    setError(null);
+  }, []);
+
   return {
     books,
     checkouts,
@@ -252,5 +348,6 @@ export function useLibrary() {
     returnBook,
     getBookStatus,
     syncFromStorage,
+    seedDemoDataset,
   };
 }

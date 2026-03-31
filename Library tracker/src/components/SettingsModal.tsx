@@ -3,10 +3,11 @@ import { exportLibraryBackup, getStoredApiKey, importLibraryBackup, saveApiKey }
 
 interface SettingsModalProps {
   onDataImported: () => void;
+  onLoadDemoData: () => void;
   onClose: () => void;
 }
 
-export function SettingsModal({ onDataImported, onClose }: SettingsModalProps) {
+export function SettingsModal({ onDataImported, onLoadDemoData, onClose }: SettingsModalProps) {
   const [key, setKey] = useState(getStoredApiKey);
   const [saved, setSaved] = useState(false);
   const [backupMessage, setBackupMessage] = useState<string | null>(null);
@@ -65,6 +66,21 @@ export function SettingsModal({ onDataImported, onClose }: SettingsModalProps) {
     }
   };
 
+  const handleLoadDemoData = () => {
+    setBackupError(null);
+    setBackupMessage(null);
+
+    const confirmed = window.confirm('Load demo dataset? This will replace your current books and checkout history.');
+    if (!confirmed) return;
+
+    try {
+      onLoadDemoData();
+      setBackupMessage('Demo dataset loaded. You can now test overdue and checkout flows.');
+    } catch (err) {
+      setBackupError(err instanceof Error ? err.message : 'Failed to load demo dataset.');
+    }
+  };
+
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Settings">
       <div className="modal-sheet">
@@ -112,6 +128,9 @@ export function SettingsModal({ onDataImported, onClose }: SettingsModalProps) {
             </button>
             <button type="button" className="btn btn-secondary" onClick={handleImportClick}>
               Import Backup
+            </button>
+            <button type="button" className="btn btn-secondary" onClick={handleLoadDemoData}>
+              Load Demo Dataset
             </button>
             <input
               ref={fileInputRef}
