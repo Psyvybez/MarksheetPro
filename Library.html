@@ -160,8 +160,11 @@
       const SUPABASE_ANON_KEY =
         'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB2d2NkZXNhZnh4a29zZHJmandhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg0NzY3NDIsImV4cCI6MjA3NDA1Mjc0Mn0.qaSGzdLMCbYNO1KQPCZJrCrk0AEtesKvt2kHXJ_IVH8';
 
-      // Update these two values so only your account can open this page.
-      const ALLOWED_OWNER_EMAIL = 'admin@marksheetpro.com';
+      // Update this list to control which signed-in accounts can open this page.
+      const ALLOWED_LIBRARY_EMAILS = new Set([
+        'admin@marksheetpro.com',
+        'jaycee.molina@gmail.com',
+      ]);
       const SECRET_HASH_HEX = '9bed3905e9c47e8485b8570d87ef9a80f5f9d81d1a9d23534b7942f5823825e2';
 
       const TAB_UNLOCK_KEY = 'marksheet_private_library_unlocked';
@@ -202,7 +205,7 @@
           .join('');
       }
 
-      async function checkOwnerSession() {
+      async function checkAuthorizedSession() {
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         const { data } = await supabaseClient.auth.getSession();
         const email = data?.session?.user?.email || '';
@@ -216,7 +219,7 @@
         whoEl.classList.remove('hidden');
         whoEl.textContent = `Signed in as: ${email}`;
 
-        if (email.toLowerCase() !== ALLOWED_OWNER_EMAIL.toLowerCase()) {
+        if (!ALLOWED_LIBRARY_EMAILS.has(email.toLowerCase())) {
           setStatus('Access denied for this account.', 'error');
           unlockBtn.disabled = true;
           return false;
@@ -281,7 +284,7 @@
       });
 
       (async function init() {
-        const allowed = await checkOwnerSession();
+        const allowed = await checkAuthorizedSession();
         if (!allowed) return;
 
         const openedFromLibraryButton = sessionStorage.getItem(ENTRY_TICKET_KEY) === '1';
