@@ -124,6 +124,15 @@ export function ManualBookModal({
   const [coverImage, setCoverImage] = useState(initialData?.coverImage || '');
   const [duplicateConfirmed, setDuplicateConfirmed] = useState(false);
 
+  const toggleGenre = (genre: string) => {
+    setSelectedGenres((prev) => {
+      if (prev.includes(genre)) {
+        return prev.filter((value) => value !== genre);
+      }
+      return [...prev, genre];
+    });
+  };
+
   const duplicateMatch = useMemo(() => {
     const candidate10 = normalizeIsbn(isbn);
     const candidate13 = normalizeIsbn(isbn13);
@@ -266,23 +275,19 @@ export function ManualBookModal({
             <label className="manual-label" htmlFor="manual-genre">
               Genre (select one or more)
             </label>
-            <select
-              id="manual-genre"
-              className="checkout-input"
-              value={selectedGenres}
-              onChange={(e) => {
-                const values = Array.from(e.target.selectedOptions, (option) => option.value);
-                setSelectedGenres(values);
-              }}
-              multiple
-              size={6}
-            >
+            <div id="manual-genre" className="genre-chip-group" role="group" aria-label="Genre selections">
               {GENRE_OPTIONS.map((option) => (
-                <option key={option} value={option}>
+                <button
+                  key={option}
+                  type="button"
+                  className={`genre-chip ${selectedGenres.includes(option) ? 'selected' : ''}`}
+                  onClick={() => toggleGenre(option)}
+                  aria-pressed={selectedGenres.includes(option)}
+                >
                   {option}
-                </option>
+                </button>
               ))}
-            </select>
+            </div>
 
             <label className="manual-label" htmlFor="manual-age">
               Age

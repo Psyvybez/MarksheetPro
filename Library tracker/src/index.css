@@ -908,6 +908,49 @@ ul {
   gap: 0.5rem;
 }
 
+.genre-chip-group {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0.5rem;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  min-height: 44px;
+}
+
+.genre-chip-group:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-light);
+}
+
+.genre-chip {
+  padding: 0.35rem 0.65rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+}
+
+.genre-chip:hover {
+  border-color: #cbd5e1;
+  background: #f1f5f9;
+}
+
+.genre-chip.selected {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+
 /* Book action modal */
 .modal-book-header {
   display: flex;
