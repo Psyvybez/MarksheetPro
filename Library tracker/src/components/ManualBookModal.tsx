@@ -274,6 +274,7 @@ export function ManualBookModal({
 
             <label className="manual-label" htmlFor="manual-genre">
               Genre (select one or more)
+              {` - ${selectedGenres.length} selected`}
             </label>
             <div id="manual-genre" className="genre-chip-group" role="group" aria-label="Genre selections">
               {GENRE_OPTIONS.map((option) => (
