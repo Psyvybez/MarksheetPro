@@ -13,6 +13,7 @@ import type { AppView, Book } from './types';
 export default function App() {
   const [view, setView] = useState<AppView>('dashboard');
   const [showScanner, setShowScanner] = useState(false);
+  const [scannerMode, setScannerMode] = useState<'add' | 'search'>('add');
   const [showManualAdd, setShowManualAdd] = useState(false);
   const [manualMode, setManualMode] = useState<'add' | 'edit'>('add');
   const [editBookId, setEditBookId] = useState<string | null>(null);
@@ -44,6 +45,11 @@ export default function App() {
         return;
       }
 
+      if (scannerMode === 'search') {
+        setScanError('Book not found in your library.');
+        return;
+      }
+
       // Not found locally. Fetch metadata.
       const metadata = await library.fetchBookMetadata(isbn);
       if (metadata) {
@@ -60,11 +66,12 @@ export default function App() {
       setEditBookId(null);
       setShowManualAdd(true);
     },
-    [library]
+    [library, scannerMode]
   );
 
   const handleNavChange = useCallback((next: AppView) => {
     if (next === 'scanner') {
+      setScannerMode('add');
       setShowScanner(true);
     } else {
       setView(next);
@@ -72,6 +79,12 @@ export default function App() {
   }, []);
 
   const handleScanFromDash = useCallback(() => {
+    setScannerMode('add');
+    setShowScanner(true);
+  }, []);
+
+  const handleScanSearchFromLibrary = useCallback(() => {
+    setScannerMode('search');
     setShowScanner(true);
   }, []);
 
@@ -204,6 +217,7 @@ export default function App() {
             onReturnCheckout={handleReturn}
             onBookClick={(book) => setActiveBook(book)}
             onScanClick={handleScanFromDash}
+            onScanSearchClick={handleScanSearchFromLibrary}
             onManualAddClick={() => {
               setInitialManualData(null);
               setShowManualAdd(true);

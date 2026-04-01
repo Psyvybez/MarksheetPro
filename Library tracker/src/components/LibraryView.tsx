@@ -22,6 +22,7 @@ interface LibraryViewProps {
   onReturnCheckout: (checkoutId: string) => void;
   onBookClick: (book: Book) => void;
   onScanClick: () => void;
+  onScanSearchClick: () => void;
   onManualAddClick: () => void;
   onAddStudentCard: (input: Omit<StudentCard, 'id' | 'cardNumber' | 'createdAt' | 'updatedAt'>) => void;
   onUpdateStudentCard: (cardId: string, updates: Partial<Omit<StudentCard, 'id' | 'createdAt'>>) => void;
@@ -35,6 +36,7 @@ export function LibraryView({
   onReturnCheckout,
   onBookClick,
   onScanClick,
+  onScanSearchClick,
   onManualAddClick,
   onAddStudentCard,
   onUpdateStudentCard,
@@ -149,6 +151,9 @@ export function LibraryView({
         )}
         <button className="btn btn-secondary library-manual-add-btn" onClick={onManualAddClick}>
           + Add Manually
+        </button>
+        <button className="btn btn-secondary library-manual-add-btn" onClick={onScanSearchClick}>
+          Scan to Search
         </button>
         <button
           className="btn btn-secondary library-manual-add-btn"

@@ -18,6 +18,7 @@ const GENRE_OPTIONS = [
   'Adventure',
   'Children',
   'Drama',
+  'Dystopian',
   'Fantasy',
   'Historical',
   'Horror',
