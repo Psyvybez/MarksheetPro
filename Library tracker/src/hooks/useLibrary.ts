@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import type { Book, CheckoutRecord, StudentCard } from '../types';
 import {
   getBooks,
@@ -9,6 +9,7 @@ import {
   getStudentCards,
   saveStudentCards,
 } from '../services/storage';
+import { loadCloudLibraryState, saveCloudLibraryState } from '../services/cloudStorage';
 import { lookupCatalogBook } from '../services/catalog';
 import { fetchGoogleBooksMetadata } from '../services/api';
 
@@ -94,8 +95,54 @@ export function useLibrary() {
   const [books, setBooks] = useState<Book[]>(getBooks);
   const [checkouts, setCheckouts] = useState<CheckoutRecord[]>(getCheckouts);
   const [studentCards, setStudentCards] = useState<StudentCard[]>(getStudentCards);
+  const [cloudHydrated, setCloudHydrated] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const hydrateFromCloud = async () => {
+      const cloud = await loadCloudLibraryState();
+      if (cancelled) return;
+
+      if (cloud) {
+        setBooks(cloud.books);
+        setCheckouts(cloud.checkouts);
+        setStudentCards(cloud.studentCards);
+        saveBooks(cloud.books);
+        saveCheckouts(cloud.checkouts);
+        saveStudentCards(cloud.studentCards);
+      }
+
+      setCloudHydrated(true);
+    };
+
+    hydrateFromCloud();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!cloudHydrated) return;
+
+    saveBooks(books);
+    saveCheckouts(checkouts);
+    saveStudentCards(studentCards);
+
+    // Debounce cloud writes while users are typing/editing forms.
+    const timer = window.setTimeout(() => {
+      saveCloudLibraryState({ books, checkouts, studentCards }).catch((syncError) => {
+        console.warn('Cloud sync failed:', syncError);
+      });
+    }, 300);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [books, checkouts, studentCards, cloudHydrated]);
 
   const saveStudentCardsState = useCallback((cards: StudentCard[]) => {
     setStudentCards(cards);

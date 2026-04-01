@@ -9,7 +9,65 @@ A mobile-friendly book tracker for a small classroom library. Scan ISBN barcodes
 - **Check-out & Check-in** — log which student has which book, with a 2-week due date
 - **Overdue alerts** — dashboard highlights books past their due date
 - **Local storage** — all data is saved in the browser (no server needed)
+- **Supabase sync** — when signed in, books/checkouts/cards sync per user to Supabase
 - **Works offline** — once books are added, the library view works without internet
+
+## Supabase Setup
+
+This app now supports cloud persistence through Supabase for authenticated users.
+
+### 1. Environment variables
+
+Create a `.env` file in this folder (`Library tracker/`) with:
+
+```bash
+VITE_SUPABASE_URL=https://your-project-ref.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
+```
+
+If these variables are not set, the app falls back to the existing project values currently used by the parent Marksheet app.
+
+### 2. Create table in Supabase
+
+Run this SQL in your Supabase SQL editor:
+
+```sql
+create table if not exists public.library_tracker_state (
+	user_id uuid primary key references auth.users(id) on delete cascade,
+	books jsonb not null default '[]'::jsonb,
+	checkouts jsonb not null default '[]'::jsonb,
+	student_cards jsonb not null default '[]'::jsonb,
+	updated_at timestamptz not null default now()
+);
+
+alter table public.library_tracker_state enable row level security;
+
+drop policy if exists "library_state_select_own" on public.library_tracker_state;
+create policy "library_state_select_own"
+on public.library_tracker_state
+for select
+using (auth.uid() = user_id);
+
+drop policy if exists "library_state_insert_own" on public.library_tracker_state;
+create policy "library_state_insert_own"
+on public.library_tracker_state
+for insert
+with check (auth.uid() = user_id);
+
+drop policy if exists "library_state_update_own" on public.library_tracker_state;
+create policy "library_state_update_own"
+on public.library_tracker_state
+for update
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
+```
+
+### 3. Behavior
+
+- On load, the app checks Supabase for the signed-in user's library state.
+- If cloud data exists, it hydrates local state from Supabase.
+- Any changes to books, checkouts, or student cards are synced back to Supabase.
+- localStorage is still used as an offline cache and backup path.
 
 ## Getting Started
 
