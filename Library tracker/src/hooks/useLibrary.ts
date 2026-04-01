@@ -39,6 +39,11 @@ export interface ManualBookInput {
   copies?: number;
 }
 
+export interface BookUpdateInput extends ManualBookInput {
+  originalIsbn?: string;
+  originalIsbn13?: string;
+}
+
 function normalizeIsbn(value: string): string {
   return value.replace(/[^0-9X]/gi, '').toUpperCase();
 }
@@ -200,6 +205,94 @@ export function useLibrary() {
       return updated;
     });
   }, []);
+
+  /** Update an existing book and keep related checkout records in sync. */
+  const updateBookDetails = useCallback(
+    (input: BookUpdateInput): Book | null => {
+      const title = input.title.trim();
+      if (!title) {
+        setError('Book title is required.');
+        return null;
+      }
+
+      const original10 = normalizeIsbn(input.originalIsbn ?? '');
+      const original13 = normalizeIsbn(input.originalIsbn13 ?? '');
+
+      const next10 = normalizeIsbn(input.isbn ?? '');
+      const next13 = normalizeIsbn(input.isbn13 ?? '');
+      const canonicalId = next13 || next10 || original13 || original10;
+
+      if (!canonicalId) {
+        setError('A valid ISBN is required to update this book.');
+        return null;
+      }
+
+      const copies = Math.max(1, Math.floor(input.copies ?? 1));
+      const index = books.findIndex(
+        (book) =>
+          (original10 && (normalizeIsbn(book.isbn) === original10 || normalizeIsbn(book.isbn13) === original10)) ||
+          (original13 && (normalizeIsbn(book.isbn) === original13 || normalizeIsbn(book.isbn13) === original13))
+      );
+
+      if (index < 0) {
+        setError('Could not find the selected book to update.');
+        return null;
+      }
+
+      const existing = books[index];
+      const updatedBook: Book = {
+        ...existing,
+        isbn: next10 || existing.isbn,
+        isbn13: next13 || existing.isbn13,
+        title,
+        authors: input.authors.filter(Boolean),
+        publisher: input.publisher?.trim() || 'Unknown',
+        category: input.category?.trim() || '',
+        genre: input.genre?.trim() || '',
+        age: input.age?.trim() || '',
+        binding: input.binding?.trim() || '',
+        conditionCoverBindingIntegrity: input.conditionCoverBindingIntegrity?.trim() || '',
+        conditionPageQuality: input.conditionPageQuality?.trim() || '',
+        conditionOverallAppearance: input.conditionOverallAppearance?.trim() || '',
+        coverImage: input.coverImage?.trim() || '',
+        synopsis: input.synopsis?.trim() || '',
+        searchTags: (input.searchTags ?? []).filter(Boolean),
+        datePublished: input.datePublished?.trim() || '',
+        copies,
+      };
+
+      const nextBooks = [...books];
+      nextBooks[index] = updatedBook;
+      setBooks(nextBooks);
+      saveBooks(nextBooks);
+
+      const nextCheckoutIsbn = normalizeIsbn(updatedBook.isbn13 || updatedBook.isbn || canonicalId);
+      setCheckouts((prev) => {
+        const updated = prev.map((record) => {
+          const recordIsbn = normalizeIsbn(record.isbn);
+          if (
+            recordIsbn === original10 ||
+            recordIsbn === original13 ||
+            recordIsbn === normalizeIsbn(updatedBook.isbn) ||
+            recordIsbn === normalizeIsbn(updatedBook.isbn13)
+          ) {
+            return {
+              ...record,
+              isbn: nextCheckoutIsbn,
+              bookTitle: updatedBook.title,
+            };
+          }
+          return record;
+        });
+        saveCheckouts(updated);
+        return updated;
+      });
+
+      setError(null);
+      return updatedBook;
+    },
+    [books]
+  );
 
   /** Check out a copy of a book to a borrower. Returns the new record. */
   const checkoutBook = useCallback((isbn: string, bookTitle: string, borrowerName: string): CheckoutRecord => {
@@ -387,6 +480,7 @@ export function useLibrary() {
     setError,
     fetchBookMetadata,
     addManualBook,
+    updateBookDetails,
     removeBook,
     checkoutBook,
     returnBook,

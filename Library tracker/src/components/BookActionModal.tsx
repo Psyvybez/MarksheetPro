@@ -11,6 +11,8 @@ interface BookActionModalProps {
   borrowerSuggestions: string[];
   onCheckout: (borrowerName: string) => void;
   onReturn: (checkoutId: string) => void;
+  onEdit: () => void;
+  onDelete: () => void;
   onClose: () => void;
 }
 
@@ -33,6 +35,8 @@ export function BookActionModal({
   borrowerSuggestions,
   onCheckout,
   onReturn,
+  onEdit,
+  onDelete,
   onClose,
 }: BookActionModalProps) {
   const [borrowerName, setBorrowerName] = useState('');
@@ -123,6 +127,13 @@ export function BookActionModal({
 
         {/* Action area */}
         <div className="modal-actions">
+          <button className="btn btn-secondary btn-full" onClick={onEdit} disabled={loading}>
+            Edit Details
+          </button>
+          <button className="btn btn-secondary btn-full" onClick={onDelete} disabled={loading}>
+            Delete Book
+          </button>
+
           {isAvailable && !showCheckoutForm ? (
             <button className="btn btn-primary btn-full" onClick={() => setShowCheckoutForm(true)} disabled={loading}>
               Check Out

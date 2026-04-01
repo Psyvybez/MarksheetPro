@@ -68,6 +68,8 @@ function getDaysInMonth(year: string, month: string): number {
 }
 
 interface ManualBookModalProps {
+  mode?: 'add' | 'edit';
+  originalBookId?: string;
   initialData?: Partial<ManualBookInput>;
   existingBooks: Book[];
   onSave: (input: ManualBookInput) => void;
@@ -78,12 +80,27 @@ function normalizeIsbn(value: string): string {
   return value.replace(/[^0-9X]/gi, '').toUpperCase();
 }
 
-export function ManualBookModal({ initialData, existingBooks, onSave, onClose }: ManualBookModalProps) {
+function parseGenres(value?: string): string[] {
+  if (!value) return [];
+  return value
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+export function ManualBookModal({
+  mode = 'add',
+  originalBookId,
+  initialData,
+  existingBooks,
+  onSave,
+  onClose,
+}: ManualBookModalProps) {
   const [title, setTitle] = useState(initialData?.title || '');
   const [authors, setAuthors] = useState(initialData?.authors?.join(', ') || '');
   const [publisher, setPublisher] = useState(initialData?.publisher || '');
   const [category, setCategory] = useState(initialData?.category || '');
-  const [genre, setGenre] = useState(initialData?.genre || '');
+  const [selectedGenres, setSelectedGenres] = useState<string[]>(parseGenres(initialData?.genre));
   const [age, setAge] = useState(initialData?.age || '');
   const [binding, setBinding] = useState(initialData?.binding || '');
   const [conditionCoverBindingIntegrity, setConditionCoverBindingIntegrity] = useState(
@@ -104,7 +121,7 @@ export function ManualBookModal({ initialData, existingBooks, onSave, onClose }:
 
   const [synopsis, setSynopsis] = useState(initialData?.synopsis || '');
   const [copies, setCopies] = useState(String(initialData?.copies || '1'));
-  const [coverImage] = useState(initialData?.coverImage || '');
+  const [coverImage, setCoverImage] = useState(initialData?.coverImage || '');
   const [duplicateConfirmed, setDuplicateConfirmed] = useState(false);
 
   const duplicateMatch = useMemo(() => {
@@ -114,6 +131,11 @@ export function ManualBookModal({ initialData, existingBooks, onSave, onClose }:
 
     return (
       existingBooks.find((book) => {
+        const existingId = normalizeIsbn(book.isbn13 || book.isbn);
+        if (originalBookId && existingId === normalizeIsbn(originalBookId)) {
+          return false;
+        }
+
         const book10 = normalizeIsbn(book.isbn);
         const book13 = normalizeIsbn(book.isbn13);
         return (
@@ -150,7 +172,7 @@ export function ManualBookModal({ initialData, existingBooks, onSave, onClose }:
         .filter(Boolean),
       publisher,
       category,
-      genre,
+      genre: selectedGenres.join(', '),
       age,
       binding,
       conditionCoverBindingIntegrity,
@@ -177,7 +199,7 @@ export function ManualBookModal({ initialData, existingBooks, onSave, onClose }:
         <button className="modal-close-btn" onClick={onClose} aria-label="Close manual add form">
           ✕
         </button>
-        <h2 className="modal-title">Add Book Manually</h2>
+        <h2 className="modal-title">{mode === 'edit' ? 'Edit Book Details' : 'Add Book Manually'}</h2>
 
         <form className="manual-form" onSubmit={handleSubmit}>
           {duplicateMatch && (
@@ -242,15 +264,19 @@ export function ManualBookModal({ initialData, existingBooks, onSave, onClose }:
             </select>
 
             <label className="manual-label" htmlFor="manual-genre">
-              Genre
+              Genre (select one or more)
             </label>
             <select
               id="manual-genre"
               className="checkout-input"
-              value={genre}
-              onChange={(e) => setGenre(e.target.value)}
+              value={selectedGenres}
+              onChange={(e) => {
+                const values = Array.from(e.target.selectedOptions, (option) => option.value);
+                setSelectedGenres(values);
+              }}
+              multiple
+              size={6}
             >
-              <option value="">Select genre</option>
               {GENRE_OPTIONS.map((option) => (
                 <option key={option} value={option}>
                   {option}
@@ -320,6 +346,18 @@ export function ManualBookModal({ initialData, existingBooks, onSave, onClose }:
               max={50}
               value={copies}
               onChange={(e) => setCopies(e.target.value)}
+            />
+
+            <label className="manual-label" htmlFor="manual-cover-image">
+              Cover Photo URL
+            </label>
+            <input
+              id="manual-cover-image"
+              className="checkout-input"
+              type="url"
+              value={coverImage}
+              onChange={(e) => setCoverImage(e.target.value)}
+              placeholder="https://example.com/cover.jpg"
             />
 
             <label className="manual-label" htmlFor="manual-search-tags">
@@ -451,7 +489,11 @@ export function ManualBookModal({ initialData, existingBooks, onSave, onClose }:
               Cancel
             </button>
             <button type="submit" className="btn btn-primary" disabled={!title.trim()}>
-              {duplicateMatch && duplicateConfirmed ? 'Save and Merge Copies' : 'Save Book'}
+              {duplicateMatch && duplicateConfirmed
+                ? 'Save and Merge Copies'
+                : mode === 'edit'
+                  ? 'Save Changes'
+                  : 'Save Book'}
             </button>
           </div>
         </form>

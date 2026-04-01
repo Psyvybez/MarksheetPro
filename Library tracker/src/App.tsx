@@ -14,6 +14,8 @@ export default function App() {
   const [view, setView] = useState<AppView>('dashboard');
   const [showScanner, setShowScanner] = useState(false);
   const [showManualAdd, setShowManualAdd] = useState(false);
+  const [manualMode, setManualMode] = useState<'add' | 'edit'>('add');
+  const [editBookId, setEditBookId] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [initialManualData, setInitialManualData] = useState<Partial<ManualBookInput> | null>(null);
   const [activeBook, setActiveBook] = useState<Book | null>(null);
@@ -54,6 +56,8 @@ export default function App() {
         });
         setScanError('Could not find book online. Please enter details manually.');
       }
+      setManualMode('add');
+      setEditBookId(null);
       setShowManualAdd(true);
     },
     [library]
@@ -76,11 +80,37 @@ export default function App() {
       const added = library.addManualBook(input);
       if (added) {
         setShowManualAdd(false);
+        setManualMode('add');
+        setEditBookId(null);
         setInitialManualData(null);
         setActiveBook(added);
       }
     },
     [library]
+  );
+
+  const handleManualSave = useCallback(
+    (input: ManualBookInput) => {
+      if (manualMode === 'edit') {
+        const updated = library.updateBookDetails({
+          ...input,
+          originalIsbn: initialManualData?.isbn,
+          originalIsbn13: initialManualData?.isbn13,
+        });
+
+        if (updated) {
+          setShowManualAdd(false);
+          setManualMode('add');
+          setEditBookId(null);
+          setInitialManualData(null);
+          setActiveBook(updated);
+        }
+        return;
+      }
+
+      handleManualAdd(input);
+    },
+    [manualMode, library, initialManualData, handleManualAdd]
   );
 
   const handleCheckout = useCallback(
@@ -200,6 +230,43 @@ export default function App() {
           borrowerSuggestions={borrowerSuggestions}
           onCheckout={handleCheckout}
           onReturn={handleReturn}
+          onEdit={() => {
+            setInitialManualData({
+              title: activeBook.title,
+              authors: activeBook.authors,
+              publisher: activeBook.publisher,
+              category: activeBook.category,
+              genre: activeBook.genre,
+              age: activeBook.age,
+              binding: activeBook.binding,
+              conditionCoverBindingIntegrity: activeBook.conditionCoverBindingIntegrity,
+              conditionPageQuality: activeBook.conditionPageQuality,
+              conditionOverallAppearance: activeBook.conditionOverallAppearance,
+              isbn: activeBook.isbn,
+              isbn13: activeBook.isbn13,
+              synopsis: activeBook.synopsis,
+              searchTags: activeBook.searchTags,
+              datePublished: activeBook.datePublished,
+              coverImage: activeBook.coverImage,
+              copies: activeBook.copies,
+            });
+            setManualMode('edit');
+            setEditBookId(activeBook.isbn13 || activeBook.isbn);
+            setShowManualAdd(true);
+            setActiveBook(null);
+          }}
+          onDelete={() => {
+            const target = activeBook;
+            if (!target) return;
+
+            const confirmed = window.confirm(
+              `Delete "${target.title}" from the library? This also removes its checkout history.`
+            );
+            if (!confirmed) return;
+
+            library.removeBook(target.isbn13 || target.isbn);
+            setActiveBook(null);
+          }}
           onClose={() => {
             setActiveBook(null);
             library.setError(null);
@@ -210,11 +277,15 @@ export default function App() {
       {/* Manual add modal */}
       {showManualAdd && (
         <ManualBookModal
+          mode={manualMode}
+          originalBookId={editBookId ?? undefined}
           initialData={initialManualData ?? undefined}
           existingBooks={library.books}
-          onSave={handleManualAdd}
+          onSave={handleManualSave}
           onClose={() => {
             setShowManualAdd(false);
+            setManualMode('add');
+            setEditBookId(null);
             setInitialManualData(null);
           }}
         />
