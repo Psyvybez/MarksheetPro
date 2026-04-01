@@ -207,10 +207,7 @@ export function StudentCardsModal({ cards, onAddCard, onUpdateCard, onDeleteCard
       </div>
 
       {viewingCardId && (
-        <DigitalCardViewer
-          card={cards.find((c) => c.id === viewingCardId)!}
-          onClose={() => setViewingCardId(null)}
-        />
+        <DigitalCardViewer card={cards.find((c) => c.id === viewingCardId)!} onClose={() => setViewingCardId(null)} />
       )}
     </div>
   );

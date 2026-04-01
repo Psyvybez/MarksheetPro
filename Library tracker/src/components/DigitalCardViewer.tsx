@@ -240,9 +240,7 @@ export function DigitalCardViewer({ card, onClose }: DigitalCardViewerProps) {
 
           {/* Card Header */}
           <div>
-            <div style={{ fontSize: '14px', opacity: 0.9, marginBottom: '12px', fontWeight: '600' }}>
-              LIBRARY CARD
-            </div>
+            <div style={{ fontSize: '14px', opacity: 0.9, marginBottom: '12px', fontWeight: '600' }}>LIBRARY CARD</div>
             <h3 style={{ margin: '0 0 20px 0', fontSize: '24px', fontWeight: '700' }}>{card.studentName}</h3>
           </div>
 
@@ -255,7 +253,15 @@ export function DigitalCardViewer({ card, onClose }: DigitalCardViewerProps) {
           </div>
 
           {/* Card Footer */}
-          <div style={{ fontSize: '11px', opacity: 0.8, marginTop: '12px', borderTop: '1px solid rgba(255,255,255,0.3)', paddingTop: '12px' }}>
+          <div
+            style={{
+              fontSize: '11px',
+              opacity: 0.8,
+              marginTop: '12px',
+              borderTop: '1px solid rgba(255,255,255,0.3)',
+              paddingTop: '12px',
+            }}
+          >
             {card.isActive ? '✓ Active' : '✗ Inactive'}
           </div>
         </div>
@@ -268,7 +274,9 @@ export function DigitalCardViewer({ card, onClose }: DigitalCardViewerProps) {
           </div>
           <div style={{ marginBottom: '8px' }}>
             <span style={{ fontWeight: '600', color: '#374151' }}>Card Number:</span>
-            <span style={{ marginLeft: '8px', color: '#6b7280', fontFamily: 'Monaco, monospace' }}>{card.cardNumber}</span>
+            <span style={{ marginLeft: '8px', color: '#6b7280', fontFamily: 'Monaco, monospace' }}>
+              {card.cardNumber}
+            </span>
           </div>
           <div style={{ marginBottom: '0' }}>
             <span style={{ fontWeight: '600', color: '#374151' }}>Status:</span>
