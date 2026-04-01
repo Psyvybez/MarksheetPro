@@ -14,14 +14,24 @@ export async function fetchGoogleBooksMetadata(
   apiKey?: string
 ): Promise<Partial<ManualBookInput> | null> {
   try {
-    const url = new URL('https://www.googleapis.com/books/v1/volumes');
-    url.searchParams.set('q', `isbn:${isbn}`);
-    if (apiKey) {
-      url.searchParams.set('key', apiKey);
+    const buildLookupUrl = (includeKey: boolean) => {
+      const url = new URL('https://www.googleapis.com/books/v1/volumes');
+      url.searchParams.set('q', `isbn:${isbn}`);
+      if (includeKey && apiKey) {
+        url.searchParams.set('key', apiKey);
+      }
+      return url.toString();
+    };
+
+    let response = await fetch(buildLookupUrl(Boolean(apiKey)));
+    if (!response.ok && apiKey) {
+      // If the configured key is restricted or over quota, retry anonymously.
+      response = await fetch(buildLookupUrl(false));
     }
 
-    const response = await fetch(url.toString());
-    if (!response.ok) return null;
+    if (!response.ok) {
+      return null;
+    }
 
     const data = await response.json();
     if (!data.items || data.items.length === 0) return null;
