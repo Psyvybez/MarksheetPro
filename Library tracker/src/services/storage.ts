@@ -4,6 +4,8 @@ const BOOKS_KEY = 'lt_books';
 const CHECKOUTS_KEY = 'lt_checkouts';
 const API_KEY_KEY = 'lt_api_key';
 const STUDENT_CARDS_KEY = 'lt_student_cards';
+const DEFAULT_GOOGLE_BOOKS_API_KEY =
+  import.meta.env.VITE_GOOGLE_BOOKS_API_KEY || 'AIzaSyDHdECKraePiwX0Ab0wuATJMm8zF-UGQ6U';
 
 export interface LibraryBackup {
   version: 1;
@@ -46,7 +48,7 @@ export function saveCheckouts(checkouts: CheckoutRecord[]): void {
 }
 
 export function getStoredApiKey(): string {
-  return localStorage.getItem(API_KEY_KEY) ?? '';
+  return localStorage.getItem(API_KEY_KEY) ?? DEFAULT_GOOGLE_BOOKS_API_KEY;
 }
 
 export function saveApiKey(key: string): void {
