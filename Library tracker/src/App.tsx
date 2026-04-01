@@ -233,7 +233,7 @@ export default function App() {
       <NavBar currentView={view} onChange={handleNavChange} />
 
       {/* Scanner overlay */}
-      {showScanner && <Scanner onScan={handleScan} onClose={() => setShowScanner(false)} />}
+      {showScanner && <Scanner onScan={handleScan} onClose={() => setShowScanner(false)} mode={scannerMode} />}
 
       {/* Book action modal */}
       {activeBook && (

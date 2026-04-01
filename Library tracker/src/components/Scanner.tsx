@@ -5,17 +5,21 @@ import { NotFoundException } from '@zxing/library';
 interface ScannerProps {
   onScan: (isbn: string) => void;
   onClose: () => void;
+  mode?: 'add' | 'search';
 }
 
 const ISBN_PATTERN = /^\d{10}$|^\d{13}$/;
 
-export function Scanner({ onScan, onClose }: ScannerProps) {
+export function Scanner({ onScan, onClose, mode = 'add' }: ScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const manualInputRef = useRef<HTMLInputElement>(null);
   const readerRef = useRef<BrowserMultiFormatReader | null>(null);
   const controlsRef = useRef<{ stop: () => void } | null>(null);
   const lastScanRef = useRef<string>('');
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isReady, setIsReady] = useState(false);
+  const [manualIsbn, setManualIsbn] = useState('');
+  const [manualError, setManualError] = useState<string | null>(null);
 
   const stopScanner = useCallback(() => {
     try {
@@ -25,6 +29,24 @@ export function Scanner({ onScan, onClose }: ScannerProps) {
     }
     controlsRef.current = null;
   }, []);
+
+  const submitIsbn = useCallback(
+    (rawValue: string) => {
+      const normalized = rawValue.replace(/[^0-9X]/gi, '').toUpperCase();
+      if (!ISBN_PATTERN.test(normalized)) {
+        setManualError('Enter or scan a valid 10 or 13 digit ISBN.');
+        return;
+      }
+
+      if (normalized === lastScanRef.current) return;
+
+      lastScanRef.current = normalized;
+      setManualError(null);
+      stopScanner();
+      onScan(normalized);
+    },
+    [onScan, stopScanner]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -86,6 +108,14 @@ export function Scanner({ onScan, onClose }: ScannerProps) {
     };
   }, [onScan, stopScanner]);
 
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      manualInputRef.current?.focus();
+    }, 100);
+
+    return () => window.clearTimeout(timer);
+  }, []);
+
   return (
     <div className="scanner-overlay">
       <div className="scanner-header">
@@ -100,9 +130,6 @@ export function Scanner({ onScan, onClose }: ScannerProps) {
           <div className="scanner-error-box">
             <span className="scanner-error-icon">📷</span>
             <p>{cameraError}</p>
-            <button className="btn btn-secondary" onClick={onClose}>
-              Go Back
-            </button>
           </div>
         ) : (
           <>
@@ -124,7 +151,41 @@ export function Scanner({ onScan, onClose }: ScannerProps) {
         )}
       </div>
 
-      <p className="scanner-hint">Point the camera at the barcode on the back of the book</p>
+      <form
+        className="scanner-manual-form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          submitIsbn(manualIsbn);
+        }}
+      >
+        <label className="scanner-manual-label" htmlFor="scanner-isbn-input">
+          Use handheld scanner or type ISBN {mode === 'search' ? 'to find a book' : 'to add a book'}
+        </label>
+        <div className="scanner-manual-row">
+          <input
+            id="scanner-isbn-input"
+            ref={manualInputRef}
+            className="scanner-manual-input"
+            value={manualIsbn}
+            onChange={(e) => {
+              setManualIsbn(e.target.value);
+              if (manualError) setManualError(null);
+            }}
+            inputMode="numeric"
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck={false}
+            placeholder="Scan or enter ISBN, then press Enter"
+            aria-label="Scan or enter ISBN"
+          />
+          <button type="submit" className="btn btn-secondary">
+            Use ISBN
+          </button>
+        </div>
+        {manualError && <p className="scanner-manual-error">{manualError}</p>}
+      </form>
+
+      <p className="scanner-hint">Point the camera at the barcode, or use a handheld scanner on desktop.</p>
     </div>
   );
 }

@@ -1311,11 +1311,67 @@ ul {
   font-size: 3rem;
 }
 
+.scanner-manual-form {
+  width: min(780px, 100%);
+  padding: 0.75rem 1rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.scanner-manual-label {
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.scanner-manual-row {
+  display: flex;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.scanner-manual-input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  border-radius: var(--radius-sm);
+  padding: 0.65rem 0.75rem;
+}
+
+.scanner-manual-input::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.scanner-manual-input:focus {
+  border-color: rgba(255, 255, 255, 0.85);
+  outline: 0;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.18);
+}
+
+.scanner-manual-error {
+  color: #fecaca;
+  font-size: 0.84rem;
+  margin: 0;
+}
+
 .scanner-hint {
   color: rgba(255, 255, 255, 0.75);
   font-size: 0.875rem;
   padding: 0.75rem 1rem 1.5rem;
   text-align: center;
+}
+
+@media (max-width: 680px) {
+  .scanner-manual-row {
+    flex-direction: column;
+  }
+
+  .scanner-manual-row .btn {
+    width: 100%;
+  }
 }
 
 /* ============================================================
