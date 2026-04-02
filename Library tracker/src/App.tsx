@@ -161,7 +161,7 @@ export default function App() {
     <div className="app">
       {/* Header */}
       <header className="app-header">
-        <h1 className="app-title">📚 Class Library</h1>
+        <h1 className="app-title">THE BOOK NOOK</h1>
         <button
           className="header-settings-btn"
           onClick={() => setShowSettings(true)}

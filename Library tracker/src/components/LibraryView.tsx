@@ -15,6 +15,15 @@ function isSameIsbn(a: string | undefined, b: string | undefined): boolean {
 
 type FilterMode = 'all' | 'available' | 'out';
 type SearchScope = 'all' | 'title' | 'author' | 'isbn' | 'genre';
+type SortMode =
+  | 'relevance'
+  | 'title-az'
+  | 'author-last-az'
+  | 'author-last-za'
+  | 'newest-added'
+  | 'oldest-added'
+  | 'copies-high-low'
+  | 'copies-low-high';
 
 function normalizeText(value: string): string {
   return value.trim().toLowerCase();
@@ -25,6 +34,58 @@ function getGenreTokens(genre: string): string[] {
     .split(',')
     .map((token) => token.trim())
     .filter(Boolean);
+}
+
+function getAuthorSortParts(authorName: string): { lastName: string; displayName: string } {
+  const normalizedName = authorName.trim();
+  if (!normalizedName) {
+    return { lastName: '', displayName: '' };
+  }
+
+  if (normalizedName.includes(',')) {
+    const [lastNamePart, ...rest] = normalizedName.split(',');
+    return {
+      lastName: normalizeText(lastNamePart),
+      displayName: normalizeText([lastNamePart, ...rest].join(' ')),
+    };
+  }
+
+  const parts = normalizedName.split(/\s+/).filter(Boolean);
+  if (parts.length === 1) {
+    return { lastName: normalizeText(parts[0]), displayName: normalizeText(normalizedName) };
+  }
+
+  const surnameParticles = new Set([
+    'da',
+    'de',
+    'del',
+    'della',
+    'der',
+    'di',
+    'du',
+    'la',
+    'le',
+    'st.',
+    'st',
+    'van',
+    'von',
+  ]);
+  const lastNameParts = [parts[parts.length - 1]];
+
+  for (let index = parts.length - 2; index >= 0; index -= 1) {
+    const token = parts[index].toLowerCase();
+    if (!surnameParticles.has(token)) break;
+    lastNameParts.unshift(parts[index]);
+  }
+
+  return {
+    lastName: normalizeText(lastNameParts.join(' ')),
+    displayName: normalizeText(normalizedName),
+  };
+}
+
+function getPrimaryAuthorSortValue(book: Book): { lastName: string; displayName: string } {
+  return getAuthorSortParts(book.authors[0] ?? '');
 }
 
 interface LibraryViewProps {
@@ -57,6 +118,7 @@ export function LibraryView({
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<FilterMode>('all');
   const [searchScope, setSearchScope] = useState<SearchScope>('all');
+  const [sortMode, setSortMode] = useState<SortMode>('relevance');
   const [genreFilter, setGenreFilter] = useState('all');
   const [borrowerFilter, setBorrowerFilter] = useState('');
   const [showLoanManager, setShowLoanManager] = useState(false);
@@ -189,13 +251,56 @@ export function LibraryView({
         matchesBookFilters(book, availableCopies, activeCheckouts)
       )
       .sort((a, b) => {
+        if (sortMode === 'author-last-az' || sortMode === 'author-last-za') {
+          const aAuthor = getPrimaryAuthorSortValue(a.book);
+          const bAuthor = getPrimaryAuthorSortValue(b.book);
+          const direction = sortMode === 'author-last-az' ? 1 : -1;
+
+          const authorLastNameDiff = aAuthor.lastName.localeCompare(bAuthor.lastName) * direction;
+          if (authorLastNameDiff !== 0) return authorLastNameDiff;
+
+          const fullAuthorDiff = aAuthor.displayName.localeCompare(bAuthor.displayName) * direction;
+          if (fullAuthorDiff !== 0) return fullAuthorDiff;
+
+          return a.book.title.localeCompare(b.book.title);
+        }
+
+        if (sortMode === 'newest-added') {
+          const addedDiff = new Date(b.book.addedAt).getTime() - new Date(a.book.addedAt).getTime();
+          if (addedDiff !== 0) return addedDiff;
+          return a.book.title.localeCompare(b.book.title);
+        }
+
+        if (sortMode === 'oldest-added') {
+          const addedDiff = new Date(a.book.addedAt).getTime() - new Date(b.book.addedAt).getTime();
+          if (addedDiff !== 0) return addedDiff;
+          return a.book.title.localeCompare(b.book.title);
+        }
+
+        if (sortMode === 'copies-high-low') {
+          const copiesDiff = b.availableCopies - a.availableCopies;
+          if (copiesDiff !== 0) return copiesDiff;
+          return a.book.title.localeCompare(b.book.title);
+        }
+
+        if (sortMode === 'copies-low-high') {
+          const copiesDiff = a.availableCopies - b.availableCopies;
+          if (copiesDiff !== 0) return copiesDiff;
+          return a.book.title.localeCompare(b.book.title);
+        }
+
+        if (sortMode === 'title-az') {
+          return a.book.title.localeCompare(b.book.title);
+        }
+
         const scoreDiff = scoreBook(b.book) - scoreBook(a.book);
         if (scoreDiff !== 0) return scoreDiff;
         return a.book.title.localeCompare(b.book.title);
       });
-  }, [bookStatuses, query, filter, searchScope, genreFilter, borrowerFilter]);
+  }, [bookStatuses, query, filter, searchScope, genreFilter, borrowerFilter, sortMode]);
 
-  const hasActiveExtraFilters = searchScope !== 'all' || genreFilter !== 'all' || Boolean(borrowerFilter.trim());
+  const hasActiveExtraFilters =
+    searchScope !== 'all' || genreFilter !== 'all' || Boolean(borrowerFilter.trim()) || sortMode !== 'relevance';
 
   return (
     <div className="view library-view">
@@ -233,6 +338,21 @@ export function LibraryView({
                 {genre}
               </option>
             ))}
+          </select>
+          <select
+            className="search-input library-select"
+            value={sortMode}
+            onChange={(e) => setSortMode(e.target.value as SortMode)}
+            aria-label="Sort books"
+          >
+            <option value="relevance">Sort: Relevance</option>
+            <option value="title-az">Sort: Title A-Z</option>
+            <option value="author-last-az">Sort: Author Last Name A-Z</option>
+            <option value="author-last-za">Sort: Author Last Name Z-A</option>
+            <option value="newest-added">Sort: Newest Added</option>
+            <option value="oldest-added">Sort: Oldest Added</option>
+            <option value="copies-high-low">Sort: Most Available Copies</option>
+            <option value="copies-low-high">Sort: Fewest Available Copies</option>
           </select>
         </div>
         <div className="filter-tabs" role="group" aria-label="Filter books">
@@ -288,6 +408,7 @@ export function LibraryView({
               setSearchScope('all');
               setGenreFilter('all');
               setBorrowerFilter('');
+              setSortMode('relevance');
             }}
           >
             Clear Extra Filters
@@ -319,6 +440,13 @@ export function LibraryView({
         Showing {filtered.length} of {books.length} books
         {genreFilter !== 'all' ? ` • Genre: ${genreFilter}` : ''}
         {searchScope !== 'all' ? ` • Scope: ${searchScope}` : ''}
+        {sortMode === 'author-last-az' ? ' • Sort: author last name' : ''}
+        {sortMode === 'author-last-za' ? ' • Sort: author last name (reverse)' : ''}
+        {sortMode === 'title-az' ? ' • Sort: title' : ''}
+        {sortMode === 'newest-added' ? ' • Sort: newest added' : ''}
+        {sortMode === 'oldest-added' ? ' • Sort: oldest added' : ''}
+        {sortMode === 'copies-high-low' ? ' • Sort: most available copies' : ''}
+        {sortMode === 'copies-low-high' ? ' • Sort: fewest available copies' : ''}
       </p>
 
       {borrowerFilter && (
