@@ -1277,6 +1277,41 @@ ul {
   padding-top: 1rem;
 }
 
+.settings-summary-box {
+  margin-top: 0.25rem;
+}
+
+.settings-summary-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.settings-summary-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.6);
+  padding: 0.55rem 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.settings-summary-value {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--color-primary-dark);
+  line-height: 1;
+}
+
+.settings-summary-label {
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 .settings-vault-box {
   margin-top: 1rem;
   border-top: 1px solid var(--color-border);
@@ -1284,6 +1319,25 @@ ul {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+}
+
+.settings-danger-box {
+  margin-top: 1rem;
+  border-top: 1px solid var(--color-border);
+  padding-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.btn-danger-soft {
+  align-self: flex-start;
+  background: linear-gradient(135deg, #ffd9e4 0%, #ffc7d8 100%);
+  color: #8b3352;
+}
+
+.btn-danger-soft:hover:not(:disabled) {
+  background: linear-gradient(135deg, #ffcddc 0%, #ffb9cf 100%);
 }
 
 .settings-backup-actions {

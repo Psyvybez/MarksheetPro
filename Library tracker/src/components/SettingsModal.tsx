@@ -4,10 +4,25 @@ import { exportLibraryBackup, importLibraryBackup } from '../services/storage';
 interface SettingsModalProps {
   onDataImported: () => void;
   onLoadDemoData: () => void;
+  onClearAllData: () => void;
+  onClearCheckoutsOnly: () => void;
+  summary: {
+    totalTitles: number;
+    totalCopies: number;
+    activeLoans: number;
+    studentCards: number;
+  };
   onClose: () => void;
 }
 
-export function SettingsModal({ onDataImported, onLoadDemoData, onClose }: SettingsModalProps) {
+export function SettingsModal({
+  onDataImported,
+  onLoadDemoData,
+  onClearAllData,
+  onClearCheckoutsOnly,
+  summary,
+  onClose,
+}: SettingsModalProps) {
   const [backupMessage, setBackupMessage] = useState<string | null>(null);
   const [backupError, setBackupError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -82,6 +97,30 @@ export function SettingsModal({ onDataImported, onLoadDemoData, onClose }: Setti
     window.location.href = vaultUrl;
   };
 
+  const handleClearAllData = () => {
+    setBackupError(null);
+    setBackupMessage(null);
+
+    const confirmed = window.confirm(
+      'Delete all library data? This removes books, checkout history, and student cards from this account.'
+    );
+    if (!confirmed) return;
+
+    onClearAllData();
+    setBackupMessage('All library data was cleared.');
+  };
+
+  const handleClearCheckoutsOnly = () => {
+    setBackupError(null);
+    setBackupMessage(null);
+
+    const confirmed = window.confirm('Clear only checkout history? Books and student cards will stay unchanged.');
+    if (!confirmed) return;
+
+    onClearCheckoutsOnly();
+    setBackupMessage('Checkout history was cleared.');
+  };
+
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Settings">
       <div className="modal-sheet">
@@ -89,6 +128,28 @@ export function SettingsModal({ onDataImported, onLoadDemoData, onClose }: Setti
           ✕
         </button>
         <h2 className="modal-title">Settings</h2>
+
+        <div className="settings-summary-box">
+          <h3 className="settings-label">Library Snapshot</h3>
+          <div className="settings-summary-grid">
+            <div className="settings-summary-card">
+              <span className="settings-summary-value">{summary.totalTitles}</span>
+              <span className="settings-summary-label">Titles</span>
+            </div>
+            <div className="settings-summary-card">
+              <span className="settings-summary-value">{summary.totalCopies}</span>
+              <span className="settings-summary-label">Copies</span>
+            </div>
+            <div className="settings-summary-card">
+              <span className="settings-summary-value">{summary.activeLoans}</span>
+              <span className="settings-summary-label">Active Loans</span>
+            </div>
+            <div className="settings-summary-card">
+              <span className="settings-summary-value">{summary.studentCards}</span>
+              <span className="settings-summary-label">Student Cards</span>
+            </div>
+          </div>
+        </div>
 
         <div className="settings-backup-box">
           <h3 className="settings-label">Library Backup</h3>
@@ -128,6 +189,17 @@ export function SettingsModal({ onDataImported, onLoadDemoData, onClose }: Setti
           <p className="settings-hint">Need the passphrase-protected page? Open the dedicated vault route.</p>
           <button type="button" className="btn btn-secondary" onClick={handleOpenVaultPage}>
             Open Vault Page
+          </button>
+        </div>
+
+        <div className="settings-danger-box">
+          <h3 className="settings-label">Danger Zone</h3>
+          <p className="settings-hint">Use only if you want to reset specific library data.</p>
+          <button type="button" className="btn btn-secondary" onClick={handleClearCheckoutsOnly}>
+            Reset Only Checkouts
+          </button>
+          <button type="button" className="btn btn-danger-soft" onClick={handleClearAllData}>
+            Clear All Library Data
           </button>
         </div>
       </div>

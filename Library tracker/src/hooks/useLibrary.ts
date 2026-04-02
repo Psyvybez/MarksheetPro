@@ -447,6 +447,22 @@ export function useLibrary() {
     [studentCards, saveStudentCardsState]
   );
 
+  const clearAllData = useCallback(() => {
+    saveBooks([]);
+    saveCheckouts([]);
+    saveStudentCards([]);
+    setBooks([]);
+    setCheckouts([]);
+    setStudentCards([]);
+    setError(null);
+  }, []);
+
+  const clearCheckoutsOnly = useCallback(() => {
+    saveCheckouts([]);
+    setCheckouts([]);
+    setError(null);
+  }, []);
+
   /** Seed realistic demo data for testing dashboards, checkouts, and overdue workflows. */
   const seedDemoDataset = useCallback(() => {
     const demoBooks = [
@@ -533,6 +549,8 @@ export function useLibrary() {
     returnBook,
     getBookStatus,
     syncFromStorage,
+    clearAllData,
+    clearCheckoutsOnly,
     addStudentCard,
     updateStudentCard,
     removeStudentCard,

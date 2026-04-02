@@ -7,7 +7,6 @@ import { DashboardView } from './components/DashboardView';
 import { NavBar } from './components/NavBar';
 import { ManualBookModal } from './components/ManualBookModal';
 import { SettingsModal } from './components/SettingsModal';
-import { getStoredApiKey } from './services/storage';
 import type { AppView, Book } from './types';
 
 export default function App() {
@@ -21,8 +20,6 @@ export default function App() {
   const [initialManualData, setInitialManualData] = useState<Partial<ManualBookInput> | null>(null);
   const [activeBook, setActiveBook] = useState<Book | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
-  const [hasApiKey, setHasApiKey] = useState(() => Boolean(getStoredApiKey().trim()));
-  const [dismissedApiBanner, setDismissedApiBanner] = useState(false);
 
   const library = useLibrary();
 
@@ -172,25 +169,6 @@ export default function App() {
         </button>
       </header>
 
-      {/* API key reminder */}
-      {!hasApiKey && !dismissedApiBanner && (
-        <div className="api-key-banner" role="status" aria-live="polite">
-          <span>Add a Google Books API key for higher metadata lookup limits.</span>
-          <div>
-            <button
-              onClick={() => {
-                setShowSettings(true);
-              }}
-            >
-              Add Key
-            </button>
-            <button onClick={() => setDismissedApiBanner(true)} style={{ marginLeft: '0.75rem' }}>
-              Dismiss
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Scan error banner */}
       {scanError && (
         <div className="error-banner" role="alert">
@@ -308,6 +286,12 @@ export default function App() {
       {/* Settings modal */}
       {showSettings && (
         <SettingsModal
+          summary={{
+            totalTitles: library.books.length,
+            totalCopies: library.books.reduce((sum, book) => sum + book.copies, 0),
+            activeLoans: library.checkouts.filter((checkout) => !checkout.returnedAt).length,
+            studentCards: library.studentCards.length,
+          }}
           onDataImported={() => {
             library.syncFromStorage();
             setActiveBook(null);
@@ -316,11 +300,16 @@ export default function App() {
             library.seedDemoDataset();
             setActiveBook(null);
           }}
+          onClearAllData={() => {
+            library.clearAllData();
+            setActiveBook(null);
+          }}
+          onClearCheckoutsOnly={() => {
+            library.clearCheckoutsOnly();
+            setActiveBook(null);
+          }}
           onClose={() => {
             setShowSettings(false);
-            const keyExists = Boolean(getStoredApiKey().trim());
-            setHasApiKey(keyExists);
-            if (keyExists) setDismissedApiBanner(false);
           }}
         />
       )}
