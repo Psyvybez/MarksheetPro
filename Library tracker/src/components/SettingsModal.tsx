@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { exportLibraryBackup, getStoredApiKey, importLibraryBackup, saveApiKey } from '../services/storage';
+import { exportLibraryBackup, importLibraryBackup } from '../services/storage';
 
 interface SettingsModalProps {
   onDataImported: () => void;
@@ -8,18 +8,9 @@ interface SettingsModalProps {
 }
 
 export function SettingsModal({ onDataImported, onLoadDemoData, onClose }: SettingsModalProps) {
-  const [key, setKey] = useState(getStoredApiKey);
-  const [saved, setSaved] = useState(false);
   const [backupMessage, setBackupMessage] = useState<string | null>(null);
   const [backupError, setBackupError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleSave = (e: React.FormEvent) => {
-    e.preventDefault();
-    saveApiKey(key.trim());
-    setSaved(true);
-    setTimeout(onClose, 800);
-  };
 
   const handleExportBackup = () => {
     setBackupError(null);
@@ -81,6 +72,16 @@ export function SettingsModal({ onDataImported, onLoadDemoData, onClose }: Setti
     }
   };
 
+  const handleOpenVaultPage = () => {
+    const vaultUrl = '/Library-vault.html';
+    if (window.top && window.top !== window) {
+      window.top.location.href = vaultUrl;
+      return;
+    }
+
+    window.location.href = vaultUrl;
+  };
+
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Settings">
       <div className="modal-sheet">
@@ -88,40 +89,6 @@ export function SettingsModal({ onDataImported, onLoadDemoData, onClose }: Setti
           ✕
         </button>
         <h2 className="modal-title">Settings</h2>
-
-        <form onSubmit={handleSave}>
-          <div className="settings-field">
-            <label htmlFor="api-key" className="settings-label">
-              Google Books API Key
-            </label>
-            <p className="settings-hint">
-              Create a key in{' '}
-              <a
-                href="https://console.cloud.google.com/apis/library/books.googleapis.com"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Google Cloud Console
-              </a>
-              . Optional but recommended for higher request limits when scanning ISBN barcodes.
-            </p>
-            <input
-              id="api-key"
-              className="checkout-input"
-              type="password"
-              placeholder="Paste your Google Books API key..."
-              value={key}
-              onChange={(e) => setKey(e.target.value)}
-              autoComplete="off"
-              spellCheck={false}
-            />
-          </div>
-          <div className="modal-actions" style={{ marginTop: '1rem' }}>
-            <button type="submit" className="btn btn-primary btn-full" disabled={!key.trim()}>
-              {saved ? '✓ Saved!' : 'Save Google Books Key'}
-            </button>
-          </div>
-        </form>
 
         <div className="settings-backup-box">
           <h3 className="settings-label">Library Backup</h3>
@@ -154,6 +121,14 @@ export function SettingsModal({ onDataImported, onLoadDemoData, onClose }: Setti
               {backupError}
             </p>
           )}
+        </div>
+
+        <div className="settings-vault-box">
+          <h3 className="settings-label">Vault Access</h3>
+          <p className="settings-hint">Need the passphrase-protected page? Open the dedicated vault route.</p>
+          <button type="button" className="btn btn-secondary" onClick={handleOpenVaultPage}>
+            Open Vault Page
+          </button>
         </div>
       </div>
     </div>

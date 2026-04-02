@@ -1277,6 +1277,15 @@ ul {
   padding-top: 1rem;
 }
 
+.settings-vault-box {
+  margin-top: 1rem;
+  border-top: 1px solid var(--color-border);
+  padding-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
 .settings-backup-actions {
   display: flex;
   gap: 0.5rem;

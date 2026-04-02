@@ -6,11 +6,12 @@ Browser-based marksheet and classroom grading manager.
 
 ## Private Library Vault
 
-A hidden owner-only page was added at `Library.html`.
+A hidden owner-only page is available at `Library-vault.html`.
+The regular app page is now `Library.html`.
 
 Setup steps:
 
-- Open `Library.html` and set `ALLOWED_OWNER_EMAIL` to your own account email.
+- Open `Library-vault.html` and update `ALLOWED_LIBRARY_EMAILS` to your own account email(s).
 - Replace `SECRET_HASH_HEX` with your own SHA-256 passphrase hash.
 - Rebuild and publish manually whenever source changes:
   - `cd "Library tracker" && npm run build`
