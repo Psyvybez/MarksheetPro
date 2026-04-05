@@ -46,7 +46,6 @@ const LIBRARY_AUTHORIZED_EMAILS = new Set([
   'admin@marksheetpro.com',
   'jaycee.molina@gmail.com',
 ]);
-const LIBRARY_ENTRY_TICKET_KEY = 'marksheet_library_entry_ticket';
 
 function isLibraryAuthorizedUser(user) {
   const email = user?.email?.trim()?.toLowerCase();
