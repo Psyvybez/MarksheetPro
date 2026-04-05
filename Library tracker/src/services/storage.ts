@@ -25,7 +25,8 @@ export function getBooks(): Book[] {
       ...book,
       searchTags: Array.isArray(book.searchTags) ? book.searchTags : Array.isArray(book.subjects) ? book.subjects : [],
     }));
-  } catch {
+  } catch (error) {
+    console.warn('Failed to parse stored library books:', error);
     return [];
   }
 }
@@ -38,7 +39,8 @@ export function getCheckouts(): CheckoutRecord[] {
   try {
     const raw = localStorage.getItem(CHECKOUTS_KEY);
     return raw ? (JSON.parse(raw) as CheckoutRecord[]) : [];
-  } catch {
+  } catch (error) {
+    console.warn('Failed to parse stored library checkouts:', error);
     return [];
   }
 }
@@ -59,7 +61,8 @@ export function getStudentCards(): StudentCard[] {
   try {
     const raw = localStorage.getItem(STUDENT_CARDS_KEY);
     return raw ? (JSON.parse(raw) as StudentCard[]) : [];
-  } catch {
+  } catch (error) {
+    console.warn('Failed to parse stored student cards:', error);
     return [];
   }
 }

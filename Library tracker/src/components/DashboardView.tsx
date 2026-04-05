@@ -21,6 +21,7 @@ function isDue(dueDateIso: string): boolean {
 }
 
 export function DashboardView({ books, checkouts, onScanClick, onLibraryClick }: DashboardViewProps) {
+  const hasBooks = books.length > 0;
   const stats = useMemo(() => {
     const totalCopies = books.reduce((s, b) => s + b.copies, 0);
     const activeCheckouts = checkouts.filter((c) => !c.returnedAt);
@@ -115,6 +116,15 @@ export function DashboardView({ books, checkouts, onScanClick, onLibraryClick }:
               </li>
             ))}
           </ul>
+        </div>
+      ) : hasBooks ? (
+        <div className="empty-state" style={{ marginTop: '1.5rem' }}>
+          <span className="empty-icon">🗂️</span>
+          <h3>No borrowing activity yet</h3>
+          <p>Your catalog is loaded. Check out a book to start tracking recent activity here.</p>
+          <button className="btn btn-primary" onClick={onLibraryClick}>
+            View Library
+          </button>
         </div>
       ) : (
         <div className="empty-state" style={{ marginTop: '1.5rem' }}>

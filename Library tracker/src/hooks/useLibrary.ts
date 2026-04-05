@@ -126,11 +126,11 @@ export function useLibrary() {
   }, []);
 
   useEffect(() => {
-    if (!cloudHydrated) return;
-
     saveBooks(books);
     saveCheckouts(checkouts);
     saveStudentCards(studentCards);
+
+    if (!cloudHydrated) return;
 
     // Debounce cloud writes while users are typing/editing forms.
     const timer = window.setTimeout(() => {
