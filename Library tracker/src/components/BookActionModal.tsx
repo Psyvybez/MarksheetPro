@@ -11,6 +11,8 @@ interface BookActionModalProps {
   borrowerSuggestions: string[];
   onCheckout: (borrowerName: string) => void;
   onReturn: (checkoutId: string) => void;
+  onPlaceHold: (borrowerName: string) => void;
+  onCancelHold: (holdId: string) => void;
   onEdit: () => void;
   onDelete: () => void;
   onClose: () => void;
@@ -35,23 +37,37 @@ export function BookActionModal({
   borrowerSuggestions,
   onCheckout,
   onReturn,
+  onPlaceHold,
+  onCancelHold,
   onEdit,
   onDelete,
   onClose,
 }: BookActionModalProps) {
   const [borrowerName, setBorrowerName] = useState('');
+  const [holdBorrowerName, setHoldBorrowerName] = useState('');
   const [showCheckoutForm, setShowCheckoutForm] = useState(false);
+  const [showHoldForm, setShowHoldForm] = useState(false);
 
   // Since we only present the modal for books already saved to the library, status should be present
   const inLibrary = status !== null;
   const isAvailable = status ? status.isAvailable : false;
   const activeCheckouts: CheckoutRecord[] = status ? status.activeCheckouts : [];
+  const holdQueue = status ? status.holdQueue : [];
 
   const handleCheckoutSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (borrowerName.trim()) {
       onCheckout(borrowerName.trim());
     }
+  };
+
+  const handleHoldSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!holdBorrowerName.trim()) return;
+
+    onPlaceHold(holdBorrowerName.trim());
+    setHoldBorrowerName('');
+    setShowHoldForm(false);
   };
 
   return (
@@ -125,6 +141,28 @@ export function BookActionModal({
           </div>
         )}
 
+        {holdQueue.length > 0 && (
+          <div className="modal-checkouts">
+            <h3 className="modal-section-title">Hold Queue ({holdQueue.length})</h3>
+            <ul className="checkout-list">
+              {holdQueue.map((hold, index) => (
+                <li key={hold.id} className="checkout-item hold-item">
+                  <div className="checkout-item-info">
+                    <span className="checkout-borrower">{hold.borrowerName}</span>
+                    <span className="checkout-due">
+                      {index === 0 ? 'Next in line' : `Position #${index + 1}`} • Requested {formatDate(hold.requestedAt)}
+                    </span>
+                    {hold.studentCardNumber && <span className="checkout-due">Card: {hold.studentCardNumber}</span>}
+                  </div>
+                  <button className="btn btn-secondary" onClick={() => onCancelHold(hold.id)} disabled={loading}>
+                    Remove
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {/* Action area */}
         <div className="modal-actions">
           <button className="btn btn-secondary btn-full" onClick={onEdit} disabled={loading}>
@@ -170,10 +208,39 @@ export function BookActionModal({
               </div>
             </form>
           ) : (
-            // All copies are out
-            <div className="btn-secondary btn-full" style={{ textAlign: 'center', opacity: 0.7 }}>
-              All copies are checked out
-            </div>
+            <>
+              {!showHoldForm ? (
+                <button className="btn btn-primary btn-full" onClick={() => setShowHoldForm(true)} disabled={loading}>
+                  Place Hold
+                </button>
+              ) : (
+                <form className="checkout-form" onSubmit={handleHoldSubmit}>
+                  <label className="checkout-label" htmlFor="hold-borrower-name">
+                    Borrower Name for Hold
+                  </label>
+                  <input
+                    id="hold-borrower-name"
+                    className="checkout-input"
+                    type="text"
+                    placeholder="Enter name…"
+                    value={holdBorrowerName}
+                    onChange={(e) => setHoldBorrowerName(e.target.value)}
+                    list="borrower-suggestions"
+                    autoFocus
+                    autoComplete="off"
+                    maxLength={100}
+                  />
+                  <div className="checkout-form-btns">
+                    <button type="button" className="btn btn-secondary" onClick={() => setShowHoldForm(false)}>
+                      Cancel
+                    </button>
+                    <button type="submit" className="btn btn-primary" disabled={!holdBorrowerName.trim() || loading}>
+                      Confirm Hold
+                    </button>
+                  </div>
+                </form>
+              )}
+            </>
           )}
         </div>
 

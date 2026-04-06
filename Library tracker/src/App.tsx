@@ -7,7 +7,9 @@ import { DashboardView } from './components/DashboardView';
 import { NavBar } from './components/NavBar';
 import { ManualBookModal } from './components/ManualBookModal';
 import { SettingsModal } from './components/SettingsModal';
-import type { AppView, Book } from './types';
+import { StudentReservationModal } from './components/StudentReservationModal';
+import { ReservationActivityModal } from './components/ReservationActivityModal';
+import type { AppView, Book, StudentCard } from './types';
 
 export default function App() {
   const [view, setView] = useState<AppView>('dashboard');
@@ -17,6 +19,8 @@ export default function App() {
   const [manualMode, setManualMode] = useState<'add' | 'edit'>('add');
   const [editBookId, setEditBookId] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [showStudentReservations, setShowStudentReservations] = useState(false);
+  const [showReservationActivity, setShowReservationActivity] = useState(false);
   const [initialManualData, setInitialManualData] = useState<Partial<ManualBookInput> | null>(null);
   const [activeBook, setActiveBook] = useState<Book | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
@@ -146,6 +150,48 @@ export default function App() {
     [activeBook, library]
   );
 
+  const handlePlaceHold = useCallback(
+    (borrowerName: string) => {
+      if (!activeBook) return;
+      library.placeHold(activeBook.isbn13 || activeBook.isbn, borrowerName);
+      const status = library.getBookStatus(activeBook.isbn13 || activeBook.isbn);
+      if (status) setActiveBook(status.book);
+    },
+    [activeBook, library]
+  );
+
+  const handleCancelHold = useCallback(
+    (holdId: string) => {
+      if (!activeBook) return;
+      library.cancelHold(activeBook.isbn13 || activeBook.isbn, holdId);
+      const status = library.getBookStatus(activeBook.isbn13 || activeBook.isbn);
+      if (status) setActiveBook(status.book);
+    },
+    [activeBook, library]
+  );
+
+  const handleStudentSignIn = useCallback(
+    (cardNumber: string, studentName: string): StudentCard | null => {
+      return library.authenticateStudentCard(cardNumber, studentName);
+    },
+    [library]
+  );
+
+  const handleStudentBookView = useCallback(
+    (book: Book, studentCard: StudentCard) => {
+      library.trackBookViewByStudent(book, studentCard);
+    },
+    [library]
+  );
+
+  const handleStudentReserve = useCallback(
+    (book: Book, studentCard: StudentCard): boolean => {
+      const created = library.placeHold(book.isbn13 || book.isbn, studentCard.studentName, studentCard);
+      return Boolean(created);
+    },
+    [library]
+  );
+
   const activeStatus = activeBook ? library.getBookStatus(activeBook.isbn13 || activeBook.isbn) : null;
   const borrowerSuggestions = [
     ...new Set([
@@ -203,6 +249,9 @@ export default function App() {
             onAddStudentCard={library.addStudentCard}
             onUpdateStudentCard={library.updateStudentCard}
             onDeleteStudentCard={library.removeStudentCard}
+            onOpenStudentReservations={() => setShowStudentReservations(true)}
+            onOpenReservationActivity={() => setShowReservationActivity(true)}
+            reservationActivityCount={library.reservationActivities.length}
           />
         )}
       </main>
@@ -222,6 +271,8 @@ export default function App() {
           borrowerSuggestions={borrowerSuggestions}
           onCheckout={handleCheckout}
           onReturn={handleReturn}
+          onPlaceHold={handlePlaceHold}
+          onCancelHold={handleCancelHold}
           onEdit={() => {
             setInitialManualData({
               title: activeBook.title,
@@ -311,6 +362,25 @@ export default function App() {
           onClose={() => {
             setShowSettings(false);
           }}
+        />
+      )}
+
+      {showStudentReservations && (
+        <StudentReservationModal
+          books={library.books}
+          checkouts={library.checkouts}
+          studentCards={library.studentCards}
+          onAuthenticate={handleStudentSignIn}
+          onTrackView={handleStudentBookView}
+          onReserve={handleStudentReserve}
+          onClose={() => setShowStudentReservations(false)}
+        />
+      )}
+
+      {showReservationActivity && (
+        <ReservationActivityModal
+          activities={library.reservationActivities}
+          onClose={() => setShowReservationActivity(false)}
         />
       )}
     </div>

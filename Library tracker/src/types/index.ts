@@ -1,3 +1,24 @@
+/** A reservation request in a book's hold queue */
+export interface HoldRequest {
+  id: string;
+  borrowerName: string;
+  studentCardId?: string;
+  studentCardNumber?: string;
+  requestedAt: string;
+}
+
+/** Student activity in the reservation portal */
+export interface ReservationActivity {
+  id: string;
+  type: 'sign-in' | 'view' | 'reserve' | 'auto-assigned';
+  studentCardId: string;
+  studentCardNumber: string;
+  studentName: string;
+  bookIsbn?: string;
+  bookTitle?: string;
+  at: string;
+}
+
 /** A book stored in the library */
 export interface Book {
   isbn: string;
@@ -18,6 +39,7 @@ export interface Book {
   datePublished: string;
   addedAt: string;
   copies: number;
+  holds: HoldRequest[];
 }
 
 /** A check-out / check-in transaction record */

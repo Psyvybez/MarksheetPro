@@ -14,8 +14,12 @@ Setup steps:
 - Open `Library-vault.html` and update `ALLOWED_LIBRARY_EMAILS` to your own account email(s).
 - Replace `SECRET_HASH_HEX` with your own SHA-256 passphrase hash.
 - Rebuild and publish manually whenever source changes:
-  - `cd "Library tracker" && npm run build`
-  - `cd .. && rm -rf library-app && mkdir -p library-app && cp -R "Library tracker/dist/." library-app/`
+  - `npm run library:publish`
+
+Equivalent commands (if needed):
+
+- `cd "Library tracker" && npm run build`
+- `cd .. && rm -rf library-app && mkdir -p library-app && cp -R "Library tracker/dist/." library-app/`
 
 To generate your own hash on Linux/macOS:
 
@@ -30,3 +34,5 @@ Use the first value from that output as `SECRET_HASH_HEX`.
 - `npm run lint`
 - `npm run format:check`
 - `npm run format`
+- `npm run library:build`
+- `npm run library:publish`

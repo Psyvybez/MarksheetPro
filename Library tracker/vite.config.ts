@@ -1,7 +1,13 @@
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig({
+  test: {
+    environment: 'happy-dom',
+    globals: true,
+    setupFiles: './src/__tests__/setup.ts',
+    clearMocks: true,
+  },
   base: './',
   plugins: [react()],
   server: {

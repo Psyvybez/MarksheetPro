@@ -9,6 +9,7 @@ interface BookCardProps {
 
 export function BookCard({ book, activeCheckouts, availableCopies, onClick }: BookCardProps) {
   const isAvailable = availableCopies > 0;
+  const holdCount = Array.isArray(book.holds) ? book.holds.length : 0;
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.key === 'Enter' || event.key === ' ') {
@@ -53,6 +54,7 @@ export function BookCard({ book, activeCheckouts, availableCopies, onClick }: Bo
               {activeCheckouts.length > 1 && ` +${activeCheckouts.length - 1}`}
             </span>
           )}
+          {holdCount > 0 && <span className="book-card-holds">Holds: {holdCount}</span>}
           <button
             type="button"
             className="btn btn-secondary book-card-open-btn"

@@ -100,6 +100,9 @@ interface LibraryViewProps {
   onAddStudentCard: (input: Omit<StudentCard, 'id' | 'cardNumber' | 'createdAt' | 'updatedAt'>) => void;
   onUpdateStudentCard: (cardId: string, updates: Partial<Omit<StudentCard, 'id' | 'createdAt'>>) => void;
   onDeleteStudentCard: (cardId: string) => void;
+  onOpenStudentReservations: () => void;
+  onOpenReservationActivity: () => void;
+  reservationActivityCount: number;
 }
 
 export function LibraryView({
@@ -114,6 +117,9 @@ export function LibraryView({
   onAddStudentCard,
   onUpdateStudentCard,
   onDeleteStudentCard,
+  onOpenStudentReservations,
+  onOpenReservationActivity,
+  reservationActivityCount,
 }: LibraryViewProps) {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<FilterMode>('all');
@@ -433,6 +439,12 @@ export function LibraryView({
           aria-haspopup="dialog"
         >
           Student Cards
+        </button>
+        <button className="btn btn-secondary library-manual-add-btn" onClick={onOpenStudentReservations}>
+          Student Reservation Portal
+        </button>
+        <button className="btn btn-secondary library-manual-add-btn" onClick={onOpenReservationActivity}>
+          Reservation Activity ({reservationActivityCount})
         </button>
       </div>
 

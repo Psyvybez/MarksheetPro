@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import type { Book, CheckoutRecord, StudentCard } from '../types';
+import type { Book, CheckoutRecord, HoldRequest, ReservationActivity, StudentCard } from '../types';
 import {
   getBooks,
   saveBooks,
@@ -7,7 +7,9 @@ import {
   saveCheckouts,
   getStoredApiKey,
   getStudentCards,
+  getReservationActivity,
   saveStudentCards,
+  saveReservationActivity,
 } from '../services/storage';
 import { loadCloudLibraryState, saveCloudLibraryState } from '../services/cloudStorage';
 import { lookupCatalogBook } from '../services/catalog';
@@ -18,6 +20,8 @@ export interface BookStatus {
   activeCheckouts: CheckoutRecord[];
   availableCopies: number;
   isAvailable: boolean;
+  holdQueue: HoldRequest[];
+  nextHold: HoldRequest | null;
 }
 
 export interface ManualBookInput {
@@ -76,6 +80,7 @@ function catalogToBook(isbn: string, copies: number): Book | null {
     datePublished: catalogBook.datePublished,
     addedAt: new Date().toISOString(),
     copies: Math.max(1, Math.floor(copies)),
+    holds: [],
   };
 }
 
@@ -95,6 +100,7 @@ export function useLibrary() {
   const [books, setBooks] = useState<Book[]>(getBooks);
   const [checkouts, setCheckouts] = useState<CheckoutRecord[]>(getCheckouts);
   const [studentCards, setStudentCards] = useState<StudentCard[]>(getStudentCards);
+  const [reservationActivities, setReservationActivities] = useState<ReservationActivity[]>(getReservationActivity);
   const [cloudHydrated, setCloudHydrated] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -110,9 +116,11 @@ export function useLibrary() {
         setBooks(cloud.books);
         setCheckouts(cloud.checkouts);
         setStudentCards(cloud.studentCards);
+        setReservationActivities(cloud.reservationActivity);
         saveBooks(cloud.books);
         saveCheckouts(cloud.checkouts);
         saveStudentCards(cloud.studentCards);
+        saveReservationActivity(cloud.reservationActivity);
       }
 
       setCloudHydrated(true);
@@ -129,20 +137,95 @@ export function useLibrary() {
     saveBooks(books);
     saveCheckouts(checkouts);
     saveStudentCards(studentCards);
+    saveReservationActivity(reservationActivities);
 
     if (!cloudHydrated) return;
 
     // Debounce cloud writes while users are typing/editing forms.
     const timer = window.setTimeout(() => {
-      saveCloudLibraryState({ books, checkouts, studentCards }).catch((syncError) => {
+      saveCloudLibraryState({ books, checkouts, studentCards, reservationActivity: reservationActivities }).catch(
+        (syncError) => {
         console.warn('Cloud sync failed:', syncError);
-      });
+      }
+      );
     }, 300);
 
     return () => {
       window.clearTimeout(timer);
     };
-  }, [books, checkouts, studentCards, cloudHydrated]);
+  }, [books, checkouts, studentCards, reservationActivities, cloudHydrated]);
+
+  const appendReservationActivity = useCallback(
+    (input: Omit<ReservationActivity, 'id' | 'at'> & { at?: string }): ReservationActivity => {
+      const activity: ReservationActivity = {
+        id: crypto.randomUUID(),
+        at: input.at ?? new Date().toISOString(),
+        ...input,
+      };
+
+      setReservationActivities((prev) => {
+        const updated = [activity, ...prev].slice(0, 600);
+        saveReservationActivity(updated);
+        return updated;
+      });
+
+      return activity;
+    },
+    []
+  );
+
+  const authenticateStudentCard = useCallback(
+    (cardNumber: string, studentName?: string): StudentCard | null => {
+      const normalizedCard = cardNumber.trim().toLowerCase();
+      if (!normalizedCard) {
+        setError('Library card number is required.');
+        return null;
+      }
+
+      const card = studentCards.find((entry) => entry.cardNumber.trim().toLowerCase() === normalizedCard);
+      if (!card) {
+        setError('Card not found. Please check your library card number.');
+        return null;
+      }
+
+      if (!card.isActive) {
+        setError('This library card is inactive. Please contact staff.');
+        return null;
+      }
+
+      if (studentName?.trim()) {
+        const normalizedName = studentName.trim().toLowerCase();
+        if (card.studentName.trim().toLowerCase() !== normalizedName) {
+          setError('Student name does not match the assigned library card.');
+          return null;
+        }
+      }
+
+      appendReservationActivity({
+        type: 'sign-in',
+        studentCardId: card.id,
+        studentCardNumber: card.cardNumber,
+        studentName: card.studentName,
+      });
+      setError(null);
+      return card;
+    },
+    [studentCards, appendReservationActivity]
+  );
+
+  const trackBookViewByStudent = useCallback(
+    (book: Book, studentCard: StudentCard) => {
+      appendReservationActivity({
+        type: 'view',
+        studentCardId: studentCard.id,
+        studentCardNumber: studentCard.cardNumber,
+        studentName: studentCard.studentName,
+        bookIsbn: book.isbn13 || book.isbn,
+        bookTitle: book.title,
+      });
+    },
+    [appendReservationActivity]
+  );
 
   const saveStudentCardsState = useCallback((cards: StudentCard[]) => {
     setStudentCards(cards);
@@ -210,6 +293,7 @@ export function useLibrary() {
       datePublished: input.datePublished?.trim() || '',
       addedAt: new Date().toISOString(),
       copies,
+      holds: [],
     };
 
     let result = newBook;
@@ -341,9 +425,105 @@ export function useLibrary() {
     [books]
   );
 
+  /** Place a borrower into the hold queue for a specific book. */
+  const placeHold = useCallback(
+    (
+      isbn: string,
+      borrowerName: string,
+      studentCard?: Pick<StudentCard, 'id' | 'cardNumber' | 'studentName'>
+    ): HoldRequest | null => {
+      const normalizedTarget = normalizeIsbn(isbn);
+      const trimmedName = borrowerName.trim();
+      if (!trimmedName) {
+        setError('Borrower name is required to place a hold.');
+        return null;
+      }
+
+      // Validate and check for duplicates against current books state before
+      // calling setBooks, so we can compute the result synchronously.
+      const book = books.find(
+        (b) => normalizeIsbn(b.isbn) === normalizedTarget || normalizeIsbn(b.isbn13) === normalizedTarget
+      );
+      if (!book) {
+        setError('Book not found for hold request.');
+        return null;
+      }
+
+      const queue = Array.isArray(book.holds) ? book.holds : [];
+      const alreadyQueued = queue.some((entry) => {
+        if (studentCard?.id && entry.studentCardId) return entry.studentCardId === studentCard.id;
+        if (studentCard?.cardNumber && entry.studentCardNumber) {
+          return entry.studentCardNumber.toLowerCase() === studentCard.cardNumber.toLowerCase();
+        }
+        return entry.borrowerName.toLowerCase() === trimmedName.toLowerCase();
+      });
+
+      if (alreadyQueued) {
+        setError('This borrower is already in the hold queue for this book.');
+        return null;
+      }
+
+      const hold: HoldRequest = {
+        id: crypto.randomUUID(),
+        borrowerName: trimmedName,
+        studentCardId: studentCard?.id,
+        studentCardNumber: studentCard?.cardNumber,
+        requestedAt: new Date().toISOString(),
+      };
+
+      setBooks((prev) => {
+        const updated = prev.map((b) => {
+          const isMatch =
+            normalizeIsbn(b.isbn) === normalizedTarget || normalizeIsbn(b.isbn13) === normalizedTarget;
+          if (!isMatch) return b;
+          const q = Array.isArray(b.holds) ? b.holds : [];
+          return { ...b, holds: [...q, hold] };
+        });
+        saveBooks(updated);
+        return updated;
+      });
+
+      if (studentCard) {
+        appendReservationActivity({
+          type: 'reserve',
+          studentCardId: studentCard.id,
+          studentCardNumber: studentCard.cardNumber,
+          studentName: studentCard.studentName,
+          bookIsbn: normalizedTarget,
+          bookTitle: book.title,
+        });
+      }
+      setError(null);
+      return hold;
+    },
+    [appendReservationActivity, books]
+  );
+
+  /** Remove a hold request from a book's queue. */
+  const cancelHold = useCallback((isbn: string, holdId: string) => {
+    const normalizedTarget = normalizeIsbn(isbn);
+
+    setBooks((prev) => {
+      const updated = prev.map((book) => {
+        const isMatch =
+          normalizeIsbn(book.isbn) === normalizedTarget || normalizeIsbn(book.isbn13) === normalizedTarget;
+        if (!isMatch) return book;
+
+        return {
+          ...book,
+          holds: (book.holds ?? []).filter((entry) => entry.id !== holdId),
+        };
+      });
+
+      saveBooks(updated);
+      return updated;
+    });
+  }, []);
+
   /** Check out a copy of a book to a borrower. Returns the new record. */
   const checkoutBook = useCallback((isbn: string, bookTitle: string, borrowerName: string): CheckoutRecord => {
     const normalizedIsbn = normalizeIsbn(isbn);
+    const trimmedBorrower = borrowerName.trim();
     const due = new Date();
     due.setDate(due.getDate() + 14); // 2-week loan period
 
@@ -351,10 +531,34 @@ export function useLibrary() {
       id: crypto.randomUUID(),
       isbn: normalizedIsbn,
       bookTitle,
-      borrowerName: borrowerName.trim(),
+      borrowerName: trimmedBorrower,
       checkedOutAt: new Date().toISOString(),
       dueDate: due.toISOString(),
     };
+
+    // If the borrower had a queued hold, fulfill it automatically on checkout.
+    setBooks((prev) => {
+      const updated = prev.map((book) => {
+        const isMatch = normalizeIsbn(book.isbn) === normalizedIsbn || normalizeIsbn(book.isbn13) === normalizedIsbn;
+        if (!isMatch || !Array.isArray(book.holds) || book.holds.length === 0) return book;
+
+        const holdIndex = book.holds.findIndex(
+          (entry) => entry.borrowerName.toLowerCase() === trimmedBorrower.toLowerCase()
+        );
+
+        if (holdIndex < 0) return book;
+
+        const nextHolds = [...book.holds];
+        nextHolds.splice(holdIndex, 1);
+        return {
+          ...book,
+          holds: nextHolds,
+        };
+      });
+
+      saveBooks(updated);
+      return updated;
+    });
 
     setCheckouts((prev) => {
       const updated = [...prev, record];
@@ -368,11 +572,62 @@ export function useLibrary() {
   /** Return a checked-out book by checkout record ID. */
   const returnBook = useCallback((checkoutId: string) => {
     setCheckouts((prev) => {
-      const updated = prev.map((c) => (c.id === checkoutId ? { ...c, returnedAt: new Date().toISOString() } : c));
+      const target = prev.find((record) => record.id === checkoutId && !record.returnedAt);
+      if (!target) return prev;
+
+      const returnedAt = new Date().toISOString();
+      const updated = prev.map((c) => (c.id === checkoutId ? { ...c, returnedAt } : c));
+
+      const matchedBook = books.find(
+        (book) => normalizeIsbn(book.isbn) === normalizeIsbn(target.isbn) || normalizeIsbn(book.isbn13) === normalizeIsbn(target.isbn)
+      );
+
+      const nextHold = matchedBook?.holds?.[0];
+      if (matchedBook && nextHold) {
+        const due = new Date();
+        due.setDate(due.getDate() + 14);
+
+        updated.push({
+          id: crypto.randomUUID(),
+          isbn: normalizeIsbn(target.isbn),
+          bookTitle: matchedBook.title,
+          borrowerName: nextHold.borrowerName,
+          checkedOutAt: returnedAt,
+          dueDate: due.toISOString(),
+        });
+
+        setBooks((bookPrev) => {
+          const booksUpdated = bookPrev.map((book) => {
+            const isMatch =
+              normalizeIsbn(book.isbn) === normalizeIsbn(target.isbn) ||
+              normalizeIsbn(book.isbn13) === normalizeIsbn(target.isbn);
+            if (!isMatch) return book;
+            return {
+              ...book,
+              holds: (book.holds ?? []).slice(1),
+            };
+          });
+          saveBooks(booksUpdated);
+          return booksUpdated;
+        });
+
+        if (nextHold.studentCardId && nextHold.studentCardNumber) {
+          const matchedCard = studentCards.find((card) => card.id === nextHold.studentCardId);
+          appendReservationActivity({
+            type: 'auto-assigned',
+            studentCardId: nextHold.studentCardId,
+            studentCardNumber: nextHold.studentCardNumber,
+            studentName: matchedCard?.studentName ?? nextHold.borrowerName,
+            bookIsbn: matchedBook.isbn13 || matchedBook.isbn,
+            bookTitle: matchedBook.title,
+          });
+        }
+      }
+
       saveCheckouts(updated);
       return updated;
     });
-  }, []);
+  }, [appendReservationActivity, books, studentCards]);
 
   /** Get availability info for a given ISBN. Returns null if not in library. */
   const getBookStatus = useCallback(
@@ -389,6 +644,8 @@ export function useLibrary() {
         activeCheckouts,
         availableCopies: Math.max(0, book.copies - activeCheckouts.length),
         isAvailable: activeCheckouts.length < book.copies,
+        holdQueue: book.holds ?? [],
+        nextHold: (book.holds ?? [])[0] ?? null,
       };
     },
     [books, checkouts]
@@ -399,6 +656,7 @@ export function useLibrary() {
     setBooks(getBooks());
     setCheckouts(getCheckouts());
     setStudentCards(getStudentCards());
+    setReservationActivities(getReservationActivity());
   }, []);
 
   const addStudentCard = useCallback(
@@ -451,9 +709,11 @@ export function useLibrary() {
     saveBooks([]);
     saveCheckouts([]);
     saveStudentCards([]);
+    saveReservationActivity([]);
     setBooks([]);
     setCheckouts([]);
     setStudentCards([]);
+    setReservationActivities([]);
     setError(null);
   }, []);
 
@@ -538,6 +798,7 @@ export function useLibrary() {
     books,
     checkouts,
     studentCards,
+    reservationActivities,
     loading,
     error,
     setError,
@@ -545,8 +806,12 @@ export function useLibrary() {
     addManualBook,
     updateBookDetails,
     removeBook,
+    placeHold,
+    cancelHold,
     checkoutBook,
     returnBook,
+    authenticateStudentCard,
+    trackBookViewByStudent,
     getBookStatus,
     syncFromStorage,
     clearAllData,

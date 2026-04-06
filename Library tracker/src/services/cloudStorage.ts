@@ -1,4 +1,4 @@
-import type { Book, CheckoutRecord, StudentCard } from '../types';
+import type { Book, CheckoutRecord, StudentCard, ReservationActivity } from '../types';
 import { supabase } from './supabase';
 
 const CLOUD_TABLE = 'library_tracker_state';
@@ -7,10 +7,15 @@ export interface CloudLibraryState {
   books: Book[];
   checkouts: CheckoutRecord[];
   studentCards: StudentCard[];
+  reservationActivity: ReservationActivity[];
 }
 
 function ensureBookArray(value: unknown): Book[] {
-  return Array.isArray(value) ? (value as Book[]) : [];
+  if (!Array.isArray(value)) return [];
+  return (value as Book[]).map((book) => ({
+    ...book,
+    holds: Array.isArray(book.holds) ? book.holds : [],
+  }));
 }
 
 function ensureCheckoutArray(value: unknown): CheckoutRecord[] {
@@ -19,6 +24,10 @@ function ensureCheckoutArray(value: unknown): CheckoutRecord[] {
 
 function ensureStudentCardArray(value: unknown): StudentCard[] {
   return Array.isArray(value) ? (value as StudentCard[]) : [];
+}
+
+function ensureReservationActivityArray(value: unknown): ReservationActivity[] {
+  return Array.isArray(value) ? (value as ReservationActivity[]) : [];
 }
 
 async function getCurrentUserId(): Promise<string | null> {
@@ -41,7 +50,7 @@ export async function loadCloudLibraryState(): Promise<CloudLibraryState | null>
 
   const { data, error } = await supabase
     .from(CLOUD_TABLE)
-    .select('books, checkouts, student_cards')
+    .select('books, checkouts, student_cards, reservation_activity')
     .eq('user_id', userId)
     .maybeSingle();
 
@@ -56,6 +65,7 @@ export async function loadCloudLibraryState(): Promise<CloudLibraryState | null>
     books: ensureBookArray(data.books),
     checkouts: ensureCheckoutArray(data.checkouts),
     studentCards: ensureStudentCardArray(data.student_cards),
+    reservationActivity: ensureReservationActivityArray(data.reservation_activity),
   };
 }
 
@@ -69,6 +79,7 @@ export async function saveCloudLibraryState(input: CloudLibraryState): Promise<b
       books: input.books,
       checkouts: input.checkouts,
       student_cards: input.studentCards,
+      reservation_activity: input.reservationActivity,
       updated_at: new Date().toISOString(),
     },
     { onConflict: 'user_id' }
