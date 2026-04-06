@@ -11,7 +11,20 @@ import { StudentReservationModal } from './components/StudentReservationModal';
 import { ReservationActivityModal } from './components/ReservationActivityModal';
 import type { AppView, Book, StudentCard } from './types';
 
+function isStudentPortalMode(): boolean {
+  if (typeof document !== 'undefined' && document.body.dataset.appMode === 'student') {
+    return true;
+  }
+
+  if (typeof window !== 'undefined') {
+    return window.location.pathname.endsWith('/student.html');
+  }
+
+  return false;
+}
+
 export default function App() {
+  const studentPortalMode = isStudentPortalMode();
   const [view, setView] = useState<AppView>('dashboard');
   const [showScanner, setShowScanner] = useState(false);
   const [scannerMode, setScannerMode] = useState<'add' | 'search'>('add');
@@ -19,7 +32,6 @@ export default function App() {
   const [manualMode, setManualMode] = useState<'add' | 'edit'>('add');
   const [editBookId, setEditBookId] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
-  const [showStudentReservations, setShowStudentReservations] = useState(false);
   const [showReservationActivity, setShowReservationActivity] = useState(false);
   const [initialManualData, setInitialManualData] = useState<Partial<ManualBookInput> | null>(null);
   const [activeBook, setActiveBook] = useState<Book | null>(null);
@@ -192,6 +204,11 @@ export default function App() {
     [library]
   );
 
+  const handleOpenStudentPortal = useCallback(() => {
+    const url = new URL('./student.html', window.location.href);
+    window.open(url.toString(), '_blank', 'noopener,noreferrer');
+  }, []);
+
   const activeStatus = activeBook ? library.getBookStatus(activeBook.isbn13 || activeBook.isbn) : null;
   const borrowerSuggestions = [
     ...new Set([
@@ -199,6 +216,27 @@ export default function App() {
       ...library.studentCards.map((card) => card.studentName.trim()).filter(Boolean),
     ]),
   ].sort((a, b) => a.localeCompare(b));
+
+  if (studentPortalMode) {
+    return (
+      <div className="app">
+        <header className="app-header">
+          <h1 className="app-title">THE BOOK NOOK</h1>
+        </header>
+
+        <main className="app-main">
+          <StudentReservationModal
+            books={library.books}
+            checkouts={library.checkouts}
+            onAuthenticate={handleStudentSignIn}
+            onTrackView={handleStudentBookView}
+            onReserve={handleStudentReserve}
+            standalone
+          />
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="app">
@@ -229,6 +267,7 @@ export default function App() {
           <DashboardView
             books={library.books}
             checkouts={library.checkouts}
+            studentCards={library.studentCards}
             onScanClick={handleScanFromDash}
             onLibraryClick={() => setView('library')}
           />
@@ -249,7 +288,7 @@ export default function App() {
             onAddStudentCard={library.addStudentCard}
             onUpdateStudentCard={library.updateStudentCard}
             onDeleteStudentCard={library.removeStudentCard}
-            onOpenStudentReservations={() => setShowStudentReservations(true)}
+            onOpenStudentReservations={handleOpenStudentPortal}
             onOpenReservationActivity={() => setShowReservationActivity(true)}
             reservationActivityCount={library.reservationActivities.length}
           />
@@ -362,18 +401,6 @@ export default function App() {
           onClose={() => {
             setShowSettings(false);
           }}
-        />
-      )}
-
-      {showStudentReservations && (
-        <StudentReservationModal
-          books={library.books}
-          checkouts={library.checkouts}
-          studentCards={library.studentCards}
-          onAuthenticate={handleStudentSignIn}
-          onTrackView={handleStudentBookView}
-          onReserve={handleStudentReserve}
-          onClose={() => setShowStudentReservations(false)}
         />
       )}
 

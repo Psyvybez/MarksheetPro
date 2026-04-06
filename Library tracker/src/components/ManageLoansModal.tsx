@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { CheckoutRecord } from '../types';
+import type { CheckoutRecord, StudentCard } from '../types';
+import { StudentProfileModal } from './StudentProfileModal';
 
 interface ManageLoansModalProps {
   checkouts: CheckoutRecord[];
+  studentCards: StudentCard[];
   onReturnCheckout: (checkoutId: string) => void;
   onClose: () => void;
 }
@@ -11,9 +13,10 @@ function isOverdue(dueDateIso: string): boolean {
   return new Date(dueDateIso) < new Date();
 }
 
-export function ManageLoansModal({ checkouts, onReturnCheckout, onClose }: ManageLoansModalProps) {
+export function ManageLoansModal({ checkouts, studentCards, onReturnCheckout, onClose }: ManageLoansModalProps) {
   const [query, setQuery] = useState('');
   const [showOnlyOverdue, setShowOnlyOverdue] = useState(false);
+  const [profileName, setProfileName] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -132,7 +135,12 @@ export function ManageLoansModal({ checkouts, onReturnCheckout, onClose }: Manag
               <li key={record.id} className="loan-item">
                 <div className="loan-item-info">
                   <span className="loan-item-title">{record.bookTitle}</span>
-                  <span className="loan-item-meta">{record.borrowerName}</span>
+                  <button
+                    className="student-name-btn loan-item-meta"
+                    onClick={() => setProfileName(record.borrowerName)}
+                  >
+                    {record.borrowerName}
+                  </button>
                   <span className={`loan-item-meta ${isOverdue(record.dueDate) ? 'loan-overdue' : ''}`}>
                     Due {new Date(record.dueDate).toLocaleDateString()}
                   </span>
@@ -149,6 +157,15 @@ export function ManageLoansModal({ checkouts, onReturnCheckout, onClose }: Manag
           </ul>
         )}
       </div>
+
+      {profileName && (
+        <StudentProfileModal
+          borrowerName={profileName}
+          studentCards={studentCards}
+          checkouts={checkouts}
+          onClose={() => setProfileName(null)}
+        />
+      )}
     </div>
   );
 }

@@ -1,9 +1,11 @@
-import { useMemo } from 'react';
-import type { Book, CheckoutRecord } from '../types';
+import { useMemo, useState } from 'react';
+import type { Book, CheckoutRecord, StudentCard } from '../types';
+import { StudentProfileModal } from './StudentProfileModal';
 
 interface DashboardViewProps {
   books: Book[];
   checkouts: CheckoutRecord[];
+  studentCards: StudentCard[];
   onScanClick: () => void;
   onLibraryClick: () => void;
 }
@@ -20,7 +22,8 @@ function isDue(dueDateIso: string): boolean {
   return new Date(dueDateIso) < new Date();
 }
 
-export function DashboardView({ books, checkouts, onScanClick, onLibraryClick }: DashboardViewProps) {
+export function DashboardView({ books, checkouts, studentCards, onScanClick, onLibraryClick }: DashboardViewProps) {
+  const [profileName, setProfileName] = useState<string | null>(null);
   const hasBooks = books.length > 0;
   const stats = useMemo(() => {
     const totalCopies = books.reduce((s, b) => s + b.copies, 0);
@@ -51,7 +54,8 @@ export function DashboardView({ books, checkouts, onScanClick, onLibraryClick }:
   }, [checkouts]);
 
   return (
-    <div className="view dashboard-view">
+    <>
+      <div className="view dashboard-view">
       {/* Hero scan button */}
       <div className="scan-hero">
         <button className="scan-hero-btn" onClick={onScanClick} aria-label="Open scanner">
@@ -88,7 +92,12 @@ export function DashboardView({ books, checkouts, onScanClick, onLibraryClick }:
           <ul className="overdue-list">
             {overdueList.map((c) => (
               <li key={c.id} className="overdue-item">
-                <span className="overdue-name">{c.borrowerName}</span>
+                <button
+                  className="student-name-btn"
+                  onClick={() => setProfileName(c.borrowerName)}
+                >
+                  {c.borrowerName}
+                </button>
                 <span className="overdue-book">{c.bookTitle}</span>
                 <span className="overdue-date">Due {formatDate(c.dueDate)}</span>
               </li>
@@ -108,9 +117,16 @@ export function DashboardView({ books, checkouts, onScanClick, onLibraryClick }:
                 <div className="activity-info">
                   <span className="activity-book">{c.bookTitle}</span>
                   <span className="activity-person">
+                    {c.returnedAt ? 'Returned by ' : 'Checked out to '}
+                    <button
+                      className="student-name-btn"
+                      onClick={() => setProfileName(c.borrowerName)}
+                    >
+                      {c.borrowerName}
+                    </button>
                     {c.returnedAt
-                      ? `Returned by ${c.borrowerName} on ${formatDate(c.returnedAt)}`
-                      : `Checked out to ${c.borrowerName} on ${formatDate(c.checkedOutAt)}`}
+                      ? ` on ${formatDate(c.returnedAt)}`
+                      : ` on ${formatDate(c.checkedOutAt)}`}
                   </span>
                 </div>
               </li>
@@ -137,5 +153,15 @@ export function DashboardView({ books, checkouts, onScanClick, onLibraryClick }:
         </div>
       )}
     </div>
+
+      {profileName && (
+        <StudentProfileModal
+          borrowerName={profileName}
+          studentCards={studentCards}
+          checkouts={checkouts}
+          onClose={() => setProfileName(null)}
+        />
+      )}
+    </>
   );
 }

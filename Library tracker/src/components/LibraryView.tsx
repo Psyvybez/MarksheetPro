@@ -3,6 +3,7 @@ import type { Book, CheckoutRecord, StudentCard } from '../types';
 import { BookCard } from './BookCard';
 import { ManageLoansModal } from './ManageLoansModal';
 import { StudentCardsModal } from './StudentCardsModal';
+import { StudentProfileModal } from './StudentProfileModal';
 
 function normalizeIsbn(value: string): string {
   return value.replace(/[^0-9X]/gi, '').toUpperCase();
@@ -129,6 +130,7 @@ export function LibraryView({
   const [borrowerFilter, setBorrowerFilter] = useState('');
   const [showLoanManager, setShowLoanManager] = useState(false);
   const [showStudentCardsManager, setShowStudentCardsManager] = useState(false);
+  const [profileName, setProfileName] = useState<string | null>(null);
 
   const activeCheckouts = useMemo(() => checkouts.filter((c) => !c.returnedAt), [checkouts]);
 
@@ -463,7 +465,15 @@ export function LibraryView({
 
       {borrowerFilter && (
         <div className="borrower-panel" role="region" aria-label="Borrower checkouts">
-          <h3 className="borrower-panel-title">Matching loans: {borrowerCheckouts.length} book(s)</h3>
+        <h3 className="borrower-panel-title">
+            <button
+              className="student-name-btn"
+              onClick={() => setProfileName(borrowerFilter.trim())}
+            >
+              {borrowerFilter.trim()}
+            </button>
+            {' '}— {borrowerCheckouts.length} active loan{borrowerCheckouts.length !== 1 ? 's' : ''}
+          </h3>
           {borrowerCheckouts.length === 0 ? (
             <p className="borrower-panel-empty">No active checkouts for this borrower.</p>
           ) : (
@@ -519,6 +529,7 @@ export function LibraryView({
       {showLoanManager && (
         <ManageLoansModal
           checkouts={checkouts}
+          studentCards={studentCards}
           onReturnCheckout={onReturnCheckout}
           onClose={() => setShowLoanManager(false)}
         />
@@ -531,6 +542,15 @@ export function LibraryView({
           onUpdateCard={onUpdateStudentCard}
           onDeleteCard={onDeleteStudentCard}
           onClose={() => setShowStudentCardsManager(false)}
+        />
+      )}
+
+      {profileName && (
+        <StudentProfileModal
+          borrowerName={profileName}
+          studentCards={studentCards}
+          checkouts={checkouts}
+          onClose={() => setProfileName(null)}
         />
       )}
     </div>

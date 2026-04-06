@@ -111,6 +111,11 @@ export function DigitalCardViewer({ card, onClose }: DigitalCardViewerProps) {
     ctx.font = 'bold 24px system-ui';
     ctx.fillText(card.studentName, width / 2, 80);
 
+    if (card.grade || card.homeroom) {
+      ctx.font = '13px system-ui';
+      ctx.fillText([card.grade, card.homeroom].filter(Boolean).join(' · '), width / 2, 105);
+    }
+
     ctx.font = '12px system-ui';
     ctx.fillText('Card Number', width / 2, 130);
 
@@ -166,7 +171,8 @@ export function DigitalCardViewer({ card, onClose }: DigitalCardViewerProps) {
         </defs>
         <rect width="400" height="250" rx="12" fill="url(#cardGradient)"/>
         <text x="200" y="30" font-size="14" font-weight="bold" fill="white" text-anchor="middle">LIBRARY CARD</text>
-        <text x="200" y="80" font-size="24" font-weight="bold" fill="white" text-anchor="middle">${card.studentName}</text>
+        <text x="200" y="75" font-size="24" font-weight="bold" fill="white" text-anchor="middle">${card.studentName}</text>
+        ${(card.grade || card.homeroom) ? `<text x="200" y="96" font-size="13" fill="white" text-anchor="middle">${[card.grade, card.homeroom].filter(Boolean).join(' · ')}</text>` : ''}
         <text x="200" y="130" font-size="12" fill="white" text-anchor="middle">Card Number</text>
         <text x="200" y="180" font-size="28" font-weight="bold" fill="white" text-anchor="middle" font-family="monospace">${card.cardNumber}</text>
         <text x="200" y="220" font-size="11" fill="white" text-anchor="middle">${card.isActive ? '✓ Active' : '✗ Inactive'}</text>
@@ -241,7 +247,12 @@ export function DigitalCardViewer({ card, onClose }: DigitalCardViewerProps) {
           {/* Card Header */}
           <div>
             <div style={{ fontSize: '14px', opacity: 0.9, marginBottom: '12px', fontWeight: '600' }}>LIBRARY CARD</div>
-            <h3 style={{ margin: '0 0 20px 0', fontSize: '24px', fontWeight: '700' }}>{card.studentName}</h3>
+            <h3 style={{ margin: '0 0 8px 0', fontSize: '24px', fontWeight: '700' }}>{card.studentName}</h3>
+            {(card.grade || card.homeroom) && (
+              <div style={{ fontSize: '13px', opacity: 0.85, marginBottom: '12px' }}>
+                {[card.grade, card.homeroom].filter(Boolean).join(' · ')}
+              </div>
+            )}
           </div>
 
           {/* Card Number */}
@@ -272,6 +283,18 @@ export function DigitalCardViewer({ card, onClose }: DigitalCardViewerProps) {
             <span style={{ fontWeight: '600', color: '#374151' }}>Student Name:</span>
             <span style={{ marginLeft: '8px', color: '#6b7280' }}>{card.studentName}</span>
           </div>
+          {card.grade && (
+            <div style={{ marginBottom: '8px' }}>
+              <span style={{ fontWeight: '600', color: '#374151' }}>Grade:</span>
+              <span style={{ marginLeft: '8px', color: '#6b7280' }}>{card.grade}</span>
+            </div>
+          )}
+          {card.homeroom && (
+            <div style={{ marginBottom: '8px' }}>
+              <span style={{ fontWeight: '600', color: '#374151' }}>Homeroom:</span>
+              <span style={{ marginLeft: '8px', color: '#6b7280' }}>{card.homeroom}</span>
+            </div>
+          )}
           <div style={{ marginBottom: '8px' }}>
             <span style={{ fontWeight: '600', color: '#374151' }}>Card Number:</span>
             <span style={{ marginLeft: '8px', color: '#6b7280', fontFamily: 'Monaco, monospace' }}>

@@ -666,6 +666,8 @@ export function useLibrary() {
         id: crypto.randomUUID(),
         studentName: input.studentName.trim(),
         cardNumber: generateStudentCardNumber(studentCards),
+        grade: input.grade?.trim() || '',
+        homeroom: input.homeroom?.trim() || '',
         notes: input.notes?.trim() || '',
         isActive: input.isActive,
         createdAt: now,
@@ -688,6 +690,8 @@ export function useLibrary() {
         ...updates,
         studentName: (updates.studentName ?? existing.studentName).trim(),
         cardNumber: existing.cardNumber,
+        grade: (updates.grade ?? existing.grade ?? '').trim(),
+        homeroom: (updates.homeroom ?? existing.homeroom ?? '').trim(),
         notes: (updates.notes ?? existing.notes ?? '').trim(),
         updatedAt: new Date().toISOString(),
       };
