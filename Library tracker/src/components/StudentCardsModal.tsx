@@ -219,9 +219,7 @@ export function StudentCardsModal({ cards, onAddCard, onUpdateCard, onDeleteCard
                   </span>
                   <span className="loan-item-meta">Card: {card.cardNumber}</span>
                   {(card.grade || card.homeroom) && (
-                    <span className="loan-item-meta">
-                      {[card.grade, card.homeroom].filter(Boolean).join(' · ')}
-                    </span>
+                    <span className="loan-item-meta">{[card.grade, card.homeroom].filter(Boolean).join(' · ')}</span>
                   )}
                   {card.notes && <span className="loan-item-meta">{card.notes}</span>}
                 </div>

@@ -145,8 +145,8 @@ export function useLibrary() {
     const timer = window.setTimeout(() => {
       saveCloudLibraryState({ books, checkouts, studentCards, reservationActivity: reservationActivities }).catch(
         (syncError) => {
-        console.warn('Cloud sync failed:', syncError);
-      }
+          console.warn('Cloud sync failed:', syncError);
+        }
       );
     }, 300);
 
@@ -473,8 +473,7 @@ export function useLibrary() {
 
       setBooks((prev) => {
         const updated = prev.map((b) => {
-          const isMatch =
-            normalizeIsbn(b.isbn) === normalizedTarget || normalizeIsbn(b.isbn13) === normalizedTarget;
+          const isMatch = normalizeIsbn(b.isbn) === normalizedTarget || normalizeIsbn(b.isbn13) === normalizedTarget;
           if (!isMatch) return b;
           const q = Array.isArray(b.holds) ? b.holds : [];
           return { ...b, holds: [...q, hold] };
@@ -570,64 +569,69 @@ export function useLibrary() {
   }, []);
 
   /** Return a checked-out book by checkout record ID. */
-  const returnBook = useCallback((checkoutId: string) => {
-    setCheckouts((prev) => {
-      const target = prev.find((record) => record.id === checkoutId && !record.returnedAt);
-      if (!target) return prev;
+  const returnBook = useCallback(
+    (checkoutId: string) => {
+      setCheckouts((prev) => {
+        const target = prev.find((record) => record.id === checkoutId && !record.returnedAt);
+        if (!target) return prev;
 
-      const returnedAt = new Date().toISOString();
-      const updated = prev.map((c) => (c.id === checkoutId ? { ...c, returnedAt } : c));
+        const returnedAt = new Date().toISOString();
+        const updated = prev.map((c) => (c.id === checkoutId ? { ...c, returnedAt } : c));
 
-      const matchedBook = books.find(
-        (book) => normalizeIsbn(book.isbn) === normalizeIsbn(target.isbn) || normalizeIsbn(book.isbn13) === normalizeIsbn(target.isbn)
-      );
+        const matchedBook = books.find(
+          (book) =>
+            normalizeIsbn(book.isbn) === normalizeIsbn(target.isbn) ||
+            normalizeIsbn(book.isbn13) === normalizeIsbn(target.isbn)
+        );
 
-      const nextHold = matchedBook?.holds?.[0];
-      if (matchedBook && nextHold) {
-        const due = new Date();
-        due.setDate(due.getDate() + 14);
+        const nextHold = matchedBook?.holds?.[0];
+        if (matchedBook && nextHold) {
+          const due = new Date();
+          due.setDate(due.getDate() + 14);
 
-        updated.push({
-          id: crypto.randomUUID(),
-          isbn: normalizeIsbn(target.isbn),
-          bookTitle: matchedBook.title,
-          borrowerName: nextHold.borrowerName,
-          checkedOutAt: returnedAt,
-          dueDate: due.toISOString(),
-        });
-
-        setBooks((bookPrev) => {
-          const booksUpdated = bookPrev.map((book) => {
-            const isMatch =
-              normalizeIsbn(book.isbn) === normalizeIsbn(target.isbn) ||
-              normalizeIsbn(book.isbn13) === normalizeIsbn(target.isbn);
-            if (!isMatch) return book;
-            return {
-              ...book,
-              holds: (book.holds ?? []).slice(1),
-            };
-          });
-          saveBooks(booksUpdated);
-          return booksUpdated;
-        });
-
-        if (nextHold.studentCardId && nextHold.studentCardNumber) {
-          const matchedCard = studentCards.find((card) => card.id === nextHold.studentCardId);
-          appendReservationActivity({
-            type: 'auto-assigned',
-            studentCardId: nextHold.studentCardId,
-            studentCardNumber: nextHold.studentCardNumber,
-            studentName: matchedCard?.studentName ?? nextHold.borrowerName,
-            bookIsbn: matchedBook.isbn13 || matchedBook.isbn,
+          updated.push({
+            id: crypto.randomUUID(),
+            isbn: normalizeIsbn(target.isbn),
             bookTitle: matchedBook.title,
+            borrowerName: nextHold.borrowerName,
+            checkedOutAt: returnedAt,
+            dueDate: due.toISOString(),
           });
-        }
-      }
 
-      saveCheckouts(updated);
-      return updated;
-    });
-  }, [appendReservationActivity, books, studentCards]);
+          setBooks((bookPrev) => {
+            const booksUpdated = bookPrev.map((book) => {
+              const isMatch =
+                normalizeIsbn(book.isbn) === normalizeIsbn(target.isbn) ||
+                normalizeIsbn(book.isbn13) === normalizeIsbn(target.isbn);
+              if (!isMatch) return book;
+              return {
+                ...book,
+                holds: (book.holds ?? []).slice(1),
+              };
+            });
+            saveBooks(booksUpdated);
+            return booksUpdated;
+          });
+
+          if (nextHold.studentCardId && nextHold.studentCardNumber) {
+            const matchedCard = studentCards.find((card) => card.id === nextHold.studentCardId);
+            appendReservationActivity({
+              type: 'auto-assigned',
+              studentCardId: nextHold.studentCardId,
+              studentCardNumber: nextHold.studentCardNumber,
+              studentName: matchedCard?.studentName ?? nextHold.borrowerName,
+              bookIsbn: matchedBook.isbn13 || matchedBook.isbn,
+              bookTitle: matchedBook.title,
+            });
+          }
+        }
+
+        saveCheckouts(updated);
+        return updated;
+      });
+    },
+    [appendReservationActivity, books, studentCards]
+  );
 
   /** Get availability info for a given ISBN. Returns null if not in library. */
   const getBookStatus = useCallback(

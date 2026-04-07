@@ -56,103 +56,95 @@ export function DashboardView({ books, checkouts, studentCards, onScanClick, onL
   return (
     <>
       <div className="view dashboard-view">
-      {/* Hero scan button */}
-      <div className="scan-hero">
-        <button className="scan-hero-btn" onClick={onScanClick} aria-label="Open scanner">
-          <span className="scan-hero-icon">📷</span>
-          <span>Scan a Book</span>
-        </button>
-        <p className="scan-hero-hint">Check in or check out any book with your camera</p>
-      </div>
-
-      {/* Stats grid */}
-      <div className="stats-grid">
-        <div className="stat-card">
-          <span className="stat-value">{stats.totalTitles}</span>
-          <span className="stat-label">Titles</span>
-        </div>
-        <div className="stat-card">
-          <span className="stat-value">{stats.totalCopies}</span>
-          <span className="stat-label">Copies</span>
-        </div>
-        <div className="stat-card stat-available">
-          <span className="stat-value">{stats.available}</span>
-          <span className="stat-label">Available</span>
-        </div>
-        <div className={`stat-card ${stats.checkedOut > 0 ? 'stat-out' : ''}`}>
-          <span className="stat-value">{stats.checkedOut}</span>
-          <span className="stat-label">Checked Out</span>
-        </div>
-      </div>
-
-      {/* Overdue alert */}
-      {overdueList.length > 0 && (
-        <div className="overdue-alert">
-          <h3 className="overdue-title">⚠️ Overdue ({overdueList.length})</h3>
-          <ul className="overdue-list">
-            {overdueList.map((c) => (
-              <li key={c.id} className="overdue-item">
-                <button
-                  className="student-name-btn"
-                  onClick={() => setProfileName(c.borrowerName)}
-                >
-                  {c.borrowerName}
-                </button>
-                <span className="overdue-book">{c.bookTitle}</span>
-                <span className="overdue-date">Due {formatDate(c.dueDate)}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {/* Recent activity */}
-      {recentActivity.length > 0 ? (
-        <div className="activity-section">
-          <h3 className="section-title">Recent Activity</h3>
-          <ul className="activity-list">
-            {recentActivity.map((c) => (
-              <li key={c.id} className="activity-item">
-                <span className={`activity-dot ${c.returnedAt ? 'dot-returned' : 'dot-out'}`} />
-                <div className="activity-info">
-                  <span className="activity-book">{c.bookTitle}</span>
-                  <span className="activity-person">
-                    {c.returnedAt ? 'Returned by ' : 'Checked out to '}
-                    <button
-                      className="student-name-btn"
-                      onClick={() => setProfileName(c.borrowerName)}
-                    >
-                      {c.borrowerName}
-                    </button>
-                    {c.returnedAt
-                      ? ` on ${formatDate(c.returnedAt)}`
-                      : ` on ${formatDate(c.checkedOutAt)}`}
-                  </span>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : hasBooks ? (
-        <div className="empty-state" style={{ marginTop: '1.5rem' }}>
-          <span className="empty-icon">🗂️</span>
-          <h3>No borrowing activity yet</h3>
-          <p>Your catalog is loaded. Check out a book to start tracking recent activity here.</p>
-          <button className="btn btn-primary" onClick={onLibraryClick}>
-            View Library
+        {/* Hero scan button */}
+        <div className="scan-hero">
+          <button className="scan-hero-btn" onClick={onScanClick} aria-label="Open scanner">
+            <span className="scan-hero-icon">📷</span>
+            <span>Scan a Book</span>
           </button>
+          <p className="scan-hero-hint">Check in or check out any book with your camera</p>
         </div>
-      ) : (
-        <div className="empty-state" style={{ marginTop: '1.5rem' }}>
-          <span className="empty-icon">📖</span>
-          <h3>Library is empty</h3>
-          <p>Start by scanning a book's ISBN barcode to add it to your library.</p>
-          <button className="btn btn-primary" onClick={onLibraryClick}>
-            View Library
-          </button>
+
+        {/* Stats grid */}
+        <div className="stats-grid">
+          <div className="stat-card">
+            <span className="stat-value">{stats.totalTitles}</span>
+            <span className="stat-label">Titles</span>
+          </div>
+          <div className="stat-card">
+            <span className="stat-value">{stats.totalCopies}</span>
+            <span className="stat-label">Copies</span>
+          </div>
+          <div className="stat-card stat-available">
+            <span className="stat-value">{stats.available}</span>
+            <span className="stat-label">Available</span>
+          </div>
+          <div className={`stat-card ${stats.checkedOut > 0 ? 'stat-out' : ''}`}>
+            <span className="stat-value">{stats.checkedOut}</span>
+            <span className="stat-label">Checked Out</span>
+          </div>
         </div>
-      )}
-    </div>
+
+        {/* Overdue alert */}
+        {overdueList.length > 0 && (
+          <div className="overdue-alert">
+            <h3 className="overdue-title">⚠️ Overdue ({overdueList.length})</h3>
+            <ul className="overdue-list">
+              {overdueList.map((c) => (
+                <li key={c.id} className="overdue-item">
+                  <button className="student-name-btn" onClick={() => setProfileName(c.borrowerName)}>
+                    {c.borrowerName}
+                  </button>
+                  <span className="overdue-book">{c.bookTitle}</span>
+                  <span className="overdue-date">Due {formatDate(c.dueDate)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Recent activity */}
+        {recentActivity.length > 0 ? (
+          <div className="activity-section">
+            <h3 className="section-title">Recent Activity</h3>
+            <ul className="activity-list">
+              {recentActivity.map((c) => (
+                <li key={c.id} className="activity-item">
+                  <span className={`activity-dot ${c.returnedAt ? 'dot-returned' : 'dot-out'}`} />
+                  <div className="activity-info">
+                    <span className="activity-book">{c.bookTitle}</span>
+                    <span className="activity-person">
+                      {c.returnedAt ? 'Returned by ' : 'Checked out to '}
+                      <button className="student-name-btn" onClick={() => setProfileName(c.borrowerName)}>
+                        {c.borrowerName}
+                      </button>
+                      {c.returnedAt ? ` on ${formatDate(c.returnedAt)}` : ` on ${formatDate(c.checkedOutAt)}`}
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : hasBooks ? (
+          <div className="empty-state" style={{ marginTop: '1.5rem' }}>
+            <span className="empty-icon">🗂️</span>
+            <h3>No borrowing activity yet</h3>
+            <p>Your catalog is loaded. Check out a book to start tracking recent activity here.</p>
+            <button className="btn btn-primary" onClick={onLibraryClick}>
+              View Library
+            </button>
+          </div>
+        ) : (
+          <div className="empty-state" style={{ marginTop: '1.5rem' }}>
+            <span className="empty-icon">📖</span>
+            <h3>Library is empty</h3>
+            <p>Start by scanning a book's ISBN barcode to add it to your library.</p>
+            <button className="btn btn-primary" onClick={onLibraryClick}>
+              View Library
+            </button>
+          </div>
+        )}
+      </div>
 
       {profileName && (
         <StudentProfileModal

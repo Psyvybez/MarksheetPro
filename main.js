@@ -18,6 +18,7 @@ import { recalculateAndRenderAverages } from './calculations.js';
 import {
   renderFullGradebookUI,
   renderAnalyticsModal,
+  renderWeightBreakdownModal,
   renderGradebook,
   renderClassTabs,
   renderAccountPage,
@@ -989,6 +990,7 @@ function setupEventListeners() {
         editUnitsBtn: actions.editUnits,
         recordMidtermsBtn: actions.recordMidterms,
         analyticsBtn: renderAnalyticsModal,
+        weightsBreakdownBtn: renderWeightBreakdownModal,
         attendanceBtn: () => renderAttendanceSheet(new Date().toISOString().slice(0, 10)),
         savePresetBtn: actions.saveClassAsPreset,
         restoreStudentsBtn: actions.showRestoreStudentsModal,

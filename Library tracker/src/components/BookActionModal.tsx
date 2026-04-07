@@ -150,7 +150,8 @@ export function BookActionModal({
                   <div className="checkout-item-info">
                     <span className="checkout-borrower">{hold.borrowerName}</span>
                     <span className="checkout-due">
-                      {index === 0 ? 'Next in line' : `Position #${index + 1}`} • Requested {formatDate(hold.requestedAt)}
+                      {index === 0 ? 'Next in line' : `Position #${index + 1}`} • Requested{' '}
+                      {formatDate(hold.requestedAt)}
                     </span>
                     {hold.studentCardNumber && <span className="checkout-due">Card: {hold.studentCardNumber}</span>}
                   </div>

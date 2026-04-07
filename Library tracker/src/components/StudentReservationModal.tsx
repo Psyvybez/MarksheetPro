@@ -204,7 +204,11 @@ export function StudentReservationModal({
 
   const selectedBookStatus = useMemo(() => {
     if (!selectedBook) return null;
-    return bookStatuses.find((status) => (status.book.isbn13 || status.book.isbn) === (selectedBook.isbn13 || selectedBook.isbn)) ?? null;
+    return (
+      bookStatuses.find(
+        (status) => (status.book.isbn13 || status.book.isbn) === (selectedBook.isbn13 || selectedBook.isbn)
+      ) ?? null
+    );
   }, [bookStatuses, selectedBook]);
 
   const studentActiveHoldCount = useMemo(() => {
@@ -214,8 +218,7 @@ export function StudentReservationModal({
       const hasHold = holds.some(
         (h) =>
           h.studentCardId === activeStudent.id ||
-          (!!h.studentCardNumber &&
-            h.studentCardNumber.toLowerCase() === activeStudent.cardNumber.toLowerCase())
+          (!!h.studentCardNumber && h.studentCardNumber.toLowerCase() === activeStudent.cardNumber.toLowerCase())
       );
       return count + (hasHold ? 1 : 0);
     }, 0);
@@ -255,8 +258,7 @@ export function StudentReservationModal({
     const isAlreadyQueuedForThisBook = (Array.isArray(book.holds) ? book.holds : []).some(
       (h) =>
         h.studentCardId === activeStudent.id ||
-        (!!h.studentCardNumber &&
-          h.studentCardNumber.toLowerCase() === activeStudent.cardNumber.toLowerCase())
+        (!!h.studentCardNumber && h.studentCardNumber.toLowerCase() === activeStudent.cardNumber.toLowerCase())
     );
 
     if (studentActiveHoldCount >= 1 && !isAlreadyQueuedForThisBook) {
@@ -274,7 +276,9 @@ export function StudentReservationModal({
   };
 
   const outerClassName = standalone ? 'student-portal-page' : 'modal-backdrop';
-  const innerClassName = standalone ? 'student-portal-page-shell student-portal-sheet' : 'modal-sheet student-portal-sheet';
+  const innerClassName = standalone
+    ? 'student-portal-page-shell student-portal-sheet'
+    : 'modal-sheet student-portal-sheet';
 
   return (
     <div
@@ -589,7 +593,6 @@ export function StudentReservationModal({
             {error}
           </p>
         )}
-
       </div>
     </div>
   );

@@ -255,7 +255,12 @@ describe('placeHold', () => {
     const card = makeStudentCard();
     const book = makeBook({
       holds: [
-        makeHold({ id: 'hold-1', borrowerName: 'Alice Johnson', studentCardId: 'card-1', studentCardNumber: 'LIB-00001' }),
+        makeHold({
+          id: 'hold-1',
+          borrowerName: 'Alice Johnson',
+          studentCardId: 'card-1',
+          studentCardNumber: 'LIB-00001',
+        }),
       ],
     });
     const { result } = await setup({ books: [book], studentCards: [card] });
@@ -270,9 +275,7 @@ describe('placeHold', () => {
 
   it('prevents duplicate holds by card number (case-insensitive)', async () => {
     const book = makeBook({
-      holds: [
-        makeHold({ id: 'hold-1', borrowerName: 'Alice Johnson', studentCardNumber: 'LIB-00001' }),
-      ],
+      holds: [makeHold({ id: 'hold-1', borrowerName: 'Alice Johnson', studentCardNumber: 'LIB-00001' })],
     });
     const { result } = await setup({ books: [book] });
 
@@ -368,10 +371,7 @@ describe('placeHold', () => {
 describe('cancelHold', () => {
   it('removes the targeted hold from the queue', async () => {
     const book = makeBook({
-      holds: [
-        makeHold({ id: 'hold-1', borrowerName: 'Alice' }),
-        makeHold({ id: 'hold-2', borrowerName: 'Bob' }),
-      ],
+      holds: [makeHold({ id: 'hold-1', borrowerName: 'Alice' }), makeHold({ id: 'hold-2', borrowerName: 'Bob' })],
     });
     const { result } = await setup({ books: [book] });
 
@@ -434,9 +434,7 @@ describe('returnBook', () => {
     });
 
     await waitFor(() => {
-      const bobCheckout = result.current.checkouts.find(
-        (c) => c.borrowerName === 'Bob Smith' && !c.returnedAt
-      );
+      const bobCheckout = result.current.checkouts.find((c) => c.borrowerName === 'Bob Smith' && !c.returnedAt);
       expect(bobCheckout).toBeDefined();
     });
   });
@@ -465,10 +463,7 @@ describe('returnBook', () => {
   it('preserves remaining holds (FIFO — only first entry is auto-assigned)', async () => {
     const book = makeBook({
       copies: 1,
-      holds: [
-        makeHold({ id: 'hold-1', borrowerName: 'Bob' }),
-        makeHold({ id: 'hold-2', borrowerName: 'Carol' }),
-      ],
+      holds: [makeHold({ id: 'hold-1', borrowerName: 'Bob' }), makeHold({ id: 'hold-2', borrowerName: 'Carol' })],
     });
     const { result } = await setup({ books: [book] });
 
@@ -593,10 +588,7 @@ describe('getBookStatus', () => {
 
   it('returns holdQueue and nextHold from the book', async () => {
     const book = makeBook({
-      holds: [
-        makeHold({ id: 'hold-1', borrowerName: 'Alice' }),
-        makeHold({ id: 'hold-2', borrowerName: 'Bob' }),
-      ],
+      holds: [makeHold({ id: 'hold-1', borrowerName: 'Alice' }), makeHold({ id: 'hold-2', borrowerName: 'Bob' })],
     });
     const { result } = await setup({ books: [book] });
 

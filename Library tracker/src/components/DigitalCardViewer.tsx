@@ -172,7 +172,7 @@ export function DigitalCardViewer({ card, onClose }: DigitalCardViewerProps) {
         <rect width="400" height="250" rx="12" fill="url(#cardGradient)"/>
         <text x="200" y="30" font-size="14" font-weight="bold" fill="white" text-anchor="middle">LIBRARY CARD</text>
         <text x="200" y="75" font-size="24" font-weight="bold" fill="white" text-anchor="middle">${card.studentName}</text>
-        ${(card.grade || card.homeroom) ? `<text x="200" y="96" font-size="13" fill="white" text-anchor="middle">${[card.grade, card.homeroom].filter(Boolean).join(' · ')}</text>` : ''}
+        ${card.grade || card.homeroom ? `<text x="200" y="96" font-size="13" fill="white" text-anchor="middle">${[card.grade, card.homeroom].filter(Boolean).join(' · ')}</text>` : ''}
         <text x="200" y="130" font-size="12" fill="white" text-anchor="middle">Card Number</text>
         <text x="200" y="180" font-size="28" font-weight="bold" fill="white" text-anchor="middle" font-family="monospace">${card.cardNumber}</text>
         <text x="200" y="220" font-size="11" fill="white" text-anchor="middle">${card.isActive ? '✓ Active' : '✗ Inactive'}</text>

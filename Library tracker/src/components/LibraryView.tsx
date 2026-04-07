@@ -465,14 +465,11 @@ export function LibraryView({
 
       {borrowerFilter && (
         <div className="borrower-panel" role="region" aria-label="Borrower checkouts">
-        <h3 className="borrower-panel-title">
-            <button
-              className="student-name-btn"
-              onClick={() => setProfileName(borrowerFilter.trim())}
-            >
+          <h3 className="borrower-panel-title">
+            <button className="student-name-btn" onClick={() => setProfileName(borrowerFilter.trim())}>
               {borrowerFilter.trim()}
-            </button>
-            {' '}— {borrowerCheckouts.length} active loan{borrowerCheckouts.length !== 1 ? 's' : ''}
+            </button>{' '}
+            — {borrowerCheckouts.length} active loan{borrowerCheckouts.length !== 1 ? 's' : ''}
           </h3>
           {borrowerCheckouts.length === 0 ? (
             <p className="borrower-panel-empty">No active checkouts for this borrower.</p>

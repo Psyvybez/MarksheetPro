@@ -203,6 +203,250 @@ export function renderCategoryWeights() {
   updateTotal();
 }
 
+function roundToOneDecimal(value) {
+  return Math.round((Number(value) + Number.EPSILON) * 10) / 10;
+}
+
+function computeAssignmentFactor(unit, assignment, categoryWeights) {
+  const assignmentWeight = parseFloat(assignment?.weight) || 1;
+  if (unit?.isFinal) return assignmentWeight;
+
+  const categoryFactor = ['k', 't', 'c', 'a'].reduce((sum, cat) => {
+    const hasCategory = (parseFloat(assignment?.categoryTotals?.[cat]) || 0) > 0;
+    if (!hasCategory) return sum;
+    return sum + (parseFloat(categoryWeights?.[cat]) || 0) / 100;
+  }, 0);
+
+  return categoryFactor > 0 ? assignmentWeight * categoryFactor : 0;
+}
+
+function computeWeightBreakdown(classData) {
+  const units = Object.values(classData?.units || {}).sort((a, b) => a.order - b.order);
+  const termUnits = units.filter((unit) => !unit.isFinal);
+  const finalUnit = units.find((unit) => unit.isFinal) || null;
+  const categoryWeights = classData?.categoryWeights || { k: 25, t: 25, c: 25, a: 25 };
+
+  const configuredFinalWeight = Math.max(0, Math.min(100, parseFloat(classData?.finalWeight) || 30));
+  const hasFinalUnit = Boolean(finalUnit);
+  const termContributionPct = hasFinalUnit ? 100 - configuredFinalWeight : 100;
+  const finalContributionPct = hasFinalUnit ? configuredFinalWeight : 0;
+
+  const totalTermUnitWeight = termUnits.reduce((sum, unit) => sum + (parseFloat(unit.weight) || 0), 0);
+  const defaultTermUnitPct = termUnits.length > 0 ? 100 / termUnits.length : 0;
+
+  const unitRows = [];
+  const assignmentRows = [];
+
+  termUnits.forEach((unit) => {
+    const normalizedUnitTermPct =
+      totalTermUnitWeight > 0 ? ((parseFloat(unit.weight) || 0) / totalTermUnitWeight) * 100 : defaultTermUnitPct;
+    const unitOverallPct = normalizedUnitTermPct * (termContributionPct / 100);
+
+    unitRows.push({
+      unitId: unit.id,
+      unitLabel: unit.title ? `Unit ${unit.order}: ${unit.title}` : `Unit ${unit.order}`,
+      pctTerm: roundToOneDecimal(normalizedUnitTermPct),
+      pctOverall: roundToOneDecimal(unitOverallPct),
+      isFinal: false,
+    });
+
+    const assignments = Object.values(unit.assignments || {}).sort((a, b) => a.order - b.order);
+    const assignmentFactors = assignments.map((assignment) => ({
+      assignment,
+      factor: computeAssignmentFactor(unit, assignment, categoryWeights),
+    }));
+    const totalFactor = assignmentFactors.reduce((sum, entry) => sum + entry.factor, 0);
+    const evenPct = assignments.length > 0 ? 100 / assignments.length : 0;
+
+    assignmentFactors.forEach(({ assignment, factor }) => {
+      const assignmentPctUnit = totalFactor > 0 ? (factor / totalFactor) * 100 : evenPct;
+      const assignmentPctTerm = assignmentPctUnit * (normalizedUnitTermPct / 100);
+      const assignmentPctOverall = assignmentPctUnit * (unitOverallPct / 100);
+
+      assignmentRows.push({
+        assignmentId: assignment.id,
+        assignmentName: assignment.name,
+        unitId: unit.id,
+        unitLabel: unit.title ? `Unit ${unit.order}: ${unit.title}` : `Unit ${unit.order}`,
+        pctUnit: roundToOneDecimal(assignmentPctUnit),
+        pctTerm: roundToOneDecimal(assignmentPctTerm),
+        pctOverall: roundToOneDecimal(assignmentPctOverall),
+        isFinal: false,
+      });
+    });
+  });
+
+  if (finalUnit) {
+    unitRows.push({
+      unitId: finalUnit.id,
+      unitLabel: finalUnit.title || 'Final Assessment',
+      pctTerm: null,
+      pctOverall: roundToOneDecimal(finalContributionPct),
+      isFinal: true,
+    });
+
+    const assignments = Object.values(finalUnit.assignments || {}).sort((a, b) => a.order - b.order);
+    const assignmentFactors = assignments.map((assignment) => ({
+      assignment,
+      factor: computeAssignmentFactor(finalUnit, assignment, categoryWeights),
+    }));
+    const totalFactor = assignmentFactors.reduce((sum, entry) => sum + entry.factor, 0);
+    const evenPct = assignments.length > 0 ? 100 / assignments.length : 0;
+
+    assignmentFactors.forEach(({ assignment, factor }) => {
+      const assignmentPctUnit = totalFactor > 0 ? (factor / totalFactor) * 100 : evenPct;
+      const assignmentPctOverall = assignmentPctUnit * (finalContributionPct / 100);
+
+      assignmentRows.push({
+        assignmentId: assignment.id,
+        assignmentName: assignment.name,
+        unitId: finalUnit.id,
+        unitLabel: finalUnit.title || 'Final Assessment',
+        pctUnit: roundToOneDecimal(assignmentPctUnit),
+        pctTerm: null,
+        pctOverall: roundToOneDecimal(assignmentPctOverall),
+        isFinal: true,
+      });
+    });
+  }
+
+  return { unitRows, assignmentRows };
+}
+
+export function renderWeightBreakdownModal() {
+  const classData = getActiveClassData();
+  if (!classData) return;
+
+  const breakdown = computeWeightBreakdown(classData);
+  const unitOptions = [
+    '<option value="all">All Units</option>',
+    ...breakdown.unitRows.map(
+      (unit) => `<option value="${unit.unitId}">${unit.unitLabel}${unit.isFinal ? ' (Final)' : ''}</option>`
+    ),
+  ].join('');
+
+  const content = `
+    <div class="space-y-4">
+      <p class="text-sm text-gray-600">View how each unit and assignment contributes to unit marks, term marks, and the overall course mark.</p>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <label class="text-sm font-medium text-gray-700">
+          View
+          <select id="weight-breakdown-type" class="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 bg-white">
+            <option value="assignments" selected>Assignments</option>
+            <option value="units">Units</option>
+          </select>
+        </label>
+        <label class="text-sm font-medium text-gray-700">
+          Unit Filter
+          <select id="weight-breakdown-unit-filter" class="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 bg-white">
+            ${unitOptions}
+          </select>
+        </label>
+      </div>
+      <div id="weight-breakdown-results" class="max-h-[55vh] overflow-auto border border-gray-200 rounded-lg"></div>
+    </div>
+  `;
+
+  showModal({
+    title: `Weight Breakdown: ${classData.name}`,
+    content,
+    modalWidth: 'max-w-5xl',
+    confirmText: null,
+    cancelText: 'Close',
+  });
+
+  const formatPct = (value) => (value === null || value === undefined ? '--' : `${value.toFixed(1)}%`);
+
+  const renderRows = () => {
+    const modeEl = document.getElementById('weight-breakdown-type');
+    const unitFilterEl = document.getElementById('weight-breakdown-unit-filter');
+    const resultsEl = document.getElementById('weight-breakdown-results');
+    if (!modeEl || !unitFilterEl || !resultsEl) return;
+
+    const mode = modeEl.value;
+    const unitFilter = unitFilterEl.value;
+
+    if (mode === 'units') {
+      const filteredUnits =
+        unitFilter === 'all' ? breakdown.unitRows : breakdown.unitRows.filter((unit) => unit.unitId === unitFilter);
+
+      if (!filteredUnits.length) {
+        resultsEl.innerHTML = '<p class="text-sm text-gray-500 p-4">No units match the selected filter.</p>';
+        return;
+      }
+
+      const rowsHtml = filteredUnits
+        .map(
+          (unit) => `
+            <tr class="border-t border-gray-100">
+              <td class="p-3 font-medium text-gray-700">${unit.unitLabel}</td>
+              <td class="p-3 text-center text-gray-600">${formatPct(unit.pctTerm)}</td>
+              <td class="p-3 text-center text-gray-700 font-semibold">${formatPct(unit.pctOverall)}</td>
+            </tr>
+          `
+        )
+        .join('');
+
+      resultsEl.innerHTML = `
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50 text-gray-600 uppercase text-xs tracking-wide">
+            <tr>
+              <th class="p-3 text-left">Unit</th>
+              <th class="p-3 text-center">% of Term</th>
+              <th class="p-3 text-center">% of Overall</th>
+            </tr>
+          </thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      `;
+      return;
+    }
+
+    const filteredAssignments =
+      unitFilter === 'all'
+        ? breakdown.assignmentRows
+        : breakdown.assignmentRows.filter((assignment) => assignment.unitId === unitFilter);
+
+    if (!filteredAssignments.length) {
+      resultsEl.innerHTML = '<p class="text-sm text-gray-500 p-4">No assignments match the selected filter.</p>';
+      return;
+    }
+
+    const rowsHtml = filteredAssignments
+      .map(
+        (assignment) => `
+          <tr class="border-t border-gray-100">
+            <td class="p-3 font-medium text-gray-700">${assignment.assignmentName}</td>
+            <td class="p-3 text-gray-600">${assignment.unitLabel}</td>
+            <td class="p-3 text-center text-gray-600">${formatPct(assignment.pctUnit)}</td>
+            <td class="p-3 text-center text-gray-600">${formatPct(assignment.pctTerm)}</td>
+            <td class="p-3 text-center text-gray-700 font-semibold">${formatPct(assignment.pctOverall)}</td>
+          </tr>
+        `
+      )
+      .join('');
+
+    resultsEl.innerHTML = `
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50 text-gray-600 uppercase text-xs tracking-wide">
+          <tr>
+            <th class="p-3 text-left">Assignment</th>
+            <th class="p-3 text-left">Unit</th>
+            <th class="p-3 text-center">% of Unit</th>
+            <th class="p-3 text-center">% of Term</th>
+            <th class="p-3 text-center">% of Overall</th>
+          </tr>
+        </thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    `;
+  };
+
+  document.getElementById('weight-breakdown-type')?.addEventListener('change', renderRows);
+  document.getElementById('weight-breakdown-unit-filter')?.addEventListener('change', renderRows);
+  renderRows();
+}
+
 // This file handles rendering the gradebook table and related UI based on the current state
 export function renderGradebook() {
   const classData = getActiveClassData();
@@ -317,32 +561,10 @@ export function renderGradebook() {
 
   const thead = table.querySelector('thead');
 
-  // Pre-compute assignment weight % within each unit (display only, does not affect grade calc)
-  const catWts = classData.categoryWeights || { k: 25, t: 25, c: 25, a: 25 };
-  const unitAsgWeights = {};
-  Object.values(unitsToDisplay).forEach((unit) => {
-    const asgs = Object.values(unit.assignments || {});
-    let totalFactor = 0;
-    const factors = {};
-    asgs.forEach((asg) => {
-      const w = parseFloat(asg.weight) || 1;
-      let factor;
-      if (unit.isFinal) {
-        factor = w;
-      } else {
-        const uf = ['k', 't', 'c', 'a'].reduce(
-          (s, cat) => s + (parseFloat(asg.categoryTotals?.[cat]) > 0 ? (catWts[cat] || 25) / 100 : 0),
-          0
-        );
-        factor = uf > 0 ? w * uf : 0;
-      }
-      factors[asg.id] = factor;
-      totalFactor += factor;
-    });
-    unitAsgWeights[unit.id] = {};
-    asgs.forEach((asg) => {
-      unitAsgWeights[unit.id][asg.id] = totalFactor > 0 ? Math.round((factors[asg.id] / totalFactor) * 100) : 0;
-    });
+  const weightBreakdown = computeWeightBreakdown(classData);
+  const assignmentOverallPercentById = {};
+  weightBreakdown.assignmentRows.forEach((row) => {
+    assignmentOverallPercentById[`${row.unitId}:${row.assignmentId}`] = row.pctOverall;
   });
 
   let headerHtml1 = `<tr class="bg-gray-50">
@@ -391,17 +613,19 @@ export function renderGradebook() {
           const toggleHtml = `<div class="mt-1 flex items-center justify-center gap-1"><input type="checkbox" class="assignment-status-toggle" data-unit-id="${unit.id}" data-assignment-id="${asg.id}" ${checked}><label class="text-[9px] text-blue-600 font-bold uppercase cursor-pointer">Submitted</label></div>`;
 
           if (unit.isFinal) {
-            const asgPctFinal = unitAsgWeights[unit.id]?.[asg.id];
+            const asgPctFinal = assignmentOverallPercentById[`${unit.id}:${asg.id}`];
             const asgPctTagFinal =
               asgPctFinal != null
-                ? `<span class="block text-[9px] font-bold text-teal-600">~${asgPctFinal}% of unit</span>`
+                ? `<span class="block text-[9px] font-bold text-teal-600">${asgPctFinal.toFixed(1)}% overall</span>`
                 : '';
             headerHtml2 += `<th class="p-3 text-xs font-medium text-gray-500 tracking-wider text-center border-l-2 border-gray-400 ${submittedClass}">${asg.name}<br>${weightText}${asgPctTagFinal}${toggleHtml}</th>`;
             headerHtml3 += `<th class="p-2 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border-l-2 border-gray-400 assignment-header-cell ${submittedClass}">Score<br><input type="number" class="assignment-total-input font-normal w-12 text-center bg-transparent border-b border-transparent hover:border-gray-400 focus:border-blue-500 p-0" data-unit-id="${unit.id}" data-assignment-id="${asg.id}" value="${asg.total || 0}"></th>`;
           } else {
-            const asgPct = unitAsgWeights[unit.id]?.[asg.id];
+            const asgPct = assignmentOverallPercentById[`${unit.id}:${asg.id}`];
             const asgPctTag =
-              asgPct != null ? `<span class="block text-[9px] font-bold text-teal-600">~${asgPct}% of unit</span>` : '';
+              asgPct != null
+                ? `<span class="block text-[9px] font-bold text-teal-600">${asgPct.toFixed(1)}% overall</span>`
+                : '';
             headerHtml2 += `<th colspan="4" class="p-3 text-xs font-medium text-gray-500 tracking-wider text-center border-l-2 border-gray-400 ${submittedClass}">${asg.name}<br>${weightText}${asgPctTag}${toggleHtml}</th>`;
             ['k', 't', 'c', 'a'].forEach((cat) => {
               const borderClass = cat === 'k' ? 'border-l-2 border-gray-400' : 'border-l';
@@ -715,6 +939,8 @@ export function renderFullGradebookUI() {
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
                         Analytics
                     </button>
+
+                    <button id="weightsBreakdownBtn" class="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-lg">Weight Breakdown</button>
                     
                     <button id="moveClassBtn" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg">Move to Sem ${targetSem}</button>
                     
@@ -1272,6 +1498,7 @@ export async function renderStudentProfileModal(studentId) {
 export function renderAnalyticsModal() {
   const initialClassData = getActiveClassData();
   if (!initialClassData) return;
+  let cleanupRefreshHandlers = () => {};
 
   const getAnalyticsContext = () => {
     const liveClassData = getActiveClassData() || initialClassData;
@@ -1423,6 +1650,22 @@ export function renderAnalyticsModal() {
 
       <div class="border-t border-gray-200 pt-5">
         <div class="flex flex-wrap items-center gap-3 mb-4">
+          <h3 class="text-sm font-bold text-gray-600 uppercase tracking-wider">Detailed Percentage Table</h3>
+          <select id="analytics-breakdown-type" class="text-xs border border-gray-300 rounded-md px-2 py-1 bg-white">
+            <option value="assignments" selected>Assignments</option>
+            <option value="units">Units</option>
+          </select>
+          <select id="analytics-breakdown-unit-filter" class="text-xs border border-gray-300 rounded-md px-2 py-1 bg-white">
+            <option value="all">All Units</option>
+          </select>
+        </div>
+        <div class="bg-gray-50 p-3 rounded-lg border">
+          <div id="analytics-breakdown-table-wrap" class="max-h-[38vh] overflow-auto"></div>
+        </div>
+      </div>
+
+      <div class="border-t border-gray-200 pt-5">
+        <div class="flex flex-wrap items-center gap-3 mb-4">
           <h3 class="text-sm font-bold text-gray-600 uppercase tracking-wider">Assignment Performance</h3>
           <select id="perf-unit-filter" class="text-xs border border-gray-300 rounded-md px-2 py-1 bg-white">${unitOptions}</select>
           <select id="perf-student-filter" class="text-xs border border-gray-300 rounded-md px-2 py-1 bg-white min-w-[140px]">
@@ -1443,9 +1686,16 @@ export function renderAnalyticsModal() {
     modalWidth: 'max-w-5xl',
     confirmText: null,
     cancelText: 'Close',
+    onCancel: () => {
+      cleanupRefreshHandlers();
+    },
   });
 
   setTimeout(() => {
+    if (!document.getElementById('custom-modal')) {
+      return;
+    }
+
     const chartInstances = {};
     const rebuildChart = (key, ctx, config) => {
       if (!ctx) return null;
@@ -1462,13 +1712,22 @@ export function renderAnalyticsModal() {
       const asgFilter = document.getElementById('asg-unit-filter');
       const perfFilter = document.getElementById('perf-unit-filter');
       const studentFilter = document.getElementById('perf-student-filter');
+      const breakdownUnitFilter = document.getElementById('analytics-breakdown-unit-filter');
 
       const selectedAsgUnitId = asgFilter?.value;
       const selectedPerfUnitId = perfFilter?.value;
       const selectedStudentId = studentFilter?.value;
+      const selectedBreakdownUnitId = breakdownUnitFilter?.value;
 
       if (asgFilter) asgFilter.innerHTML = buildUnitOptionsHtml(allAnalyticsUnits, selectedAsgUnitId);
       if (perfFilter) perfFilter.innerHTML = buildUnitOptionsHtml(allAnalyticsUnits, selectedPerfUnitId);
+      if (breakdownUnitFilter) {
+        breakdownUnitFilter.innerHTML = `
+          <option value="all">All Units</option>
+          ${buildUnitOptionsHtml(allAnalyticsUnits, selectedBreakdownUnitId === 'all' ? null : selectedBreakdownUnitId)}
+        `;
+        if (selectedBreakdownUnitId === 'all') breakdownUnitFilter.value = 'all';
+      }
 
       if (studentFilter) {
         studentFilter.innerHTML = `
@@ -1656,6 +1915,96 @@ export function renderAnalyticsModal() {
       });
     }
 
+    function renderBreakdownTable() {
+      const { liveClassData } = getAnalyticsContext();
+      const wrap = document.getElementById('analytics-breakdown-table-wrap');
+      const typeFilter = document.getElementById('analytics-breakdown-type');
+      const unitFilter = document.getElementById('analytics-breakdown-unit-filter');
+      if (!wrap || !typeFilter || !unitFilter) return;
+
+      const mode = typeFilter.value;
+      const selectedUnitId = unitFilter.value || 'all';
+      const breakdown = computeWeightBreakdown(liveClassData);
+      const fmt = (v) => (v === null || v === undefined ? '--' : `${v.toFixed(1)}%`);
+
+      if (mode === 'units') {
+        const rows =
+          selectedUnitId === 'all'
+            ? breakdown.unitRows
+            : breakdown.unitRows.filter((row) => row.unitId === selectedUnitId);
+
+        if (!rows.length) {
+          wrap.innerHTML = '<p class="text-xs text-gray-400 text-center py-8">No unit percentages available.</p>';
+          return;
+        }
+
+        wrap.innerHTML = `
+          <table class="w-full text-xs">
+            <thead class="bg-gray-100 text-gray-600 uppercase tracking-wide sticky top-0">
+              <tr>
+                <th class="p-2 text-left">Unit</th>
+                <th class="p-2 text-center">% of Term</th>
+                <th class="p-2 text-center">% of Overall</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows
+                .map(
+                  (row) => `
+                    <tr class="border-t border-gray-200">
+                      <td class="p-2 font-medium text-gray-700">${row.unitLabel}</td>
+                      <td class="p-2 text-center text-gray-600">${fmt(row.pctTerm)}</td>
+                      <td class="p-2 text-center text-gray-700 font-semibold">${fmt(row.pctOverall)}</td>
+                    </tr>
+                  `
+                )
+                .join('')}
+            </tbody>
+          </table>
+        `;
+        return;
+      }
+
+      const rows =
+        selectedUnitId === 'all'
+          ? breakdown.assignmentRows
+          : breakdown.assignmentRows.filter((row) => row.unitId === selectedUnitId);
+
+      if (!rows.length) {
+        wrap.innerHTML = '<p class="text-xs text-gray-400 text-center py-8">No assignment percentages available.</p>';
+        return;
+      }
+
+      wrap.innerHTML = `
+        <table class="w-full text-xs">
+          <thead class="bg-gray-100 text-gray-600 uppercase tracking-wide sticky top-0">
+            <tr>
+              <th class="p-2 text-left">Assignment</th>
+              <th class="p-2 text-left">Unit</th>
+              <th class="p-2 text-center">% of Unit</th>
+              <th class="p-2 text-center">% of Term</th>
+              <th class="p-2 text-center">% of Overall</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows
+              .map(
+                (row) => `
+                  <tr class="border-t border-gray-200">
+                    <td class="p-2 font-medium text-gray-700">${row.assignmentName}</td>
+                    <td class="p-2 text-gray-600">${row.unitLabel}</td>
+                    <td class="p-2 text-center text-gray-600">${fmt(row.pctUnit)}</td>
+                    <td class="p-2 text-center text-gray-600">${fmt(row.pctTerm)}</td>
+                    <td class="p-2 text-center text-gray-700 font-semibold">${fmt(row.pctOverall)}</td>
+                  </tr>
+                `
+              )
+              .join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
     function renderPerfChart(unitId, studentFilter) {
       const { liveClassData, allAnalyticsUnits } = getAnalyticsContext();
       const wrap = document.getElementById('chart-asg-perf-wrap');
@@ -1726,28 +2075,33 @@ export function renderAnalyticsModal() {
     const asgUnitFilter = document.getElementById('asg-unit-filter');
     const perfUnitFilter = document.getElementById('perf-unit-filter');
     const perfStudentFilter = document.getElementById('perf-student-filter');
+    const breakdownTypeFilter = document.getElementById('analytics-breakdown-type');
+    const breakdownUnitFilter = document.getElementById('analytics-breakdown-unit-filter');
 
     renderAsgWeightChart(asgUnitFilter?.value);
+    renderBreakdownTable();
     renderPerfChart(perfUnitFilter?.value, perfStudentFilter?.value || '__class__');
 
     asgUnitFilter?.addEventListener('change', (e) => renderAsgWeightChart(e.target.value));
     const updatePerfChart = () => renderPerfChart(perfUnitFilter?.value, perfStudentFilter?.value || '__class__');
     perfUnitFilter?.addEventListener('change', updatePerfChart);
     perfStudentFilter?.addEventListener('change', updatePerfChart);
+    breakdownTypeFilter?.addEventListener('change', renderBreakdownTable);
+    breakdownUnitFilter?.addEventListener('change', renderBreakdownTable);
 
     const refreshAllAnalyticsCharts = () => {
       syncFilterOptions();
       renderTopCharts();
       renderAsgWeightChart(document.getElementById('asg-unit-filter')?.value);
+      renderBreakdownTable();
       renderPerfChart(
         document.getElementById('perf-unit-filter')?.value,
         document.getElementById('perf-student-filter')?.value || '__class__'
       );
     };
 
-    const cleanupRefreshHandlers = () => {
+    cleanupRefreshHandlers = () => {
       Object.values(chartInstances).forEach((chart) => chart?.destroy?.());
-      clearInterval(refreshIntervalId);
       document.removeEventListener('marksheet:data-changed', handleDataChanged);
     };
 
@@ -1760,13 +2114,5 @@ export function renderAnalyticsModal() {
     };
 
     document.addEventListener('marksheet:data-changed', handleDataChanged);
-
-    const refreshIntervalId = setInterval(() => {
-      if (!document.getElementById('custom-modal')) {
-        cleanupRefreshHandlers();
-        return;
-      }
-      refreshAllAnalyticsCharts();
-    }, 1200);
   }, 100);
 }

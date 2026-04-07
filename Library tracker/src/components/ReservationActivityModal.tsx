@@ -14,7 +14,8 @@ export function ReservationActivityModal({ activities, onClose }: ReservationAct
     const q = query.trim().toLowerCase();
     return activities.filter((item) => {
       const matchesType = typeFilter === 'all' || item.type === typeFilter;
-      const searchable = `${item.studentName} ${item.studentCardNumber} ${item.bookTitle ?? ''} ${item.bookIsbn ?? ''}`.toLowerCase();
+      const searchable =
+        `${item.studentName} ${item.studentCardNumber} ${item.bookTitle ?? ''} ${item.bookIsbn ?? ''}`.toLowerCase();
       const matchesQuery = !q || searchable.includes(q);
       return matchesType && matchesQuery;
     });
@@ -75,7 +76,9 @@ export function ReservationActivityModal({ activities, onClose }: ReservationAct
                     {item.studentName} • {item.studentCardNumber}
                   </span>
                   <span className="loan-item-meta">
-                    {item.bookTitle ? `${item.bookTitle}${item.bookIsbn ? ` • ${item.bookIsbn}` : ''}` : 'No book attached'}
+                    {item.bookTitle
+                      ? `${item.bookTitle}${item.bookIsbn ? ` • ${item.bookIsbn}` : ''}`
+                      : 'No book attached'}
                   </span>
                   <span className="loan-item-meta">{new Date(item.at).toLocaleString()}</span>
                 </div>

@@ -33,9 +33,7 @@ export function StudentProfileModal({ borrowerName, studentCards, checkouts, onC
   const activeLoans = useMemo(
     () =>
       checkouts
-        .filter(
-          (c) => !c.returnedAt && c.borrowerName.trim().toLowerCase() === borrowerName.trim().toLowerCase()
-        )
+        .filter((c) => !c.returnedAt && c.borrowerName.trim().toLowerCase() === borrowerName.trim().toLowerCase())
         .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()),
     [checkouts, borrowerName]
   );
@@ -43,9 +41,7 @@ export function StudentProfileModal({ borrowerName, studentCards, checkouts, onC
   const loanHistory = useMemo(
     () =>
       checkouts
-        .filter(
-          (c) => c.returnedAt && c.borrowerName.trim().toLowerCase() === borrowerName.trim().toLowerCase()
-        )
+        .filter((c) => c.returnedAt && c.borrowerName.trim().toLowerCase() === borrowerName.trim().toLowerCase())
         .sort((a, b) => new Date(b.returnedAt!).getTime() - new Date(a.returnedAt!).getTime())
         .slice(0, 5),
     [checkouts, borrowerName]
@@ -78,22 +74,16 @@ export function StudentProfileModal({ borrowerName, studentCards, checkouts, onC
               <div className="student-profile-identity">
                 <h3 className="student-profile-name">{card.studentName}</h3>
                 {(card.grade || card.homeroom) && (
-                  <p className="student-profile-meta">
-                    {[card.grade, card.homeroom].filter(Boolean).join(' · ')}
-                  </p>
+                  <p className="student-profile-meta">{[card.grade, card.homeroom].filter(Boolean).join(' · ')}</p>
                 )}
                 <p className="student-profile-meta">Card: {card.cardNumber}</p>
               </div>
-              <span
-                className={`student-profile-status-badge ${card.isActive ? 'badge-active' : 'badge-inactive'}`}
-              >
+              <span className={`student-profile-status-badge ${card.isActive ? 'badge-active' : 'badge-inactive'}`}>
                 {card.isActive ? 'Active' : 'Inactive'}
               </span>
             </div>
 
-            {card.notes && (
-              <p className="student-profile-notes">{card.notes}</p>
-            )}
+            {card.notes && <p className="student-profile-notes">{card.notes}</p>}
           </div>
         ) : (
           <div className="student-profile-card student-profile-no-card">
@@ -120,7 +110,10 @@ export function StudentProfileModal({ borrowerName, studentCards, checkouts, onC
           ) : (
             <ul className="student-profile-loan-list">
               {activeLoans.map((loan) => (
-                <li key={loan.id} className={`student-profile-loan-item ${isOverdue(loan.dueDate) ? 'loan-overdue-item' : ''}`}>
+                <li
+                  key={loan.id}
+                  className={`student-profile-loan-item ${isOverdue(loan.dueDate) ? 'loan-overdue-item' : ''}`}
+                >
                   <span className="student-profile-loan-title">{loan.bookTitle}</span>
                   <span className="student-profile-loan-due">
                     {isOverdue(loan.dueDate) ? '⚠ Overdue · ' : ''}Due {formatDate(loan.dueDate)}
