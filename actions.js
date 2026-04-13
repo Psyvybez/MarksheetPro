@@ -1828,10 +1828,42 @@ function exportGradebookPDF({ studentIds = [] }) {
         return row;
       });
 
-      const columnStyles = { ...summaryColumnStyles };
+      const baseWidths = {};
+      Object.entries(summaryColumnStyles).forEach(([key, style]) => {
+        baseWidths[key] = style.cellWidth;
+      });
+      chunk.forEach((_, idx) => {
+        baseWidths[summaryHeaders.length + idx] = dynamicColumnWidth;
+      });
+
+      // Make student name columns slightly wider for readability.
+      const widthBias = {
+        1: 1.25, // Last Name
+        2: 1.15, // First Name
+      };
+
+      const adjustedWidths = {};
+      Object.entries(baseWidths).forEach(([key, width]) => {
+        adjustedWidths[key] = width * (widthBias[key] || 1);
+      });
+
+      const adjustedTotalWidth = Object.values(adjustedWidths).reduce((sum, width) => sum + width, 0);
+      const widthScale = adjustedTotalWidth > 0 ? usableTableWidth / adjustedTotalWidth : 1;
+
+      const columnStyles = {};
+      Object.entries(summaryColumnStyles).forEach(([key, style]) => {
+        columnStyles[key] = {
+          ...style,
+          cellWidth: Math.round(adjustedWidths[key] * widthScale * 100) / 100,
+        };
+      });
 
       chunk.forEach((_, idx) => {
-        columnStyles[summaryHeaders.length + idx] = { cellWidth: dynamicColumnWidth, halign: 'right' };
+        const key = String(summaryHeaders.length + idx);
+        columnStyles[summaryHeaders.length + idx] = {
+          cellWidth: Math.round(adjustedWidths[key] * widthScale * 100) / 100,
+          halign: 'right',
+        };
       });
 
       doc.autoTable({
@@ -1844,12 +1876,12 @@ function exportGradebookPDF({ studentIds = [] }) {
           textColor: [255, 255, 255],
           fontStyle: 'bold',
           overflow: 'linebreak',
-          minCellHeight: 11,
+          minCellHeight: 12,
         },
         alternateRowStyles: { fillColor: [248, 250, 252] },
         styles: {
-          fontSize: 7,
-          cellPadding: 1.4,
+          fontSize: 8,
+          cellPadding: 1.8,
           lineColor: [203, 213, 225],
           lineWidth: 0.2,
           overflow: 'linebreak',
