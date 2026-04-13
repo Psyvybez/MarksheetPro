@@ -1740,7 +1740,7 @@ function exportGradebookPDF({ studentIds = [] }) {
 
   const summaryColumnsWidth = Object.values(summaryColumnStyles).reduce((sum, col) => sum + col.cellWidth, 0);
   const usableTableWidth = pageWidth - 24;
-  const dynamicColumnWidth = 18;
+  const dynamicColumnWidth = 16;
   const maxDynamicColumnsPerPage = Math.max(
     1,
     Math.floor((usableTableWidth - summaryColumnsWidth) / dynamicColumnWidth)
@@ -1765,14 +1765,22 @@ function exportGradebookPDF({ studentIds = [] }) {
         return;
       }
 
-      ['k', 't', 'c', 'a'].forEach((cat) => {
-        columns.push({
-          header: `${asg.name}\n(${cat.toUpperCase()})`,
-          getValue: (student) => {
-            const value = student.grades?.[asg.id]?.[cat];
-            return value === undefined || value === null ? '' : String(value);
-          },
-        });
+      columns.push({
+        header: `${asg.name}\n(K/T/C/A)`,
+        getValue: (student) => {
+          const grade = student.grades?.[asg.id] || {};
+          const formatCat = (value) => {
+            if (value === 'M') return 'M';
+            if (value === undefined || value === null || value === '') return '-';
+            return String(value);
+          };
+
+          const k = formatCat(grade.k);
+          const t = formatCat(grade.t);
+          const c = formatCat(grade.c);
+          const a = formatCat(grade.a);
+          return `${k}/${t}/${c}/${a}`;
+        },
       });
     });
 
