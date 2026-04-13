@@ -774,7 +774,7 @@ function setupEventListeners() {
   document.addEventListener('keydown', (e) => {
     const modal = document.getElementById('custom-modal');
     const hasModifier = e.ctrlKey || e.metaKey;
-    const key = e.key.toLowerCase();
+    const key = typeof e.key === 'string' ? e.key.toLowerCase() : '';
     const textTarget = e.target;
 
     const isTextBoxForNavigation = (el) => {
