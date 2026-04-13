@@ -1597,6 +1597,19 @@ export function showPdfExportOptionsModal() {
   showModal({
     title: 'PDF Export Options',
     content: `
+        <div>
+          <h4 class="text-md font-semibold mb-2">Export Type</h4>
+          <div class="space-y-2">
+            <label class="flex items-center">
+              <input type="radio" name="pdf-export-type" value="gradebook" class="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-500" checked>
+              <span class="ml-2 text-sm text-gray-700">Gradebook Overview (table)</span>
+            </label>
+            <label class="flex items-center">
+              <input type="radio" name="pdf-export-type" value="student-reports" class="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-500">
+              <span class="ml-2 text-sm text-gray-700">Student Progress Reports (one page per student)</span>
+            </label>
+          </div>
+        </div>
             <div>
                 <h4 class="text-md font-semibold mb-2">Select Students</h4>
                 <div class="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto p-2 border rounded-md bg-gray-50">
@@ -1619,14 +1632,143 @@ export function showPdfExportOptionsModal() {
       const selectedStudentIds = Array.from(document.querySelectorAll('.student-export-checkbox:checked')).map(
         (cb) => cb.value
       );
+      const selectedType =
+        document.querySelector('input[name="pdf-export-type"]:checked')?.value || 'gradebook';
       const includeMissingAssignments = document.getElementById('include-missing-assignments').checked;
 
-      exportClassPDF({
+      if (selectedType === 'student-reports') {
+        exportClassPDF({
+          studentIds: selectedStudentIds,
+          includeMissingAssignments,
+        });
+        return;
+      }
+
+      exportGradebookPDF({
         studentIds: selectedStudentIds,
-        includeMissingAssignments,
       });
     },
   });
+}
+
+function exportGradebookPDF({ studentIds = [] }) {
+  const classData = getActiveClassData();
+  const appState = getAppState();
+  if (!classData) return;
+
+  if (!window.jspdf?.jsPDF) {
+    showModal({
+      title: 'PDF Export Failed',
+      content: '<p>PDF library is unavailable. Please reload and try again.</p>',
+      confirmText: null,
+      cancelText: 'Close',
+      modalWidth: 'max-w-sm',
+    });
+    return;
+  }
+
+  const selectedStudents = studentIds
+    .map((id) => classData.students?.[id])
+    .filter(Boolean)
+    .sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''));
+
+  if (selectedStudents.length === 0) {
+    showModal({
+      title: 'Export Cancelled',
+      content: '<p>Please select at least one student to export.</p>',
+      confirmText: null,
+      cancelText: 'Close',
+      modalWidth: 'max-w-xs',
+    });
+    return;
+  }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'landscape' });
+  const generatedAt = new Date().toLocaleString();
+  const teacherName = appState.full_name || 'Teacher';
+  const schoolName = appState.school_name || 'School';
+  const className = classData.name || 'Class';
+
+  const formatPercent = (value) => {
+    if (value === null || value === undefined || Number.isNaN(value)) return 'N/A';
+    return `${value.toFixed(1)}%`;
+  };
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+
+  doc.setFillColor(30, 64, 175);
+  doc.rect(0, 0, pageWidth, 18, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(12);
+  doc.setFont(undefined, 'bold');
+  doc.text('Marksheet Pro', 12, 11);
+  doc.setFontSize(9);
+  doc.setFont(undefined, 'normal');
+  doc.text(generatedAt, pageWidth - 12, 11, { align: 'right' });
+
+  doc.setTextColor(15, 23, 42);
+  doc.setFontSize(18);
+  doc.setFont(undefined, 'bold');
+  doc.text('Gradebook Overview', 12, 30);
+  doc.setFontSize(10);
+  doc.setFont(undefined, 'normal');
+  doc.setTextColor(100, 116, 139);
+  doc.text(`${schoolName} | ${className} | Teacher: ${teacherName}`, 12, 36);
+
+  const tableBody = selectedStudents.map((student, index) => {
+    const avgs = calculateStudentAverages(student, classData);
+    return [
+      String(index + 1),
+      student.lastName || '',
+      student.firstName || '',
+      student.iep ? 'Yes' : 'No',
+      formatPercent(avgs.overallGrade),
+      formatPercent(avgs.termMark),
+      classData.hasFinal ? formatPercent(avgs.finalMark) : 'N/A',
+      formatPercent(avgs.categories?.k),
+      formatPercent(avgs.categories?.t),
+      formatPercent(avgs.categories?.c),
+      formatPercent(avgs.categories?.a),
+    ];
+  });
+
+  doc.autoTable({
+    startY: 42,
+    head: [['#', 'Last Name', 'First Name', 'IEP', 'Overall', 'Term', 'Final', 'K', 'T', 'C', 'A']],
+    body: tableBody,
+    theme: 'grid',
+    headStyles: { fillColor: [71, 85, 105], textColor: [255, 255, 255], fontStyle: 'bold' },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+    styles: { fontSize: 9, cellPadding: 2, lineColor: [203, 213, 225], lineWidth: 0.2 },
+    columnStyles: {
+      0: { cellWidth: 10, halign: 'right' },
+      1: { cellWidth: 36 },
+      2: { cellWidth: 30 },
+      3: { cellWidth: 14, halign: 'center' },
+      4: { halign: 'right' },
+      5: { halign: 'right' },
+      6: { halign: 'right' },
+      7: { halign: 'right' },
+      8: { halign: 'right' },
+      9: { halign: 'right' },
+      10: { halign: 'right' },
+    },
+    didDrawPage: () => {
+      doc.setDrawColor(203, 213, 225);
+      doc.setLineWidth(0.2);
+      doc.line(12, pageHeight - 12, pageWidth - 12, pageHeight - 12);
+      doc.setFontSize(8);
+      doc.setTextColor(100, 116, 139);
+      doc.text(`${className} - Gradebook Overview`, 12, pageHeight - 7.5);
+      doc.text(`Page ${doc.internal.getNumberOfPages()}`, pageWidth - 12, pageHeight - 7.5, {
+        align: 'right',
+      });
+    },
+  });
+
+  doc.save(`${className}_Gradebook_Overview.pdf`);
 }
 
 function exportClassPDF({ studentIds = [], includeMissingAssignments = false }) {
