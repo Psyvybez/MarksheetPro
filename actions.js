@@ -1717,55 +1717,138 @@ function exportGradebookPDF({ studentIds = [] }) {
   doc.setTextColor(100, 116, 139);
   doc.text(`${schoolName} | ${className} | Teacher: ${teacherName}`, 12, 36);
 
-  const tableBody = selectedStudents.map((student, index) => {
-    const avgs = calculateStudentAverages(student, classData);
-    return [
-      String(index + 1),
-      student.lastName || '',
-      student.firstName || '',
-      student.iep ? 'Yes' : 'No',
-      formatPercent(avgs.overallGrade),
-      formatPercent(avgs.termMark),
-      classData.hasFinal ? formatPercent(avgs.finalMark) : 'N/A',
-      formatPercent(avgs.categories?.k),
-      formatPercent(avgs.categories?.t),
-      formatPercent(avgs.categories?.c),
-      formatPercent(avgs.categories?.a),
-    ];
+  const units = Object.values(classData.units || {}).sort((a, b) => a.order - b.order);
+  const assignmentColumns = [];
+  units.forEach((unit) => {
+    const assignments = Object.values(unit.assignments || {}).sort((a, b) => a.order - b.order);
+    const unitLabel = unit.isFinal ? 'Final' : `U${unit.order}`;
+
+    assignments.forEach((asg) => {
+      if (unit.isFinal) {
+        assignmentColumns.push({
+          header: `${unitLabel}: ${asg.name} (Score)`,
+          getValue: (student) => {
+            const value = student.grades?.[asg.id]?.grade;
+            return value === undefined || value === null ? '' : String(value);
+          },
+        });
+        return;
+      }
+
+      ['k', 't', 'c', 'a'].forEach((cat) => {
+        assignmentColumns.push({
+          header: `${unitLabel}: ${asg.name} (${cat.toUpperCase()})`,
+          getValue: (student) => {
+            const value = student.grades?.[asg.id]?.[cat];
+            return value === undefined || value === null ? '' : String(value);
+          },
+        });
+      });
+    });
   });
 
-  doc.autoTable({
-    startY: 42,
-    head: [['#', 'Last Name', 'First Name', 'IEP', 'Overall', 'Term', 'Final', 'K', 'T', 'C', 'A']],
-    body: tableBody,
-    theme: 'grid',
-    headStyles: { fillColor: [71, 85, 105], textColor: [255, 255, 255], fontStyle: 'bold' },
-    alternateRowStyles: { fillColor: [248, 250, 252] },
-    styles: { fontSize: 9, cellPadding: 2, lineColor: [203, 213, 225], lineWidth: 0.2 },
-    columnStyles: {
-      0: { cellWidth: 10, halign: 'right' },
-      1: { cellWidth: 36 },
-      2: { cellWidth: 30 },
-      3: { cellWidth: 14, halign: 'center' },
-      4: { halign: 'right' },
-      5: { halign: 'right' },
-      6: { halign: 'right' },
-      7: { halign: 'right' },
-      8: { halign: 'right' },
-      9: { halign: 'right' },
-      10: { halign: 'right' },
-    },
-    didDrawPage: () => {
-      doc.setDrawColor(203, 213, 225);
-      doc.setLineWidth(0.2);
-      doc.line(12, pageHeight - 12, pageWidth - 12, pageHeight - 12);
-      doc.setFontSize(8);
-      doc.setTextColor(100, 116, 139);
-      doc.text(`${className} - Gradebook Overview`, 12, pageHeight - 7.5);
-      doc.text(`Page ${doc.internal.getNumberOfPages()}`, pageWidth - 12, pageHeight - 7.5, {
-        align: 'right',
+  const summaryHeaders = ['#', 'Last Name', 'First Name', 'IEP', 'Overall', 'Term', 'Final', 'K', 'T', 'C', 'A'];
+
+  const renderHeader = (chunkIndex, totalChunks) => {
+    doc.setFillColor(30, 64, 175);
+    doc.rect(0, 0, pageWidth, 18, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(12);
+    doc.setFont(undefined, 'bold');
+    doc.text('Marksheet Pro', 12, 11);
+    doc.setFontSize(9);
+    doc.setFont(undefined, 'normal');
+    doc.text(generatedAt, pageWidth - 12, 11, { align: 'right' });
+
+    doc.setTextColor(15, 23, 42);
+    doc.setFontSize(18);
+    doc.setFont(undefined, 'bold');
+    doc.text('Gradebook Overview', 12, 30);
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'normal');
+    doc.setTextColor(100, 116, 139);
+    const chunkSuffix =
+      totalChunks > 1 ? ` | Assignment Columns ${chunkIndex + 1} of ${totalChunks}` : '';
+    doc.text(`${schoolName} | ${className} | Teacher: ${teacherName}${chunkSuffix}`, 12, 36);
+  };
+
+  const chunkSize = 8;
+  const assignmentChunks = [];
+  if (assignmentColumns.length === 0) {
+    assignmentChunks.push([]);
+  } else {
+    for (let i = 0; i < assignmentColumns.length; i += chunkSize) {
+      assignmentChunks.push(assignmentColumns.slice(i, i + chunkSize));
+    }
+  }
+
+  assignmentChunks.forEach((chunk, chunkIndex) => {
+    if (chunkIndex > 0) doc.addPage();
+    renderHeader(chunkIndex, assignmentChunks.length);
+
+    const tableBody = selectedStudents.map((student, index) => {
+      const avgs = calculateStudentAverages(student, classData);
+      const row = [
+        String(index + 1),
+        student.lastName || '',
+        student.firstName || '',
+        student.iep ? 'Yes' : 'No',
+        formatPercent(avgs.overallGrade),
+        formatPercent(avgs.termMark),
+        classData.hasFinal ? formatPercent(avgs.finalMark) : 'N/A',
+        formatPercent(avgs.categories?.k),
+        formatPercent(avgs.categories?.t),
+        formatPercent(avgs.categories?.c),
+        formatPercent(avgs.categories?.a),
+      ];
+
+      chunk.forEach((column) => {
+        row.push(column.getValue(student));
       });
-    },
+
+      return row;
+    });
+
+    const columnStyles = {
+      0: { cellWidth: 10, halign: 'right' },
+      1: { cellWidth: 30 },
+      2: { cellWidth: 24 },
+      3: { cellWidth: 12, halign: 'center' },
+      4: { cellWidth: 14, halign: 'right' },
+      5: { cellWidth: 12, halign: 'right' },
+      6: { cellWidth: 12, halign: 'right' },
+      7: { cellWidth: 10, halign: 'right' },
+      8: { cellWidth: 10, halign: 'right' },
+      9: { cellWidth: 10, halign: 'right' },
+      10: { cellWidth: 10, halign: 'right' },
+    };
+
+    chunk.forEach((_, idx) => {
+      columnStyles[summaryHeaders.length + idx] = { cellWidth: 16, halign: 'right' };
+    });
+
+    doc.autoTable({
+      startY: 42,
+      head: [[...summaryHeaders, ...chunk.map((column) => column.header)]],
+      body: tableBody,
+      theme: 'grid',
+      headStyles: { fillColor: [71, 85, 105], textColor: [255, 255, 255], fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      styles: { fontSize: 7.2, cellPadding: 1.6, lineColor: [203, 213, 225], lineWidth: 0.2 },
+      columnStyles,
+      didDrawPage: () => {
+        doc.setDrawColor(203, 213, 225);
+        doc.setLineWidth(0.2);
+        doc.line(12, pageHeight - 12, pageWidth - 12, pageHeight - 12);
+        doc.setFontSize(8);
+        doc.setTextColor(100, 116, 139);
+        doc.text(`${className} - Gradebook Overview`, 12, pageHeight - 7.5);
+        const pageInfo = doc.internal.getCurrentPageInfo();
+        doc.text(`Page ${pageInfo.pageNumber}`, pageWidth - 12, pageHeight - 7.5, {
+          align: 'right',
+        });
+      },
+    });
   });
 
   doc.save(`${className}_Gradebook_Overview.pdf`);
