@@ -1632,8 +1632,7 @@ export function showPdfExportOptionsModal() {
       const selectedStudentIds = Array.from(document.querySelectorAll('.student-export-checkbox:checked')).map(
         (cb) => cb.value
       );
-      const selectedType =
-        document.querySelector('input[name="pdf-export-type"]:checked')?.value || 'gradebook';
+      const selectedType = document.querySelector('input[name="pdf-export-type"]:checked')?.value || 'gradebook';
       const includeMissingAssignments = document.getElementById('include-missing-assignments').checked;
 
       if (selectedType === 'student-reports') {
