@@ -1745,8 +1745,11 @@ function exportGradebookPDF({ studentIds = [] }) {
     Math.floor((usableTableWidth - summaryColumnsWidth) / dynamicColumnWidth)
   );
 
-  const unitSections = units.map((unit) => {
+  const unitSections = units
+    .map((unit) => {
     const assignments = Object.values(unit.assignments || {}).sort((a, b) => a.order - b.order);
+    if (assignments.length === 0) return null;
+
     const titleText = unit.title ? `: ${unit.title}` : '';
     const subtitleText = unit.subtitle ? ` - ${unit.subtitle}` : '';
     const unitLabel = unit.isFinal ? 'Final Assessment' : `Unit ${unit.order}${titleText}${subtitleText}`;
@@ -1784,16 +1787,13 @@ function exportGradebookPDF({ studentIds = [] }) {
     });
 
     const chunks = [];
-    if (columns.length === 0) {
-      chunks.push([]);
-    } else {
-      for (let i = 0; i < columns.length; i += maxDynamicColumnsPerPage) {
-        chunks.push(columns.slice(i, i + maxDynamicColumnsPerPage));
-      }
+    for (let i = 0; i < columns.length; i += maxDynamicColumnsPerPage) {
+      chunks.push(columns.slice(i, i + maxDynamicColumnsPerPage));
     }
 
     return { unitLabel, chunks };
-  });
+  })
+    .filter(Boolean);
 
   const sectionsToRender = unitSections.length ? unitSections : [{ unitLabel: 'No Units', chunks: [[]] }];
   let pageCounter = 0;
