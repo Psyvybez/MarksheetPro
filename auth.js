@@ -2,6 +2,7 @@
 
 import { updateLastLogin, loadDataForUser } from './api.js';
 import { handleDataLoad, resetInactivityTimer } from './main.js';
+import { showModal } from './ui.js';
 // We can remove renderFullGradebookUI as you correctly pointed out.
 import { setCurrentUser, setAppState, getAppState, getCurrentUser } from './state.js';
 
@@ -13,6 +14,8 @@ let authDebugSnapshot = {
 };
 const AUTH_DEBUG_HISTORY_LIMIT = 20;
 const authDebugHistory = [];
+let lastProfileLoadWarningAt = 0;
+let lastAuthIssue = null;
 
 function pushAuthDebugHistory(entry = {}) {
   authDebugHistory.push({
@@ -43,6 +46,36 @@ function updateAuthDebugSnapshot(patch = {}) {
   });
 }
 
+function recordAuthIssue(context = {}, error = null) {
+  const issue = {
+    at: new Date().toISOString(),
+    event: context.event || null,
+    phase: context.phase || null,
+    sessionUserId: context.sessionUserId || null,
+    currentUserId: context.currentUserId || null,
+    code: error?.code || null,
+    status: error?.status || null,
+    name: error?.name || null,
+    message: error?.message || String(error || 'Unknown auth issue'),
+    online: typeof navigator !== 'undefined' ? navigator.onLine : null,
+  };
+
+  lastAuthIssue = issue;
+  updateAuthDebugSnapshot({
+    lastAuthIssueAt: issue.at,
+    lastAuthIssueCode: issue.code || undefined,
+    lastAuthIssueMessage: issue.message,
+  });
+
+  try {
+    localStorage.setItem('marksheetProLastAuthIssue', JSON.stringify(issue));
+  } catch (storageError) {
+    console.warn('AUTH DEBUG: Failed to persist last auth issue.', storageError);
+  }
+
+  authDebugLog('Recorded auth issue', issue);
+}
+
 function installAuthDebugHelpers() {
   if (typeof window === 'undefined') return;
   if (window.__marksheetAuthDebugHelpersInstalled) return;
@@ -50,6 +83,15 @@ function installAuthDebugHelpers() {
   window.__marksheetAuthDebugHelpersInstalled = true;
   window.getAuthDebugSnapshot = () => ({ ...authDebugSnapshot });
   window.getAuthDebugHistory = () => authDebugHistory.map((entry) => ({ ...entry }));
+  window.getLastAuthIssue = () => {
+    if (lastAuthIssue) return { ...lastAuthIssue };
+    try {
+      const stored = localStorage.getItem('marksheetProLastAuthIssue');
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  };
   window.copyAuthDebugSnapshot = async () => {
     const snapshotText = JSON.stringify(window.getAuthDebugSnapshot(), null, 2);
     try {
@@ -122,6 +164,27 @@ function authDebugLog(message, details = null) {
   } else {
     console.debug(`AUTH DEBUG: ${message}`);
   }
+}
+
+function isAuthSessionError(error) {
+  const code = String(error?.code || '').toLowerCase();
+  const message = String(error?.message || '').toLowerCase();
+
+  if (code === 'pgrst301' || code === '401' || code === '403') return true;
+
+  return [
+    'jwt',
+    'token',
+    'session',
+    'not authenticated',
+    'invalid refresh token',
+    'refresh token',
+    'auth session missing',
+  ].some((fragment) => message.includes(fragment));
+}
+
+function normalizeEmailInput(value) {
+  return typeof value === 'string' ? value.trim().toLowerCase() : '';
 }
 
 //
@@ -279,9 +342,34 @@ export function setupAuthListener(supabaseClient, wasLocalDataLoaded, initialLoc
             phase: 'server_load_failed',
             errorMessage: e?.message || String(e),
           });
+          recordAuthIssue(
+            {
+              phase: 'server_load_failed',
+              event,
+              sessionUserId: user?.id || null,
+              currentUserId: getCurrentUser()?.id || null,
+            },
+            e
+          );
           authDebugLog('Server profile load failed', { message: e?.message || String(e) });
-          // Only sign out if the server fetch actually FAILS
-          signOut(supabaseClient, true);
+
+          const shouldForceSignOut = isAuthSessionError(e);
+          if (shouldForceSignOut) {
+            signOut(supabaseClient, true);
+          } else {
+            const now = Date.now();
+            if (now - lastProfileLoadWarningAt > 10000) {
+              lastProfileLoadWarningAt = now;
+              showModal({
+                title: 'Connection Issue',
+                content:
+                  '<p>We had trouble refreshing your profile from the server.</p><p class="mt-2 text-sm text-gray-500">You are still signed in. Your existing data remains available and sync will retry automatically.</p>',
+                confirmText: null,
+                cancelText: 'Close',
+                modalWidth: 'max-w-sm',
+              });
+            }
+          }
         } finally {
           loadingOverlay?.classList.add('hidden');
         }
@@ -306,7 +394,7 @@ export async function handleAuthSubmit(e, supabaseClient) {
 
   try {
     if (mode === 'forgot') {
-      const email = document.getElementById('reset-email-address')?.value?.trim();
+      const email = normalizeEmailInput(document.getElementById('reset-email-address')?.value);
       if (!email) throw new Error('Please enter your email address.');
 
       const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
@@ -318,7 +406,7 @@ export async function handleAuthSubmit(e, supabaseClient) {
     }
 
     if (mode === 'signin') {
-      const email = document.getElementById('email-address')?.value?.trim();
+      const email = normalizeEmailInput(document.getElementById('email-address')?.value);
       const password = document.getElementById('password')?.value;
       if (!email || !password) throw new Error('Please enter email and password.');
 
@@ -328,7 +416,7 @@ export async function handleAuthSubmit(e, supabaseClient) {
     }
 
     if (mode === 'signup') {
-      const email = document.getElementById('signup-email-address')?.value?.trim();
+      const email = normalizeEmailInput(document.getElementById('signup-email-address')?.value);
       const password = document.getElementById('signup-password')?.value;
       const confirmPassword = document.getElementById('signup-password-confirm')?.value;
 
