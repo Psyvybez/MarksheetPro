@@ -18,7 +18,7 @@ This app now supports cloud persistence through Supabase for authenticated users
 
 ### 1. Environment variables
 
-Create a `.env` file in this folder (`Library tracker/`) with:
+Create a `.env` file in this folder (`library-app/tracker/`) with:
 
 ```bash
 VITE_SUPABASE_URL=https://your-project-ref.supabase.co

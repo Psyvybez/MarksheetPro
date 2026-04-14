@@ -88,7 +88,7 @@ export function SettingsModal({
   };
 
   const handleOpenVaultPage = () => {
-    const vaultUrl = '/Library-vault.html';
+    const vaultUrl = '/library-app/Library-vault.html';
     if (window.top && window.top !== window) {
       window.top.location.href = vaultUrl;
       return;

@@ -1,3 +1,4 @@
-Library tracker/dist/
-library-app/assets/
-library-app/index.html
+library-app/tracker/dist/
+library-app/dist/assets/
+library-app/dist/index.html
+library-app/dist/student.html

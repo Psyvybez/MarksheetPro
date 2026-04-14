@@ -1,5 +1,6 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
+import { resolve } from 'node:path';
 
 export default defineConfig({
   test: {
@@ -17,6 +18,10 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
+      input: {
+        main: resolve(__dirname, 'index.html'),
+        student: resolve(__dirname, 'student.html'),
+      },
       output: {
         manualChunks: {
           'vendor-zxing': ['@zxing/browser', '@zxing/library'],

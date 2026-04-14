@@ -6,20 +6,20 @@ Browser-based marksheet and classroom grading manager.
 
 ## Private Library Vault
 
-A hidden owner-only page is available at `Library-vault.html`.
-The regular app page is now `Library.html`.
+A hidden owner-only page is available at `library-app/Library-vault.html`.
+The regular app page is now `library-app/Library.html`.
 
 Setup steps:
 
-- Open `Library-vault.html` and update `ALLOWED_LIBRARY_EMAILS` to your own account email(s).
+- Open `library-app/Library-vault.html` and update `ALLOWED_LIBRARY_EMAILS` to your own account email(s).
 - Replace `SECRET_HASH_HEX` with your own SHA-256 passphrase hash.
 - Rebuild and publish manually whenever source changes:
   - `npm run library:publish`
 
 Equivalent commands (if needed):
 
-- `cd "Library tracker" && npm run build`
-- `cd .. && rm -rf library-app && mkdir -p library-app && cp -R "Library tracker/dist/." library-app/`
+- `cd "library-app/tracker" && npm run build`
+- `cd ../.. && rm -rf library-app/dist && mkdir -p library-app/dist && cp -R "library-app/tracker/dist/." library-app/dist/`
 
 To generate your own hash on Linux/macOS:
 

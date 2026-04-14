@@ -1458,7 +1458,7 @@ function setupEventListeners() {
   document.getElementById('account-management-btn')?.addEventListener('click', () => renderAccountPage(false));
   document.getElementById('library-btn')?.addEventListener('click', () => {
     if (!isLibraryAuthorizedUser(getCurrentUser())) return;
-    window.location.href = './Library.html';
+    window.location.href = './library-app/Library.html';
   });
   document.getElementById('backup-btn')?.addEventListener('click', backupData);
   document.getElementById('restore-btn')?.addEventListener('click', restoreData);

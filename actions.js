@@ -1747,52 +1747,52 @@ function exportGradebookPDF({ studentIds = [] }) {
 
   const unitSections = units
     .map((unit) => {
-    const assignments = Object.values(unit.assignments || {}).sort((a, b) => a.order - b.order);
-    if (assignments.length === 0) return null;
+      const assignments = Object.values(unit.assignments || {}).sort((a, b) => a.order - b.order);
+      if (assignments.length === 0) return null;
 
-    const titleText = unit.title ? `: ${unit.title}` : '';
-    const subtitleText = unit.subtitle ? ` - ${unit.subtitle}` : '';
-    const unitLabel = unit.isFinal ? 'Final Assessment' : `Unit ${unit.order}${titleText}${subtitleText}`;
-    const columns = [];
+      const titleText = unit.title ? `: ${unit.title}` : '';
+      const subtitleText = unit.subtitle ? ` - ${unit.subtitle}` : '';
+      const unitLabel = unit.isFinal ? 'Final Assessment' : `Unit ${unit.order}${titleText}${subtitleText}`;
+      const columns = [];
 
-    assignments.forEach((asg) => {
-      if (unit.isFinal) {
+      assignments.forEach((asg) => {
+        if (unit.isFinal) {
+          columns.push({
+            header: `${asg.name}\n(Score)`,
+            getValue: (student) => {
+              const value = student.grades?.[asg.id]?.grade;
+              return value === undefined || value === null ? '' : String(value);
+            },
+          });
+          return;
+        }
+
         columns.push({
-          header: `${asg.name}\n(Score)`,
+          header: `${asg.name}\n(K/T/C/A)`,
           getValue: (student) => {
-            const value = student.grades?.[asg.id]?.grade;
-            return value === undefined || value === null ? '' : String(value);
+            const grade = student.grades?.[asg.id] || {};
+            const formatCat = (value) => {
+              if (value === 'M') return 'M';
+              if (value === undefined || value === null || value === '') return '-';
+              return String(value);
+            };
+
+            const k = formatCat(grade.k);
+            const t = formatCat(grade.t);
+            const c = formatCat(grade.c);
+            const a = formatCat(grade.a);
+            return `${k}/${t}/${c}/${a}`;
           },
         });
-        return;
+      });
+
+      const chunks = [];
+      for (let i = 0; i < columns.length; i += maxDynamicColumnsPerPage) {
+        chunks.push(columns.slice(i, i + maxDynamicColumnsPerPage));
       }
 
-      columns.push({
-        header: `${asg.name}\n(K/T/C/A)`,
-        getValue: (student) => {
-          const grade = student.grades?.[asg.id] || {};
-          const formatCat = (value) => {
-            if (value === 'M') return 'M';
-            if (value === undefined || value === null || value === '') return '-';
-            return String(value);
-          };
-
-          const k = formatCat(grade.k);
-          const t = formatCat(grade.t);
-          const c = formatCat(grade.c);
-          const a = formatCat(grade.a);
-          return `${k}/${t}/${c}/${a}`;
-        },
-      });
-    });
-
-    const chunks = [];
-    for (let i = 0; i < columns.length; i += maxDynamicColumnsPerPage) {
-      chunks.push(columns.slice(i, i + maxDynamicColumnsPerPage));
-    }
-
-    return { unitLabel, chunks };
-  })
+      return { unitLabel, chunks };
+    })
     .filter(Boolean);
 
   const sectionsToRender = unitSections.length ? unitSections : [{ unitLabel: 'No Units', chunks: [[]] }];
