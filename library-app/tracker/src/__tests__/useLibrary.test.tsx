@@ -362,6 +362,30 @@ describe('placeHold', () => {
 
     expect(result.current.reservationActivities).toHaveLength(0);
   });
+
+  it('limits each student card to 2 active reservations', async () => {
+    const card = makeStudentCard();
+    const books = [
+      makeBook({ isbn: '9780000000001', isbn13: '9780000000001', title: 'Book 1' }),
+      makeBook({ isbn: '9780000000002', isbn13: '9780000000002', title: 'Book 2' }),
+      makeBook({ isbn: '9780000000003', isbn13: '9780000000003', title: 'Book 3' }),
+    ];
+    const { result } = await setup({ books, studentCards: [card] });
+
+    act(() => {
+      result.current.placeHold('9780000000001', 'Alice Johnson', card);
+      result.current.placeHold('9780000000002', 'Alice Johnson', card);
+    });
+
+    let thirdHold: ReturnType<typeof result.current.placeHold> = null;
+    act(() => {
+      thirdHold = result.current.placeHold('9780000000003', 'Alice Johnson', card);
+    });
+
+    expect(thirdHold).toBeNull();
+    expect(result.current.error).toMatch(/up to 2 books/i);
+    expect(result.current.books[2].holds).toHaveLength(0);
+  });
 });
 
 // =========================================================================
@@ -551,6 +575,66 @@ describe('returnBook', () => {
     // Original checkout is still active
     const checkout = result.current.checkouts.find((c) => c.id === record!.id);
     expect(checkout?.returnedAt).toBeUndefined();
+  });
+
+  it('skips a queued student with an active checkout and assigns the next eligible hold', async () => {
+    const cardBob = makeStudentCard({ id: 'card-bob', cardNumber: 'LIB-00002', studentName: 'Bob Smith' });
+    const cardCarol = makeStudentCard({ id: 'card-carol', cardNumber: 'LIB-00003', studentName: 'Carol Smith' });
+
+    const primaryBook = makeBook({
+      isbn: '9780000000001',
+      isbn13: '9780000000001',
+      title: 'Queued Book',
+      copies: 1,
+      holds: [
+        makeHold({
+          id: 'hold-bob',
+          borrowerName: 'Bob Smith',
+          studentCardId: 'card-bob',
+          studentCardNumber: 'LIB-00002',
+        }),
+        makeHold({
+          id: 'hold-carol',
+          borrowerName: 'Carol Smith',
+          studentCardId: 'card-carol',
+          studentCardNumber: 'LIB-00003',
+        }),
+      ],
+    });
+
+    const secondaryBook = makeBook({
+      isbn: '9780000000009',
+      isbn13: '9780000000009',
+      title: 'Other Book',
+      copies: 1,
+      holds: [],
+    });
+
+    const { result } = await setup({ books: [primaryBook, secondaryBook], studentCards: [cardBob, cardCarol] });
+
+    // Bob already has one active checkout elsewhere.
+    act(() => {
+      result.current.checkoutBook('9780000000009', 'Other Book', 'Bob Smith');
+    });
+
+    let currentLoan: CheckoutRecord | undefined;
+    act(() => {
+      currentLoan = result.current.checkoutBook('9780000000001', 'Queued Book', 'Alice');
+    });
+
+    act(() => {
+      result.current.returnBook(currentLoan!.id);
+    });
+
+    await waitFor(() => {
+      const carolCheckout = result.current.checkouts.find(
+        (c) => c.borrowerName === 'Carol Smith' && c.bookTitle === 'Queued Book' && !c.returnedAt
+      );
+      expect(carolCheckout).toBeDefined();
+    });
+
+    expect(result.current.books[0].holds).toHaveLength(1);
+    expect(result.current.books[0].holds[0].id).toBe('hold-bob');
   });
 });
 

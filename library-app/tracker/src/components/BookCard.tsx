@@ -5,9 +5,16 @@ interface BookCardProps {
   activeCheckouts: CheckoutRecord[];
   availableCopies: number;
   onClick: () => void;
+  hideBorrowerDetails?: boolean;
 }
 
-export function BookCard({ book, activeCheckouts, availableCopies, onClick }: BookCardProps) {
+export function BookCard({
+  book,
+  activeCheckouts,
+  availableCopies,
+  onClick,
+  hideBorrowerDetails = false,
+}: BookCardProps) {
   const isAvailable = availableCopies > 0;
   const holdCount = Array.isArray(book.holds) ? book.holds.length : 0;
 
@@ -48,7 +55,7 @@ export function BookCard({ book, activeCheckouts, availableCopies, onClick }: Bo
                 : `${availableCopies} of ${book.copies} available`
               : 'Checked Out'}
           </span>
-          {activeCheckouts.length > 0 && (
+          {!hideBorrowerDetails && activeCheckouts.length > 0 && (
             <span className="book-card-borrower">
               {activeCheckouts[0].borrowerName}
               {activeCheckouts.length > 1 && ` +${activeCheckouts.length - 1}`}

@@ -4,6 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Marksheet Pro</title>
+    <script>
+      (function redirectToLandingByDefault() {
+        const params = new URLSearchParams(window.location.search);
+        const isAppMode = params.get('app') === '1';
+        if (!isAppMode) {
+          window.location.replace('./landing-page/');
+        }
+      })();
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -222,7 +231,7 @@
     <div id="app-container" class="w-full max-w-[100s%] mx-auto p-4 sm:p-6 lg:p-8">
       <header class="bg-white shadow-md rounded-lg p-6 mb-6 flex justify-between items-center">
         <div>
-          <a href="./" class="inline-flex items-center gap-3 group" aria-label="Go to main page">
+          <a href="./index.html?app=1" class="inline-flex items-center gap-3 group" aria-label="Go to main page">
             <img class="h-10 w-auto" src="Marksheet Pro Logo.png" alt="Marksheet Pro Logo" />
             <h1 class="text-3xl font-bold text-gray-800 group-hover:text-primary transition-colors">Marksheet Pro</h1>
           </a>

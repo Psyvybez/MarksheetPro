@@ -259,6 +259,32 @@ export function handleDataLoad(data, isInitial = true) {
   notifyUserAboutNewUpdatesIfNeeded(isInitial);
   syncLibraryButtonVisibility();
 
+  // Apply stored app settings
+  const storedSettings = data.gradebook_data?.appSettings;
+  const densityMode = storedSettings?.densityMode === 'compact' ? 'compact' : 'comfortable';
+  const fontSizeMode =
+    storedSettings?.fontSizeMode === 'small' || storedSettings?.fontSizeMode === 'large'
+      ? storedSettings.fontSizeMode
+      : 'default';
+  const themePreset =
+    storedSettings?.themePreset === 'ocean' ||
+    storedSettings?.themePreset === 'forest' ||
+    storedSettings?.themePreset === 'sunset'
+      ? storedSettings.themePreset
+      : 'default';
+
+  const html = document.documentElement;
+  html.classList.toggle('dark-mode', !!storedSettings?.darkMode);
+  html.classList.toggle('high-contrast-mode', !!storedSettings?.highContrastMode);
+  html.classList.toggle('reduced-motion', !!storedSettings?.reducedMotion);
+  html.classList.toggle('compact-mode', densityMode === 'compact');
+  html.classList.toggle('font-small', fontSizeMode === 'small');
+  html.classList.toggle('font-large', fontSizeMode === 'large');
+  html.classList.remove('theme-ocean', 'theme-forest', 'theme-sunset');
+  if (themePreset !== 'default') {
+    html.classList.add(`theme-${themePreset}`);
+  }
+
   refreshHistoryButtons();
 }
 
@@ -952,6 +978,12 @@ function setupEventListeners() {
         }
       }
 
+      if (clickedElement.closest('[data-navigate-home]')) {
+        e.preventDefault();
+        safeRun('handleDataLoad.navigateHome', () => handleDataLoad(getAppState(), true));
+        return;
+      }
+
       const target = clickedElement.closest('[id], [data-tab-id]');
       if (!target) return;
       const id = target.id;
@@ -1002,7 +1034,7 @@ function setupEventListeners() {
           document.getElementById('exportMenuDropdown')?.classList.add('hidden');
         },
         exportCsvBtn: () => {
-          actions.exportToCSV();
+          actions.showCsvExportOptionsModal();
           document.getElementById('exportMenuDropdown')?.classList.add('hidden');
         },
         exportBlankPdfBtn: () => {

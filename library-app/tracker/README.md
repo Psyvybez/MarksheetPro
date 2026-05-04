@@ -69,6 +69,52 @@ with check (auth.uid() = user_id);
 - Any changes to books, checkouts, or student cards are synced back to Supabase.
 - localStorage is still used as an offline cache and backup path.
 
+## Reservation SMS Notifications (Optional)
+
+Students can opt in to receive a text when a reserved book becomes available. The tracker app does not store phone numbers in local state, localStorage, or the synced `library_tracker_state` payload.
+
+### 1. Create notification table
+
+Run SQL from:
+
+`/supabase/sql/library_notifications.sql`
+
+### 2. Deploy Supabase Edge Function
+
+Function source:
+
+`/supabase/functions/library-notifications/index.ts`
+
+Required function environment variables:
+
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `ENCRYPTION_KEY` (long random string)
+- `TWILIO_ACCOUNT_SID`
+- `TWILIO_AUTH_TOKEN`
+- `TWILIO_FROM_NUMBER`
+
+Then deploy:
+
+```bash
+supabase functions deploy library-notifications
+```
+
+### 3. Student portal flow
+
+- Student places reservation.
+- Student can optionally enter a phone number for that one reservation.
+- Phone number is encrypted and stored only in `reservation_notification_contacts`.
+- When staff returns a book and the reservation is auto-assigned, backend sends SMS and marks contact row consumed.
+
+## Printable Student Portal Poster
+
+Staff can open a print-ready QR poster from **Settings → Open Printable Poster**.
+
+Poster page path:
+
+`/library-app/Student-portal-poster.html`
+
 ## Getting Started
 
 ### 1. Install and Run

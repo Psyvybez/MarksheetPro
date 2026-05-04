@@ -980,7 +980,7 @@ export function renderFullGradebookUI() {
                 <button id="redoBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-3 rounded-lg whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed" ${canRedoHistory() ? '' : 'disabled'}>Redo</button>
                 <button id="addStudentBtn" class="bg-accent hover:bg-accent-dark text-white font-bold py-2 px-4 rounded-lg whitespace-nowrap">+ Add Student</button>
                 <button id="restoreStudentsBtn" class="bg-secondary hover:bg-secondary-dark text-white font-bold py-2 px-4 rounded-lg whitespace-nowrap">Restore Students</button>
-                <button id="attendanceBtn" class="bg-primary hover:bg-primary-dark text-white font-bold py-2 px-4 rounded-lg">Attendance</button>
+                ${appState.gradebook_data?.appSettings?.attendanceEnabled !== false ? `<button id="attendanceBtn" class="bg-primary hover:bg-primary-dark text-white font-bold py-2 px-4 rounded-lg">Attendance</button>` : ''}
             </div>
 
             <div class="flex page-center gap-2">
@@ -997,7 +997,6 @@ export function renderFullGradebookUI() {
 }
 
 export function renderAccountPage(isSetupMode = false) {
-  // ... (No changes here)
   const appState = getAppState();
   if (!contentWrapper) return;
 
@@ -1018,71 +1017,612 @@ export function renderAccountPage(isSetupMode = false) {
     ? `<img src="${profilePicUrl}" id="profile-pic-preview" class="w-32 h-32 rounded-full mx-auto object-cover mb-4">`
     : `<div id="profile-pic-preview" class="w-32 h-32 rounded-full mx-auto bg-gray-300 flex items-center justify-center text-white text-5xl font-bold mb-4">${currentFullName ? currentFullName.charAt(0) : 'U'}</div>`;
 
-  contentWrapper.innerHTML = `
-        <div class="bg-white rounded-lg shadow-md p-8 max-w-2xl mx-auto fade-in">
-            ${
-              isSetupMode
-                ? `<h2 class="text-2xl font-bold text-primary mb-2">Welcome to Marksheet Pro!</h2><p class="text-gray-600 mb-6">Please set up your profile to get started.</p>`
-                : `<h2 class="text-2xl font-bold text-gray-800 mb-6">My Account</h2>`
-            }
-            <div id="account-feedback" class="hidden mb-4 p-3 rounded-md"></div>
-            <div class="space-y-6">
-                <div class="flex flex-col items-center">
-                    ${profilePicHtml}
-                    <input type="file" id="profile-picture-upload" class="hidden" accept="image/*">
-                    <button id="upload-profile-pic-btn" class="text-sm text-blue-600 hover:underline">Upload Photo</button>
+  const appSettings = appState.gradebook_data?.appSettings || {};
+  const attendanceEnabled = appSettings.attendanceEnabled !== false;
+  const darkModeEnabled = !!appSettings.darkMode;
+  const densityMode = appSettings.densityMode === 'compact' ? 'compact' : 'comfortable';
+  const fontSizeMode =
+    appSettings.fontSizeMode === 'small' || appSettings.fontSizeMode === 'large' ? appSettings.fontSizeMode : 'default';
+  const highContrastEnabled = !!appSettings.highContrastMode;
+  const reducedMotionEnabled = !!appSettings.reducedMotion;
+  const gradeColorIntensity = ['subtle', 'standard', 'strong'].includes(appSettings.gradeColorIntensity)
+    ? appSettings.gradeColorIntensity
+    : 'standard';
+  const themePreset = ['default', 'ocean', 'forest', 'sunset'].includes(appSettings.themePreset)
+    ? appSettings.themePreset
+    : 'default';
+  const autoSaveSettingsEnabled = !!appSettings.autoSaveSettings;
+
+  // ── Profile tab ───────────────────────────────────────────────
+  const profilePanelHtml = `
+    <div id="account-feedback" class="hidden mb-4 p-3 rounded-md"></div>
+    <div class="space-y-6">
+      <div class="flex flex-col items-center">
+        ${profilePicHtml}
+        <input type="file" id="profile-picture-upload" class="hidden" accept="image/*">
+        <button id="upload-profile-pic-btn" class="text-sm text-blue-600 hover:underline">Upload Photo</button>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="md:col-span-1"><label for="title-input" class="block text-sm font-medium text-gray-700">Title</label><input type="text" id="title-input" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" value="${currentTitle}" placeholder="e.g., Mr."></div>
+        <div class="md:col-span-2"><label for="full-name-input" class="block text-sm font-medium text-gray-700">Full Name</label><input type="text" id="full-name-input" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" value="${currentFullName}" placeholder="e.g., John Smith"></div>
+      </div>
+      <div><label for="school-board-input" class="block text-sm font-medium text-gray-700">School Board</label><input type="text" id="school-board-input" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" value="${currentSchoolBoard}" placeholder="e.g., TCDSB"></div>
+      <div><label for="school-name-input" class="block text-sm font-medium text-gray-700">School Name</label><input type="text" id="school-name-input" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" value="${currentSchoolName}" placeholder="e.g., Maplewood High School"></div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700">School Logo (for PDF exports)</label>
+        <div class="mt-2 flex items-center gap-4">
+          <div id="school-logo-preview-wrap" class="w-28 h-16 border border-gray-300 rounded bg-gray-50 flex items-center justify-center overflow-hidden">
+            ${schoolLogoDataUrl ? `<img id="school-logo-preview" src="${schoolLogoDataUrl}" class="max-w-full max-h-full object-contain">` : `<span id="school-logo-placeholder" class="text-[11px] text-gray-400">No Logo</span>`}
+          </div>
+          <div class="flex flex-col gap-2">
+            <input type="file" id="school-logo-upload" class="hidden" accept="image/png,image/jpeg,image/webp">
+            <input type="hidden" id="school-logo-data-url">
+            <button id="upload-school-logo-btn" type="button" class="text-sm text-blue-600 hover:underline text-left">Upload Logo</button>
+            <button id="remove-school-logo-btn" type="button" class="text-sm text-gray-500 hover:text-red-600 text-left">Remove Logo</button>
+            <p class="text-[11px] text-gray-500">Accepted: PNG, JPG, WEBP up to 5MB.</p>
+          </div>
+        </div>
+      </div>
+      <div><label for="room-number-input" class="block text-sm font-medium text-gray-700">Room Number</label><input type="text" id="room-number-input" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" value="${currentRoomNumber}" placeholder="e.g., 204B"></div>
+      <div><label for="birthday-input" class="block text-sm font-medium text-gray-700">Birthday</label><input type="date" id="birthday-input" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" value="${currentBirthday}"></div>
+      <div><label for="new-password-input" class="block text-sm font-medium text-gray-700">New Password</label><input type="password" id="new-password-input" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="Leave blank to keep current password"></div>
+    </div>
+    <hr class="my-8">
+    <div>
+      <h3 class="text-lg font-semibold text-gray-700 mb-4">Account Information</h3>
+      <div class="text-sm text-gray-600 space-y-2">
+        <p><strong>Account Created:</strong> <span id="creation-date">${creationDate}</span></p>
+        <p><strong>Last Login:</strong> <span id="last-login">${lastLogin}</span></p>
+      </div>
+    </div>
+    <hr class="my-8">
+    <div>
+      <h3 class="text-lg font-semibold text-red-700 mb-2">Danger Zone</h3>
+      <p class="text-sm text-gray-600 mb-4">Deleting your account is permanent and cannot be undone. All of your classes, students, and grade data will be lost forever.</p>
+      <button id="delete-account-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm">Delete My Account</button>
+    </div>
+    <div class="mt-8 flex justify-between items-center">
+      ${isSetupMode ? '<div></div>' : '<button id="back-to-app-btn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-sm">&larr; Back to Gradebook</button>'}
+      <button id="save-profile-btn" class="bg-primary hover:bg-primary-dark text-white font-bold py-2 px-4 rounded-lg shadow-sm">Save Changes</button>
+    </div>`;
+
+  // ── App Settings tab ──────────────────────────────────────────
+  const appSettingsPanelHtml = `
+    <h3 class="text-xl font-bold text-gray-800 mb-1">App Settings</h3>
+    <p class="text-sm text-gray-500 mb-6">Configure how Marksheet Pro works for you.</p>
+    <div id="app-settings-feedback" class="hidden mb-4 p-3 rounded-md bg-green-100 text-green-700 text-sm font-medium"></div>
+    <div class="space-y-5">
+      <div class="bg-gray-50 border border-gray-200 rounded-xl p-5">
+        <h4 class="font-semibold text-gray-800 mb-1">Features</h4>
+        <p class="text-xs text-gray-500 mb-4">Toggle app features on or off to match your workflow.</p>
+        <div class="flex items-center justify-between py-3" data-setting-key="attendanceEnabled">
+          <div>
+            <p class="font-medium text-gray-700 text-sm">Attendance Tracking</p>
+            <p class="text-xs text-gray-500 mt-0.5">Show the Attendance button and sheet. Disable if you use other means for tracking attendance.</p>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer ml-6 flex-shrink-0">
+            <input type="checkbox" id="attendance-enabled-toggle" class="sr-only peer" ${attendanceEnabled ? 'checked' : ''}>
+            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-green-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+          </label>
+        </div>
+        <div class="flex items-center justify-between py-3 border-t border-gray-200" data-setting-key="autoSaveSettings">
+          <div>
+            <p class="font-medium text-gray-700 text-sm">Auto-Save Settings</p>
+            <p class="text-xs text-gray-500 mt-0.5">Automatically save any setting change and show a tiny confirmation.</p>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer ml-6 flex-shrink-0">
+            <input type="checkbox" id="auto-save-settings-toggle" class="sr-only peer" ${autoSaveSettingsEnabled ? 'checked' : ''}>
+            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-green-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+          </label>
+        </div>
+      </div>
+      <div class="bg-gray-50 border border-gray-200 rounded-xl p-5">
+        <h4 class="font-semibold text-gray-800 mb-1">Appearance</h4>
+        <p class="text-xs text-gray-500 mb-4">Adjust the visual style of the app.</p>
+        <div class="flex items-center justify-between py-3" data-setting-key="darkMode">
+          <div>
+            <p class="font-medium text-gray-700 text-sm">Dark Mode</p>
+            <p class="text-xs text-gray-500 mt-0.5">Switch to a darker colour scheme to reduce eye strain.</p>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer ml-6 flex-shrink-0">
+            <input type="checkbox" id="dark-mode-toggle" class="sr-only peer" ${darkModeEnabled ? 'checked' : ''}>
+            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-green-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+          </label>
+        </div>
+        <div class="flex items-center justify-between py-3 border-t border-gray-200" data-setting-key="highContrastMode">
+          <div>
+            <p class="font-medium text-gray-700 text-sm">High Contrast</p>
+            <p class="text-xs text-gray-500 mt-0.5">Increase contrast for better readability.</p>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer ml-6 flex-shrink-0">
+            <input type="checkbox" id="high-contrast-toggle" class="sr-only peer" ${highContrastEnabled ? 'checked' : ''}>
+            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-green-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+          </label>
+        </div>
+        <div class="flex items-center justify-between py-3 border-t border-gray-200" data-setting-key="reducedMotion">
+          <div>
+            <p class="font-medium text-gray-700 text-sm">Reduced Motion</p>
+            <p class="text-xs text-gray-500 mt-0.5">Minimize animations and transitions for a steadier experience.</p>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer ml-6 flex-shrink-0">
+            <input type="checkbox" id="reduced-motion-toggle" class="sr-only peer" ${reducedMotionEnabled ? 'checked' : ''}>
+            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-green-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+          </label>
+        </div>
+        <div class="space-y-6 border-t border-gray-200 pt-4 mt-1">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div data-setting-key="densityMode">
+              <label for="density-mode-select" class="block text-sm font-medium text-gray-700">Density</label>
+              <select id="density-mode-select" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                <option value="comfortable" ${densityMode === 'comfortable' ? 'selected' : ''}>Comfortable</option>
+                <option value="compact" ${densityMode === 'compact' ? 'selected' : ''}>Compact</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="border-t border-gray-200 pt-6" data-setting-key="fontSizeMode">
+            <label class="block text-sm font-medium text-gray-700 mb-3">Font Size</label>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <label data-setting-card data-group="font-size-mode" data-value="small" class="flex-1 flex items-center justify-center p-3 border-2 rounded-lg cursor-pointer transition ${fontSizeMode === 'small' ? 'border-primary bg-blue-50' : 'border-gray-200 hover:border-gray-300'}">
+                <input type="radio" name="font-size-mode" value="small" ${fontSizeMode === 'small' ? 'checked' : ''} class="sr-only">
+                <div class="text-center">
+                  <div style="font-size: 14px; line-height: 1.4;" class="font-medium">Small</div>
+                  <div style="font-size: 12px;" class="text-gray-600 mt-1">14px</div>
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div class="md:col-span-1"><label for="title-input" class="block text-sm font-medium text-gray-700">Title</label><input type="text" id="title-input" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" value="${currentTitle}" placeholder="e.g., Mr."></div>
-                    <div class="md:col-span-2"><label for="full-name-input" class="block text-sm font-medium text-gray-700">Full Name</label><input type="text" id="full-name-input" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" value="${currentFullName}" placeholder="e.g., John Smith"></div>
+              </label>
+              <label data-setting-card data-group="font-size-mode" data-value="default" class="flex-1 flex items-center justify-center p-3 border-2 rounded-lg cursor-pointer transition ${fontSizeMode === 'default' ? 'border-primary bg-blue-50' : 'border-gray-200 hover:border-gray-300'}">
+                <input type="radio" name="font-size-mode" value="default" ${fontSizeMode === 'default' ? 'checked' : ''} class="sr-only">
+                <div class="text-center">
+                  <div style="font-size: 16px; line-height: 1.4;" class="font-medium">Default</div>
+                  <div style="font-size: 12px;" class="text-gray-600 mt-1">16px</div>
                 </div>
-                <div><label for="school-board-input" class="block text-sm font-medium text-gray-700">School Board</label><input type="text" id="school-board-input" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" value="${currentSchoolBoard}" placeholder="e.g., TCDSB"></div>
-                <div><label for="school-name-input" class="block text-sm font-medium text-gray-700">School Name</label><input type="text" id="school-name-input" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" value="${currentSchoolName}" placeholder="e.g., Maplewood High School"></div>
-                <div>
-                  <label class="block text-sm font-medium text-gray-700">School Logo (for PDF exports)</label>
-                  <div class="mt-2 flex items-center gap-4">
-                    <div id="school-logo-preview-wrap" class="w-28 h-16 border border-gray-300 rounded bg-gray-50 flex items-center justify-center overflow-hidden">
-                      ${schoolLogoDataUrl ? `<img id="school-logo-preview" src="${schoolLogoDataUrl}" class="max-w-full max-h-full object-contain">` : `<span id="school-logo-placeholder" class="text-[11px] text-gray-400">No Logo</span>`}
-                    </div>
-                    <div class="flex flex-col gap-2">
-                      <input type="file" id="school-logo-upload" class="hidden" accept="image/png,image/jpeg,image/webp">
-                      <input type="hidden" id="school-logo-data-url">
-                      <button id="upload-school-logo-btn" type="button" class="text-sm text-blue-600 hover:underline text-left">Upload Logo</button>
-                      <button id="remove-school-logo-btn" type="button" class="text-sm text-gray-500 hover:text-red-600 text-left">Remove Logo</button>
-                      <p class="text-[11px] text-gray-500">Accepted: PNG, JPG, WEBP up to 5MB.</p>
-                    </div>
+              </label>
+              <label data-setting-card data-group="font-size-mode" data-value="large" class="flex-1 flex items-center justify-center p-3 border-2 rounded-lg cursor-pointer transition ${fontSizeMode === 'large' ? 'border-primary bg-blue-50' : 'border-gray-200 hover:border-gray-300'}">
+                <input type="radio" name="font-size-mode" value="large" ${fontSizeMode === 'large' ? 'checked' : ''} class="sr-only">
+                <div class="text-center">
+                  <div style="font-size: 17px; line-height: 1.4;" class="font-medium">Large</div>
+                  <div style="font-size: 12px;" class="text-gray-600 mt-1">17px</div>
+                </div>
+              </label>
+            </div>
+            <select id="font-size-mode-select" class="hidden">
+              <option value="small" ${fontSizeMode === 'small' ? 'selected' : ''}>Small</option>
+              <option value="default" ${fontSizeMode === 'default' ? 'selected' : ''}>Default</option>
+              <option value="large" ${fontSizeMode === 'large' ? 'selected' : ''}>Large</option>
+            </select>
+          </div>
+
+          <div class="border-t border-gray-200 pt-6" data-setting-key="themePreset">
+            <label class="block text-sm font-medium text-gray-700 mb-3">Theme</label>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <label data-setting-card data-group="theme-preset" data-value="default" class="flex items-center p-3 border-2 rounded-lg cursor-pointer transition ${themePreset === 'default' ? 'border-primary bg-blue-50' : 'border-gray-200 hover:border-gray-300'}">
+                <input type="radio" name="theme-preset" value="default" ${themePreset === 'default' ? 'checked' : ''} class="mr-3">
+                <div class="flex-1">
+                  <div class="font-medium text-sm mb-2">Default</div>
+                  <div class="flex gap-1">
+                    <div class="w-5 h-5 rounded" style="background-color: #2b3a67;"></div>
+                    <div class="w-5 h-5 rounded" style="background-color: #0d9488;"></div>
+                    <div class="w-5 h-5 rounded" style="background-color: #c026d3;"></div>
                   </div>
                 </div>
-                <div><label for="room-number-input" class="block text-sm font-medium text-gray-700">Room Number</label><input type="text" id="room-number-input" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" value="${currentRoomNumber}" placeholder="e.g., 204B"></div>
-                <div><label for="birthday-input" class="block text-sm font-medium text-gray-700">Birthday</label><input type="date" id="birthday-input" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" value="${currentBirthday}"></div>
-                <div><label for="new-password-input" class="block text-sm font-medium text-gray-700">New Password</label><input type="password" id="new-password-input" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" placeholder="Leave blank to keep current password"></div>
-            </div>
-            <hr class="my-8">
-            <div>
-                <h3 class="text-lg font-semibold text-gray-700 mb-4">Account Information</h3>
-                <div class="text-sm text-gray-600 space-y-2">
-                    <p><strong>Account Created:</strong> <span id="creation-date">${creationDate}</span></p>
-                    <p><strong>Last Login:</strong> <span id="last-login">${lastLogin}</span></p>
+              </label>
+              <label data-setting-card data-group="theme-preset" data-value="ocean" class="flex items-center p-3 border-2 rounded-lg cursor-pointer transition ${themePreset === 'ocean' ? 'border-primary bg-blue-50' : 'border-gray-200 hover:border-gray-300'}">
+                <input type="radio" name="theme-preset" value="ocean" ${themePreset === 'ocean' ? 'checked' : ''} class="mr-3">
+                <div class="flex-1">
+                  <div class="font-medium text-sm mb-2">Ocean</div>
+                  <div class="flex gap-1">
+                    <div class="w-5 h-5 rounded" style="background-color: #1d4ed8;"></div>
+                    <div class="w-5 h-5 rounded" style="background-color: #0f766e;"></div>
+                    <div class="w-5 h-5 rounded" style="background-color: #0891b2;"></div>
+                  </div>
                 </div>
+              </label>
+              <label data-setting-card data-group="theme-preset" data-value="forest" class="flex items-center p-3 border-2 rounded-lg cursor-pointer transition ${themePreset === 'forest' ? 'border-primary bg-blue-50' : 'border-gray-200 hover:border-gray-300'}">
+                <input type="radio" name="theme-preset" value="forest" ${themePreset === 'forest' ? 'checked' : ''} class="mr-3">
+                <div class="flex-1">
+                  <div class="font-medium text-sm mb-2">Forest</div>
+                  <div class="flex gap-1">
+                    <div class="w-5 h-5 rounded" style="background-color: #166534;"></div>
+                    <div class="w-5 h-5 rounded" style="background-color: #1d4ed8;"></div>
+                    <div class="w-5 h-5 rounded" style="background-color: #ca8a04;"></div>
+                  </div>
+                </div>
+              </label>
+              <label data-setting-card data-group="theme-preset" data-value="sunset" class="flex items-center p-3 border-2 rounded-lg cursor-pointer transition ${themePreset === 'sunset' ? 'border-primary bg-blue-50' : 'border-gray-200 hover:border-gray-300'}">
+                <input type="radio" name="theme-preset" value="sunset" ${themePreset === 'sunset' ? 'checked' : ''} class="mr-3">
+                <div class="flex-1">
+                  <div class="font-medium text-sm mb-2">Sunset</div>
+                  <div class="flex gap-1">
+                    <div class="w-5 h-5 rounded" style="background-color: #b45309;"></div>
+                    <div class="w-5 h-5 rounded" style="background-color: #be185d;"></div>
+                    <div class="w-5 h-5 rounded" style="background-color: #dc2626;"></div>
+                  </div>
+                </div>
+              </label>
             </div>
-            <hr class="my-8">
-            <div>
-                <h3 class="text-lg font-semibold text-red-700 mb-2">Danger Zone</h3>
-                <p class="text-sm text-gray-600 mb-4">Deleting your account is permanent and cannot be undone. All of your classes, students, and grade data will be lost forever.</p>
-                <button id="delete-account-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm">Delete My Account</button>
-            </div>
-            <div class="mt-8 flex justify-between items-center">
-                ${
-                  isSetupMode
-                    ? `<div></div>`
-                    : `<button id="back-to-app-btn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-sm">&larr; Back to Gradebook</button>`
-                }
-                <button id="save-profile-btn" class="bg-primary hover:bg-primary-dark text-white font-bold py-2 px-4 rounded-lg shadow-sm">Save Changes</button>
-            </div>
-        </div>
-    `;
+            <select id="theme-preset-select" class="hidden">
+              <option value="default" ${themePreset === 'default' ? 'selected' : ''}>Default</option>
+              <option value="ocean" ${themePreset === 'ocean' ? 'selected' : ''}>Ocean</option>
+              <option value="forest" ${themePreset === 'forest' ? 'selected' : ''}>Forest</option>
+              <option value="sunset" ${themePreset === 'sunset' ? 'selected' : ''}>Sunset</option>
+            </select>
+          </div>
 
-  // Add event listeners for profile picture upload
+          <div class="border-t border-gray-200 pt-6" data-setting-key="gradeColorIntensity">
+            <label class="block text-sm font-medium text-gray-700 mb-3">Grade Colors</label>
+            <div class="space-y-3">
+              <!-- Subtle -->
+              <label data-setting-card data-group="grade-color-intensity" data-value="subtle" class="flex items-center p-3 border-2 rounded-lg cursor-pointer transition ${gradeColorIntensity === 'subtle' ? 'border-primary bg-blue-50' : 'border-gray-200 hover:border-gray-300'}">
+                <input type="radio" name="grade-color-intensity" value="subtle" ${gradeColorIntensity === 'subtle' ? 'checked' : ''} class="mr-3">
+                <div class="flex-1">
+                  <div class="font-medium text-sm mb-2">Subtle</div>
+                  <div class="flex flex-wrap gap-1">
+                    <div class="w-6 h-6 rounded bg-green-50 border border-gray-200" title="Level 4 (80%+)"></div>
+                    <div class="w-6 h-6 rounded bg-blue-50 border border-gray-200" title="Level 3 (70%)"></div>
+                    <div class="w-6 h-6 rounded bg-yellow-50 border border-gray-200" title="Level 2 (60%)"></div>
+                    <div class="w-6 h-6 rounded bg-orange-50 border border-gray-200" title="Level 1 (50%)"></div>
+                    <div class="w-6 h-6 rounded bg-red-50 border border-gray-200" title="Below 50%"></div>
+                  </div>
+                </div>
+              </label>
+              
+              <!-- Standard -->
+              <label data-setting-card data-group="grade-color-intensity" data-value="standard" class="flex items-center p-3 border-2 rounded-lg cursor-pointer transition ${gradeColorIntensity === 'standard' ? 'border-primary bg-blue-50' : 'border-gray-200 hover:border-gray-300'}">
+                <input type="radio" name="grade-color-intensity" value="standard" ${gradeColorIntensity === 'standard' ? 'checked' : ''} class="mr-3">
+                <div class="flex-1">
+                  <div class="font-medium text-sm mb-2">Standard</div>
+                  <div class="flex flex-wrap gap-1">
+                    <div class="w-6 h-6 rounded bg-green-100 border border-gray-300" title="Level 4 (80%+)"></div>
+                    <div class="w-6 h-6 rounded bg-blue-100 border border-gray-300" title="Level 3 (70%)"></div>
+                    <div class="w-6 h-6 rounded bg-yellow-100 border border-gray-300" title="Level 2 (60%)"></div>
+                    <div class="w-6 h-6 rounded bg-orange-100 border border-gray-300" title="Level 1 (50%)"></div>
+                    <div class="w-6 h-6 rounded bg-red-100 border border-gray-300" title="Below 50%"></div>
+                  </div>
+                </div>
+              </label>
+              
+              <!-- Strong -->
+              <label data-setting-card data-group="grade-color-intensity" data-value="strong" class="flex items-center p-3 border-2 rounded-lg cursor-pointer transition ${gradeColorIntensity === 'strong' ? 'border-primary bg-blue-50' : 'border-gray-200 hover:border-gray-300'}">
+                <input type="radio" name="grade-color-intensity" value="strong" ${gradeColorIntensity === 'strong' ? 'checked' : ''} class="mr-3">
+                <div class="flex-1">
+                  <div class="font-medium text-sm mb-2">Strong</div>
+                  <div class="flex flex-wrap gap-1">
+                    <div class="w-6 h-6 rounded bg-green-300 border border-gray-400" title="Level 4 (80%+)"></div>
+                    <div class="w-6 h-6 rounded bg-blue-300 border border-gray-400" title="Level 3 (70%)"></div>
+                    <div class="w-6 h-6 rounded bg-yellow-300 border border-gray-400" title="Level 2 (60%)"></div>
+                    <div class="w-6 h-6 rounded bg-orange-300 border border-gray-400" title="Level 1 (50%)"></div>
+                    <div class="w-6 h-6 rounded bg-red-300 border border-gray-400" title="Below 50%"></div>
+                  </div>
+                </div>
+              </label>
+            </div>
+            <select id="grade-color-intensity-select" class="hidden">
+              <option value="subtle" ${gradeColorIntensity === 'subtle' ? 'selected' : ''}>Subtle</option>
+              <option value="standard" ${gradeColorIntensity === 'standard' ? 'selected' : ''}>Standard</option>
+              <option value="strong" ${gradeColorIntensity === 'strong' ? 'selected' : ''}>Strong</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="app-settings-dirty-indicator" class="hidden mt-4 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">You have unsaved changes.</div>
+    <div class="mt-8 flex flex-col sm:flex-row gap-3 sm:justify-between sm:items-center">
+      <button data-navigate-home class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-sm">&larr; Back to Gradebook</button>
+      <div class="flex gap-2">
+        <button id="reset-app-settings-btn" class="bg-white border border-gray-300 hover:bg-gray-100 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-sm">Reset Defaults</button>
+        <button id="save-app-settings-btn" class="bg-primary hover:bg-primary-dark text-white font-bold py-2 px-4 rounded-lg shadow-sm">Save Settings</button>
+      </div>
+    </div>`;
+
+  // ── Billing tab ───────────────────────────────────────────────
+  const billingPanelHtml = `
+    <div class="flex flex-col items-center justify-center py-16 text-center">
+      <div class="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
+        <svg class="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+        </svg>
+      </div>
+      <h3 class="text-xl font-semibold text-gray-700 mb-2">Billing</h3>
+      <p class="text-gray-500 text-sm max-w-xs">Subscription and billing management is coming soon. Marksheet Pro is currently free to use.</p>
+      <span class="mt-4 inline-block bg-yellow-100 text-yellow-700 text-xs font-semibold px-3 py-1 rounded-full">Coming Soon</span>
+      <div class="mt-8">
+        <button data-navigate-home class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-sm">&larr; Back to Gradebook</button>
+      </div>
+    </div>`;
+
+  // ── Render ────────────────────────────────────────────────────
+  if (isSetupMode) {
+    contentWrapper.innerHTML = `
+      <div class="bg-white rounded-lg shadow-md p-8 max-w-2xl mx-auto fade-in">
+        <h2 class="text-2xl font-bold text-primary mb-2">Welcome to Marksheet Pro!</h2>
+        <p class="text-gray-600 mb-6">Please set up your profile to get started.</p>
+        ${profilePanelHtml}
+      </div>`;
+  } else {
+    contentWrapper.innerHTML = `
+      <div class="max-w-4xl mx-auto fade-in">
+        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+          <div class="border-b border-gray-200">
+            <nav class="flex -mb-px" aria-label="Account navigation">
+              <button data-account-tab="profile" class="account-tab-btn border-b-2 border-primary text-primary px-6 py-4 text-sm font-semibold">Profile</button>
+              <button data-account-tab="app-settings" class="account-tab-btn border-b-2 border-transparent text-gray-500 hover:text-gray-700 px-6 py-4 text-sm font-medium">App Settings</button>
+              <button data-account-tab="billing" class="account-tab-btn border-b-2 border-transparent text-gray-500 hover:text-gray-700 px-6 py-4 text-sm font-medium">Billing</button>
+            </nav>
+          </div>
+          <div data-account-panel="profile" class="p-8">${profilePanelHtml}</div>
+          <div data-account-panel="app-settings" class="hidden p-8">${appSettingsPanelHtml}</div>
+          <div data-account-panel="billing" class="hidden p-8">${billingPanelHtml}</div>
+        </div>
+      </div>`;
+
+    contentWrapper.querySelectorAll('.account-tab-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const tab = btn.dataset.accountTab;
+        contentWrapper.querySelectorAll('.account-tab-btn').forEach((b) => {
+          b.classList.remove('border-primary', 'text-primary');
+          b.classList.add('border-transparent', 'text-gray-500');
+        });
+        btn.classList.add('border-primary', 'text-primary');
+        btn.classList.remove('border-transparent', 'text-gray-500');
+        contentWrapper.querySelectorAll('[data-account-panel]').forEach((p) => p.classList.add('hidden'));
+        contentWrapper.querySelector(`[data-account-panel="${tab}"]`)?.classList.remove('hidden');
+      });
+    });
+
+    const defaultAppSettings = {
+      attendanceEnabled: true,
+      darkMode: false,
+      highContrastMode: false,
+      reducedMotion: false,
+      densityMode: 'comfortable',
+      fontSizeMode: 'default',
+      themePreset: 'default',
+      gradeColorIntensity: 'standard',
+      autoSaveSettings: false,
+    };
+
+    const normalizeSettings = (settings = {}) => ({
+      attendanceEnabled: settings.attendanceEnabled !== false,
+      darkMode: !!settings.darkMode,
+      highContrastMode: !!settings.highContrastMode,
+      reducedMotion: !!settings.reducedMotion,
+      densityMode: settings.densityMode === 'compact' ? 'compact' : 'comfortable',
+      fontSizeMode: ['small', 'default', 'large'].includes(settings.fontSizeMode) ? settings.fontSizeMode : 'default',
+      themePreset: ['default', 'ocean', 'forest', 'sunset'].includes(settings.themePreset)
+        ? settings.themePreset
+        : 'default',
+      gradeColorIntensity: ['subtle', 'standard', 'strong'].includes(settings.gradeColorIntensity)
+        ? settings.gradeColorIntensity
+        : 'standard',
+      autoSaveSettings: !!settings.autoSaveSettings,
+    });
+
+    const getSettingsFromInputs = () => ({
+      attendanceEnabled: document.getElementById('attendance-enabled-toggle')?.checked ?? true,
+      darkMode: document.getElementById('dark-mode-toggle')?.checked ?? false,
+      highContrastMode: document.getElementById('high-contrast-toggle')?.checked ?? false,
+      reducedMotion: document.getElementById('reduced-motion-toggle')?.checked ?? false,
+      densityMode: document.getElementById('density-mode-select')?.value === 'compact' ? 'compact' : 'comfortable',
+      fontSizeMode: ['small', 'default', 'large'].includes(
+        document.querySelector('input[name="font-size-mode"]:checked')?.value
+      )
+        ? document.querySelector('input[name="font-size-mode"]:checked')?.value
+        : 'default',
+      themePreset: ['default', 'ocean', 'forest', 'sunset'].includes(
+        document.querySelector('input[name="theme-preset"]:checked')?.value
+      )
+        ? document.querySelector('input[name="theme-preset"]:checked')?.value
+        : 'default',
+      gradeColorIntensity: ['subtle', 'standard', 'strong'].includes(
+        document.querySelector('input[name="grade-color-intensity"]:checked')?.value
+      )
+        ? document.querySelector('input[name="grade-color-intensity"]:checked')?.value
+        : 'standard',
+      autoSaveSettings: document.getElementById('auto-save-settings-toggle')?.checked ?? false,
+    });
+
+    const saveSettingsToState = (settings) => {
+      const state = getAppState();
+      if (!state.gradebook_data) return;
+      state.gradebook_data.appSettings = {
+        ...state.gradebook_data.appSettings,
+        ...settings,
+      };
+      triggerAutoSave();
+    };
+
+    const showSettingsFeedback = (message, hideDelay = 1500) => {
+      const fb = document.getElementById('app-settings-feedback');
+      if (!fb) return;
+      fb.textContent = message;
+      fb.classList.remove('hidden');
+      setTimeout(() => fb.classList.add('hidden'), hideDelay);
+    };
+
+    const isSettingsEqual = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+    const settingKeySelectors = {
+      attendanceEnabled: '[data-setting-key="attendanceEnabled"]',
+      darkMode: '[data-setting-key="darkMode"]',
+      highContrastMode: '[data-setting-key="highContrastMode"]',
+      reducedMotion: '[data-setting-key="reducedMotion"]',
+      densityMode: '[data-setting-key="densityMode"]',
+      fontSizeMode: '[data-setting-key="fontSizeMode"]',
+      themePreset: '[data-setting-key="themePreset"]',
+      gradeColorIntensity: '[data-setting-key="gradeColorIntensity"]',
+      autoSaveSettings: '[data-setting-key="autoSaveSettings"]',
+    };
+
+    let lastSavedSettings = normalizeSettings(getAppState().gradebook_data?.appSettings || defaultAppSettings);
+
+    const syncSelectionCards = () => {
+      contentWrapper.querySelectorAll('[data-setting-card]').forEach((card) => {
+        const group = card.getAttribute('data-group');
+        const value = card.getAttribute('data-value');
+        const selectedValue = contentWrapper.querySelector(`input[name="${group}"]:checked`)?.value;
+        const isSelected = selectedValue === value;
+        card.classList.toggle('border-primary', isSelected);
+        card.classList.toggle('bg-blue-50', isSelected);
+        card.classList.toggle('border-gray-200', !isSelected);
+        if (!isSelected) {
+          card.classList.add('hover:border-gray-300');
+        }
+      });
+    };
+
+    const updateDirtyState = () => {
+      const currentSettings = normalizeSettings(getSettingsFromInputs());
+      Object.entries(settingKeySelectors).forEach(([key, selector]) => {
+        const container = contentWrapper.querySelector(selector);
+        if (!container) return;
+        container.classList.toggle('setting-dirty', currentSettings[key] !== lastSavedSettings[key]);
+      });
+      const dirty = !isSettingsEqual(currentSettings, lastSavedSettings);
+      const dirtyIndicator = document.getElementById('app-settings-dirty-indicator');
+      const wasHidden = dirtyIndicator?.classList.contains('hidden');
+      dirtyIndicator?.classList.toggle('hidden', !dirty);
+      if (dirtyIndicator && dirty && wasHidden) {
+        dirtyIndicator.classList.remove('dirty-indicator-pop');
+        // Restart animation each time banner appears.
+        void dirtyIndicator.offsetWidth;
+        dirtyIndicator.classList.add('dirty-indicator-pop');
+      }
+      if (dirtyIndicator && !dirty) {
+        dirtyIndicator.classList.remove('dirty-indicator-pop');
+      }
+      const saveBtn = document.getElementById('save-app-settings-btn');
+      if (saveBtn) {
+        saveBtn.disabled = !dirty;
+        saveBtn.classList.toggle('opacity-70', !dirty);
+        saveBtn.classList.toggle('cursor-not-allowed', !dirty);
+      }
+    };
+
+    const persistSettings = (message = 'Settings saved!', hideDelay = 1500) => {
+      const state = getAppState();
+      if (!state.gradebook_data) return;
+      const settings = normalizeSettings(getSettingsFromInputs());
+      saveSettingsToState(settings);
+      lastSavedSettings = settings;
+      updateDirtyState();
+      showSettingsFeedback(message, hideDelay);
+    };
+
+    document.getElementById('save-app-settings-btn')?.addEventListener('click', () => {
+      persistSettings('Settings saved!', 1800);
+    });
+
+    document.getElementById('reset-app-settings-btn')?.addEventListener('click', () => {
+      const autoSaveWasEnabled = document.getElementById('auto-save-settings-toggle')?.checked ?? false;
+      document.getElementById('attendance-enabled-toggle').checked = defaultAppSettings.attendanceEnabled;
+      document.getElementById('dark-mode-toggle').checked = defaultAppSettings.darkMode;
+      document.getElementById('high-contrast-toggle').checked = defaultAppSettings.highContrastMode;
+      document.getElementById('reduced-motion-toggle').checked = defaultAppSettings.reducedMotion;
+      document.getElementById('density-mode-select').value = defaultAppSettings.densityMode;
+      contentWrapper.querySelector(`input[name="font-size-mode"][value="${defaultAppSettings.fontSizeMode}"]`).checked =
+        true;
+      contentWrapper.querySelector(`input[name="theme-preset"][value="${defaultAppSettings.themePreset}"]`).checked =
+        true;
+      contentWrapper.querySelector(
+        `input[name="grade-color-intensity"][value="${defaultAppSettings.gradeColorIntensity}"]`
+      ).checked = true;
+      document.getElementById('auto-save-settings-toggle').checked = defaultAppSettings.autoSaveSettings;
+
+      applyVisualSettingsPreview();
+      syncSelectionCards();
+      updateDirtyState();
+
+      if (autoSaveWasEnabled) {
+        persistSettings('Settings reset and saved', 1200);
+      } else {
+        showSettingsFeedback('Defaults restored (not saved yet)', 1500);
+      }
+    });
+
+    const applyVisualSettingsPreview = () => {
+      const html = document.documentElement;
+      const darkMode = document.getElementById('dark-mode-toggle')?.checked ?? false;
+      const highContrastMode = document.getElementById('high-contrast-toggle')?.checked ?? false;
+      const reducedMotion = document.getElementById('reduced-motion-toggle')?.checked ?? false;
+      const density = document.getElementById('density-mode-select')?.value === 'compact' ? 'compact' : 'comfortable';
+      const fontSize = ['small', 'default', 'large'].includes(
+        document.querySelector('input[name="font-size-mode"]:checked')?.value
+      )
+        ? document.querySelector('input[name="font-size-mode"]:checked')?.value
+        : 'default';
+      const theme = ['default', 'ocean', 'forest', 'sunset'].includes(
+        document.querySelector('input[name="theme-preset"]:checked')?.value
+      )
+        ? document.querySelector('input[name="theme-preset"]:checked')?.value
+        : 'default';
+
+      html.classList.toggle('dark-mode', darkMode);
+      html.classList.toggle('high-contrast-mode', highContrastMode);
+      html.classList.toggle('reduced-motion', reducedMotion);
+      html.classList.toggle('compact-mode', density === 'compact');
+      html.classList.toggle('font-small', fontSize === 'small');
+      html.classList.toggle('font-large', fontSize === 'large');
+      html.classList.remove('theme-ocean', 'theme-forest', 'theme-sunset');
+      if (theme !== 'default') {
+        html.classList.add(`theme-${theme}`);
+      }
+    };
+
+    const maybeAutoSave = () => {
+      const current = normalizeSettings(getSettingsFromInputs());
+      if (current.autoSaveSettings && !isSettingsEqual(current, lastSavedSettings)) {
+        persistSettings('Saved', 900);
+      }
+    };
+
+    const enhanceRadioGroupKeyboardNavigation = (groupName) => {
+      const radios = Array.from(contentWrapper.querySelectorAll(`input[name="${groupName}"]`));
+      radios.forEach((radio, index) => {
+        radio.addEventListener('keydown', (event) => {
+          const forwardKeys = ['ArrowRight', 'ArrowDown'];
+          const backwardKeys = ['ArrowLeft', 'ArrowUp'];
+          if (!forwardKeys.includes(event.key) && !backwardKeys.includes(event.key)) return;
+          event.preventDefault();
+          const direction = forwardKeys.includes(event.key) ? 1 : -1;
+          const nextIndex = (index + direction + radios.length) % radios.length;
+          radios[nextIndex].checked = true;
+          radios[nextIndex].focus();
+          radios[nextIndex].dispatchEvent(new Event('change'));
+        });
+      });
+    };
+
+    const onSettingChanged = () => {
+      applyVisualSettingsPreview();
+      syncSelectionCards();
+      updateDirtyState();
+      maybeAutoSave();
+    };
+
+    document.getElementById('attendance-enabled-toggle')?.addEventListener('change', onSettingChanged);
+    document.getElementById('auto-save-settings-toggle')?.addEventListener('change', onSettingChanged);
+    document.getElementById('dark-mode-toggle')?.addEventListener('change', onSettingChanged);
+    document.getElementById('high-contrast-toggle')?.addEventListener('change', onSettingChanged);
+    document.getElementById('reduced-motion-toggle')?.addEventListener('change', onSettingChanged);
+    document.getElementById('density-mode-select')?.addEventListener('change', onSettingChanged);
+    document.querySelectorAll('input[name="font-size-mode"]')?.forEach((radio) => {
+      radio.addEventListener('change', onSettingChanged);
+    });
+    document.querySelectorAll('input[name="theme-preset"]')?.forEach((radio) => {
+      radio.addEventListener('change', onSettingChanged);
+    });
+    document.querySelectorAll('input[name="grade-color-intensity"]')?.forEach((radio) => {
+      radio.addEventListener('change', onSettingChanged);
+    });
+
+    enhanceRadioGroupKeyboardNavigation('font-size-mode');
+    enhanceRadioGroupKeyboardNavigation('theme-preset');
+    enhanceRadioGroupKeyboardNavigation('grade-color-intensity');
+
+    syncSelectionCards();
+    updateDirtyState();
+  }
+
+  // ── Profile picture & logo upload listeners (unchanged) ───────
   const uploadPicBtn = document.getElementById('upload-profile-pic-btn');
   const fileInput = document.getElementById('profile-picture-upload');
   const schoolLogoUploadBtn = document.getElementById('upload-school-logo-btn');
@@ -1499,6 +2039,11 @@ export function renderAnalyticsModal() {
   const initialClassData = getActiveClassData();
   if (!initialClassData) return;
   let cleanupRefreshHandlers = () => {};
+  const appSettings = getAppState()?.gradebook_data?.appSettings || {};
+  const attendanceEnabled = appSettings.attendanceEnabled !== false;
+  const gradeColorIntensity = ['subtle', 'standard', 'strong'].includes(appSettings.gradeColorIntensity)
+    ? appSettings.gradeColorIntensity
+    : 'standard';
 
   const getAnalyticsContext = () => {
     const liveClassData = getActiveClassData() || initialClassData;
@@ -1617,9 +2162,57 @@ export function renderAnalyticsModal() {
   const unitOptions = buildUnitOptionsHtml(initialCtx.allAnalyticsUnits);
   const studentList = buildStudentOptionsHtml(Object.values(initialCtx.liveClassData.students || {}));
 
+  const getIntensityBarColor = (avg) => {
+    if (avg === null || avg === undefined) return 'rgba(209, 213, 219, 0.5)';
+    const palettes = {
+      subtle: {
+        l4: 'rgba(34, 197, 94, 0.55)',
+        l3: 'rgba(59, 130, 246, 0.55)',
+        l2: 'rgba(234, 179, 8, 0.55)',
+        l1: 'rgba(249, 115, 22, 0.55)',
+        r: 'rgba(239, 68, 68, 0.55)',
+      },
+      standard: {
+        l4: 'rgba(34, 197, 94, 0.7)',
+        l3: 'rgba(59, 130, 246, 0.7)',
+        l2: 'rgba(234, 179, 8, 0.7)',
+        l1: 'rgba(249, 115, 22, 0.7)',
+        r: 'rgba(239, 68, 68, 0.7)',
+      },
+      strong: {
+        l4: 'rgba(22, 163, 74, 0.85)',
+        l3: 'rgba(37, 99, 235, 0.85)',
+        l2: 'rgba(202, 138, 4, 0.85)',
+        l1: 'rgba(234, 88, 12, 0.85)',
+        r: 'rgba(220, 38, 38, 0.85)',
+      },
+    };
+
+    const palette = palettes[gradeColorIntensity] || palettes.standard;
+    if (avg >= 80) return palette.l4;
+    if (avg >= 70) return palette.l3;
+    if (avg >= 60) return palette.l2;
+    if (avg >= 50) return palette.l1;
+    return palette.r;
+  };
+
+  const computeAttendanceStats = (sourceClassData) => {
+    const result = { present: 0, absent: 0, late: 0 };
+    const attendance = sourceClassData?.attendance || {};
+    Object.values(attendance).forEach((dateData) => {
+      Object.values(dateData || {}).forEach((record) => {
+        if (record?.status === 'absent') result.absent += 1;
+        else if (record?.status === 'late') result.late += 1;
+        else if (record?.status === 'present') result.present += 1;
+      });
+    });
+    result.total = result.present + result.absent + result.late;
+    return result;
+  };
+
   const content = `
     <div class="space-y-6">
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div class="grid grid-cols-1 ${attendanceEnabled ? 'md:grid-cols-3' : 'md:grid-cols-2'} gap-6">
         <div class="bg-gray-50 p-4 rounded-lg border">
           <h4 class="text-sm font-bold text-gray-500 uppercase mb-4 text-center">Grade Distribution</h4>
           <div class="relative h-64 w-full"><canvas id="chart-distribution"></canvas></div>
@@ -1628,6 +2221,14 @@ export function renderAnalyticsModal() {
           <h4 class="text-sm font-bold text-gray-500 uppercase mb-4 text-center">Category Performance</h4>
           <div class="relative h-64 w-full"><canvas id="chart-categories"></canvas></div>
         </div>
+        ${
+          attendanceEnabled
+            ? `<div class="bg-gray-50 p-4 rounded-lg border">
+          <h4 class="text-sm font-bold text-gray-500 uppercase mb-4 text-center">Attendance Distribution</h4>
+          <div id="chart-attendance-wrap" class="relative h-64 w-full"><canvas id="chart-attendance"></canvas></div>
+        </div>`
+            : ''
+        }
       </div>
 
       <div class="border-t border-gray-200 pt-5">
@@ -1739,7 +2340,7 @@ export function renderAnalyticsModal() {
     };
 
     const renderTopCharts = () => {
-      const { stats, termUnits } = getAnalyticsContext();
+      const { liveClassData, stats, termUnits } = getAnalyticsContext();
       if (!stats) return;
 
       const ctxDist = document.getElementById('chart-distribution')?.getContext('2d');
@@ -1802,6 +2403,58 @@ export function renderAnalyticsModal() {
             scales: { r: { angleLines: { display: true }, suggestedMin: 50, suggestedMax: 100 } },
           },
         });
+      }
+
+      if (attendanceEnabled) {
+        const attendanceWrap = document.getElementById('chart-attendance-wrap');
+        const attendanceStats = computeAttendanceStats(liveClassData);
+        if (attendanceWrap) {
+          if (!attendanceStats.total) {
+            attendanceWrap.innerHTML =
+              '<p class="text-xs text-gray-400 text-center pt-10">No attendance records yet.</p>';
+          } else {
+            attendanceWrap.innerHTML = '<canvas id="chart-attendance"></canvas>';
+            const ctxAttendance = document.getElementById('chart-attendance')?.getContext('2d');
+            if (ctxAttendance) {
+              rebuildChart('attendance', ctxAttendance, {
+                type: 'doughnut',
+                data: {
+                  labels: ['Present', 'Absent', 'Late'],
+                  datasets: [
+                    {
+                      data: [attendanceStats.present, attendanceStats.absent, attendanceStats.late],
+                      backgroundColor: [
+                        'rgba(34, 197, 94, 0.75)',
+                        'rgba(239, 68, 68, 0.75)',
+                        'rgba(245, 158, 11, 0.75)',
+                      ],
+                      borderColor: ['rgba(22, 163, 74, 1)', 'rgba(220, 38, 38, 1)', 'rgba(217, 119, 6, 1)'],
+                      borderWidth: 1,
+                    },
+                  ],
+                },
+                options: {
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                    legend: { position: 'bottom', labels: { font: { size: 11 } } },
+                    tooltip: {
+                      callbacks: {
+                        label: (ctx) => {
+                          const count = Number(ctx.raw) || 0;
+                          const pct = attendanceStats.total
+                            ? ((count / attendanceStats.total) * 100).toFixed(1)
+                            : '0.0';
+                          return ` ${ctx.label}: ${count} (${pct}%)`;
+                        },
+                      },
+                    },
+                  },
+                },
+              });
+            }
+          }
+        }
       }
 
       const uwWrap = document.getElementById('chart-unit-weights-wrap');
@@ -2043,14 +2696,7 @@ export function renderAnalyticsModal() {
             {
               label: perfLabel,
               data: perfData.map((d) => (d.avg != null ? parseFloat(d.avg.toFixed(1)) : null)),
-              backgroundColor: perfData.map((d) => {
-                if (d.avg === null) return 'rgba(209, 213, 219, 0.5)';
-                if (d.avg >= 80) return 'rgba(34, 197, 94, 0.7)';
-                if (d.avg >= 70) return 'rgba(59, 130, 246, 0.7)';
-                if (d.avg >= 60) return 'rgba(234, 179, 8, 0.7)';
-                if (d.avg >= 50) return 'rgba(249, 115, 22, 0.7)';
-                return 'rgba(239, 68, 68, 0.7)';
-              }),
+              backgroundColor: perfData.map((d) => getIntensityBarColor(d.avg)),
               borderWidth: 1,
             },
           ],

@@ -1,4 +1,5 @@
-import { useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import QRCode from 'qrcode';
 import { exportLibraryBackup, importLibraryBackup } from '../services/storage';
 
 interface SettingsModalProps {
@@ -25,7 +26,43 @@ export function SettingsModal({
 }: SettingsModalProps) {
   const [backupMessage, setBackupMessage] = useState<string | null>(null);
   const [backupError, setBackupError] = useState<string | null>(null);
+  const [portalQrDataUrl, setPortalQrDataUrl] = useState<string | null>(null);
+  const [portalQrError, setPortalQrError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const studentPortalUrl = useMemo(() => {
+    if (typeof window === 'undefined') return '';
+    return new URL('./student.html', window.location.href).toString();
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const generatePortalQr = async () => {
+      if (!studentPortalUrl) return;
+      try {
+        const dataUrl = await QRCode.toDataURL(studentPortalUrl, {
+          errorCorrectionLevel: 'H',
+          margin: 1,
+          width: 220,
+        });
+        if (!cancelled) {
+          setPortalQrDataUrl(dataUrl);
+          setPortalQrError(null);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setPortalQrError(error instanceof Error ? error.message : 'Failed to generate QR code.');
+        }
+      }
+    };
+
+    generatePortalQr();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [studentPortalUrl]);
 
   const handleExportBackup = () => {
     setBackupError(null);
@@ -95,6 +132,32 @@ export function SettingsModal({
     }
 
     window.location.href = vaultUrl;
+  };
+
+  const handleOpenStudentPortal = () => {
+    if (!studentPortalUrl) return;
+    window.open(studentPortalUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleOpenPosterPage = () => {
+    if (typeof window === 'undefined') return;
+    const posterUrl = new URL('/library-app/Student-portal-poster.html', window.location.origin).toString();
+    window.open(posterUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleCopyStudentPortalLink = async () => {
+    if (!studentPortalUrl) return;
+
+    try {
+      if (!navigator.clipboard?.writeText) {
+        throw new Error('Clipboard unavailable');
+      }
+      await navigator.clipboard.writeText(studentPortalUrl);
+      setBackupMessage('Student portal link copied.');
+      setBackupError(null);
+    } catch {
+      setBackupError('Could not copy the student portal link. Copy it manually from the text box below.');
+    }
   };
 
   const handleClearAllData = () => {
@@ -190,6 +253,33 @@ export function SettingsModal({
           <button type="button" className="btn btn-secondary" onClick={handleOpenVaultPage}>
             Open Vault Page
           </button>
+        </div>
+
+        <div className="settings-vault-box">
+          <h3 className="settings-label">Student Portal QR</h3>
+          <p className="settings-hint">Students can scan this code to open the reservation portal on their devices.</p>
+          {portalQrDataUrl ? (
+            <img className="settings-portal-qr" src={portalQrDataUrl} alt="Student portal QR code" />
+          ) : (
+            <p className="settings-hint">Generating QR code...</p>
+          )}
+          {portalQrError && (
+            <p className="settings-error" role="alert">
+              {portalQrError}
+            </p>
+          )}
+          <input className="checkout-input" value={studentPortalUrl} readOnly aria-label="Student portal URL" />
+          <div className="settings-backup-actions">
+            <button type="button" className="btn btn-secondary" onClick={handleCopyStudentPortalLink}>
+              Copy Link
+            </button>
+            <button type="button" className="btn btn-secondary" onClick={handleOpenStudentPortal}>
+              Open Student Portal
+            </button>
+            <button type="button" className="btn btn-secondary" onClick={handleOpenPosterPage}>
+              Open Printable Poster
+            </button>
+          </div>
         </div>
 
         <div className="settings-danger-box">

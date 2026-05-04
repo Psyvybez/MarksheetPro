@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Student Portal QR Poster</title>
+    <style>
+      :root {
+        --ink: #213047;
+        --muted: #5a6678;
+        --brand: #0f766e;
+        --surface: #ffffff;
+        --line: #d4dce6;
+        --soft: #eef8f6;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(180deg, #f3f7fb 0%, #ecf5ef 100%);
+        color: var(--ink);
+        min-height: 100vh;
+      }
+
+      .toolbar {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        display: flex;
+        gap: 0.6rem;
+        justify-content: center;
+        padding: 0.75rem;
+        background: rgba(255, 255, 255, 0.9);
+        border-bottom: 1px solid var(--line);
+        backdrop-filter: blur(6px);
+      }
+
+      .toolbar button {
+        border: 1px solid var(--line);
+        background: #fff;
+        color: var(--ink);
+        border-radius: 999px;
+        padding: 0.45rem 0.9rem;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .poster-wrap {
+        padding: 1.25rem;
+      }
+
+      .poster {
+        margin: 0 auto;
+        width: min(850px, 100%);
+        background: var(--surface);
+        border: 2px solid var(--line);
+        border-radius: 18px;
+        box-shadow: 0 16px 45px rgba(20, 42, 63, 0.12);
+        overflow: hidden;
+      }
+
+      .poster-head {
+        background: linear-gradient(135deg, #0f766e 0%, #0b5e96 100%);
+        color: #fff;
+        padding: 1.1rem 1.3rem;
+      }
+
+      .poster-head h1 {
+        margin: 0;
+        font-size: clamp(1.3rem, 3vw, 1.8rem);
+        letter-spacing: 0.02em;
+      }
+
+      .poster-body {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+        padding: 1rem;
+      }
+
+      .qr-panel {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: var(--soft);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 340px;
+      }
+
+      #portal-qr {
+        background: #fff;
+        border-radius: 12px;
+        padding: 0.7rem;
+        border: 1px solid #cfd9e6;
+      }
+
+      .info-panel {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 1rem;
+      }
+
+      .info-panel h2 {
+        margin: 0 0 0.5rem;
+        font-size: 1.1rem;
+      }
+
+      .info-panel ol {
+        margin: 0;
+        padding-left: 1.1rem;
+      }
+
+      .info-panel li {
+        margin: 0.35rem 0;
+        color: var(--muted);
+      }
+
+      .portal-url {
+        margin-top: 0.9rem;
+        border: 1px dashed #9bb2cc;
+        border-radius: 10px;
+        background: #f8fbff;
+        padding: 0.65rem;
+        font-size: 0.84rem;
+        word-break: break-all;
+      }
+
+      .small-note {
+        margin-top: 0.7rem;
+        color: var(--muted);
+        font-size: 0.8rem;
+      }
+
+      @media (max-width: 760px) {
+        .poster-body {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media print {
+        .toolbar {
+          display: none;
+        }
+
+        body {
+          background: #fff;
+        }
+
+        .poster-wrap {
+          padding: 0;
+        }
+
+        .poster {
+          width: 100%;
+          border-radius: 0;
+          border: 0;
+          box-shadow: none;
+        }
+      }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
+  </head>
+  <body>
+    <div class="toolbar">
+      <button type="button" id="print-poster">Print Poster</button>
+      <button type="button" id="copy-link">Copy Student Portal Link</button>
+      <button type="button" id="open-portal">Open Student Portal</button>
+    </div>
+
+    <main class="poster-wrap">
+      <section class="poster">
+        <header class="poster-head">
+          <h1>THE BOOK NOOK: Student Reservation Portal</h1>
+        </header>
+        <div class="poster-body">
+          <div class="qr-panel">
+            <canvas id="portal-qr" width="320" height="320" aria-label="Student portal QR code"></canvas>
+          </div>
+          <div class="info-panel">
+            <h2>How To Access</h2>
+            <ol>
+              <li>Open your phone camera.</li>
+              <li>Scan the QR code on this poster.</li>
+              <li>Open the link and sign in with your card number + name.</li>
+              <li>Reserve up to 2 books at a time.</li>
+            </ol>
+            <div class="portal-url" id="portal-url"></div>
+            <p class="small-note">
+              Privacy note: Student portal does not display who currently has books checked out or reserved.
+            </p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const portalUrl = new URL('./dist/student.html', window.location.href).toString();
+      const qrCanvas = document.getElementById('portal-qr');
+      const urlEl = document.getElementById('portal-url');
+      const printBtn = document.getElementById('print-poster');
+      const copyBtn = document.getElementById('copy-link');
+      const openBtn = document.getElementById('open-portal');
+
+      urlEl.textContent = portalUrl;
+
+      QRCode.toCanvas(
+        qrCanvas,
+        portalUrl,
+        {
+          width: 320,
+          margin: 1,
+          errorCorrectionLevel: 'H',
+        },
+        (err) => {
+          if (err) {
+            urlEl.textContent = `Failed to generate QR code. Use link: ${portalUrl}`;
+          }
+        }
+      );
+
+      printBtn.addEventListener('click', () => {
+        window.print();
+      });
+
+      copyBtn.addEventListener('click', async () => {
+        try {
+          if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable');
+          await navigator.clipboard.writeText(portalUrl);
+          copyBtn.textContent = 'Copied';
+          setTimeout(() => {
+            copyBtn.textContent = 'Copy Student Portal Link';
+          }, 1200);
+        } catch {
+          copyBtn.textContent = 'Copy Failed';
+          setTimeout(() => {
+            copyBtn.textContent = 'Copy Student Portal Link';
+          }, 1200);
+        }
+      });
+
+      openBtn.addEventListener('click', () => {
+        window.open(portalUrl, '_blank', 'noopener,noreferrer');
+      });
+    </script>
+  </body>
+</html>

@@ -3,6 +3,77 @@ import { getAppState, getActiveClassData, getActiveSemesterData, captureHistoryP
 import { triggerAutoSave } from './main.js';
 import { renderGradebook, updateUIFromState } from './render.js';
 import { calculateStudentAverages } from './calculations.js';
+
+function getAppSettingsForExports() {
+  const appSettings = getAppState()?.gradebook_data?.appSettings || {};
+  return {
+    attendanceEnabled: appSettings.attendanceEnabled !== false,
+    gradeColorIntensity: ['subtle', 'standard', 'strong'].includes(appSettings.gradeColorIntensity)
+      ? appSettings.gradeColorIntensity
+      : 'standard',
+  };
+}
+
+function getAttendanceSummaryForStudent(classData, studentId) {
+  const attendance = classData?.attendance || {};
+  let present = 0;
+  let absent = 0;
+  let late = 0;
+
+  Object.values(attendance).forEach((dateData) => {
+    const status = dateData?.[studentId]?.status;
+    if (status === 'absent') absent += 1;
+    else if (status === 'late') late += 1;
+    else if (status === 'present') present += 1;
+  });
+
+  const trackedDays = present + absent + late;
+  const attendancePct = trackedDays > 0 ? (present / trackedDays) * 100 : null;
+  return { present, absent, late, trackedDays, attendancePct };
+}
+
+function getIntensityPaletteForPdf(intensity) {
+  const palette = {
+    subtle: {
+      l4: { fill: [240, 253, 244], text: [21, 128, 61] },
+      l3: { fill: [239, 246, 255], text: [29, 78, 216] },
+      l2: { fill: [254, 252, 232], text: [161, 98, 7] },
+      l1: { fill: [255, 247, 237], text: [194, 65, 12] },
+      r: { fill: [254, 242, 242], text: [185, 28, 28] },
+    },
+    standard: {
+      l4: { fill: [220, 252, 231], text: [22, 101, 52] },
+      l3: { fill: [219, 234, 254], text: [30, 64, 175] },
+      l2: { fill: [254, 249, 195], text: [133, 77, 14] },
+      l1: { fill: [255, 237, 213], text: [154, 52, 18] },
+      r: { fill: [254, 226, 226], text: [153, 27, 27] },
+    },
+    strong: {
+      l4: { fill: [134, 239, 172], text: [20, 83, 45] },
+      l3: { fill: [147, 197, 253], text: [30, 58, 138] },
+      l2: { fill: [253, 224, 71], text: [113, 63, 18] },
+      l1: { fill: [253, 186, 116], text: [124, 45, 18] },
+      r: { fill: [252, 165, 165], text: [127, 29, 29] },
+    },
+  };
+  return palette[intensity] || palette.standard;
+}
+
+function getColorBandForPercent(percent, intensity) {
+  if (percent === null || percent === undefined || Number.isNaN(percent)) return null;
+  const palette = getIntensityPaletteForPdf(intensity);
+  if (percent >= 80) return palette.l4;
+  if (percent >= 70) return palette.l3;
+  if (percent >= 60) return palette.l2;
+  if (percent >= 50) return palette.l1;
+  return palette.r;
+}
+
+function parsePercentCellValue(value) {
+  if (value === null || value === undefined) return null;
+  const num = parseFloat(String(value).replace('%', '').trim());
+  return Number.isFinite(num) ? num : null;
+}
 // --- Class & Semester Actions ---
 
 function getAssignmentFactorForUnit(unit, classData) {
@@ -1307,20 +1378,13 @@ export function exportStudentPDF(studentId) {
   });
 }
 
-export function exportToCSV() {
-  const classData = getActiveClassData();
-  if (!classData) {
-    alert('No class data to export.');
-    return;
+function buildCsvPayload({ classData, selectedStudents, attendanceEnabled }) {
+  const units = Object.values(classData.units || {}).sort((a, b) => a.order - b.order);
+  const headers = ['LastName', 'FirstName', 'IEP', 'Overall', 'Term', 'Final', 'K', 'T', 'C', 'A'];
+  if (attendanceEnabled) {
+    headers.push('Present', 'Absent', 'Late', 'Attendance %');
   }
 
-  let csvContent = 'data:text/csv;charset=utf-8,';
-  const students = Object.values(classData.students || {}).sort((a, b) =>
-    (a.lastName || '').localeCompare(b.lastName || '')
-  );
-  const units = Object.values(classData.units || {}).sort((a, b) => a.order - b.order);
-
-  const headers = ['LastName', 'FirstName', 'IEP', 'Overall', 'Term', 'Final', 'K', 'T', 'C', 'A'];
   units.forEach((unit) => {
     Object.values(unit.assignments || {})
       .sort((a, b) => a.order - b.order)
@@ -1332,9 +1396,8 @@ export function exportToCSV() {
         }
       });
   });
-  csvContent += headers.join(',') + '\r\n';
 
-  students.forEach((student) => {
+  const rows = selectedStudents.map((student) => {
     const avgs = calculateStudentAverages(student, classData);
     const row = [
       student.lastName,
@@ -1349,6 +1412,16 @@ export function exportToCSV() {
       avgs.categories.a?.toFixed(2) || '',
     ];
 
+    if (attendanceEnabled) {
+      const attendance = getAttendanceSummaryForStudent(classData, student.id);
+      row.push(
+        String(attendance.present),
+        String(attendance.absent),
+        String(attendance.late),
+        attendance.attendancePct !== null ? attendance.attendancePct.toFixed(1) : ''
+      );
+    }
+
     units.forEach((unit) => {
       Object.values(unit.assignments || {})
         .sort((a, b) => a.order - b.order)
@@ -1361,10 +1434,135 @@ export function exportToCSV() {
           }
         });
     });
-    csvContent += row.join(',') + '\r\n';
+
+    return row;
   });
 
-  const encodedUri = encodeURI(csvContent);
+  const csvRows = [headers, ...rows];
+  const csvContent = csvRows
+    .map((row) =>
+      row
+        .map((value) => {
+          const safe = value === null || value === undefined ? '' : String(value);
+          return `"${safe.replace(/"/g, '""')}"`;
+        })
+        .join(',')
+    )
+    .join('\r\n');
+
+  return { headers, rowCount: rows.length, csvContent };
+}
+
+export function showCsvExportOptionsModal() {
+  const classData = getActiveClassData();
+  if (!classData) return;
+
+  const { attendanceEnabled } = getAppSettingsForExports();
+  const students = Object.values(classData.students || {}).sort((a, b) =>
+    (a.lastName || '').localeCompare(b.lastName || '')
+  );
+
+  const studentCheckboxes = students
+    .map(
+      (student) => `
+        <label class="flex items-center">
+            <input type="checkbox" class="csv-student-export-checkbox h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" value="${student.id}" checked>
+            <span class="ml-2 text-sm text-gray-700">${student.lastName}, ${student.firstName}</span>
+        </label>
+    `
+    )
+    .join('');
+
+  showModal({
+    title: 'CSV Export Options',
+    content: `
+      <div>
+        <h4 class="text-md font-semibold mb-2">Select Students</h4>
+        <div class="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto p-2 border rounded-md bg-gray-50">
+          ${studentCheckboxes}
+        </div>
+      </div>
+      <div class="mt-4 p-3 border rounded-md bg-slate-50">
+        <h4 class="text-md font-semibold mb-2">CSV Preview</h4>
+        <p class="text-xs text-gray-500 mb-2">Preview of what will be exported.</p>
+        <div id="csv-export-preview" class="text-sm text-gray-700"></div>
+      </div>
+    `,
+    confirmText: 'Export CSV',
+    confirmClasses: 'bg-emerald-600 hover:bg-emerald-700',
+    onConfirm: () => {
+      const selectedStudentIds = Array.from(document.querySelectorAll('.csv-student-export-checkbox:checked')).map(
+        (cb) => cb.value
+      );
+      exportToCSV({ studentIds: selectedStudentIds });
+    },
+  });
+
+  setTimeout(() => {
+    const previewEl = document.getElementById('csv-export-preview');
+    if (!previewEl) return;
+
+    const renderPreview = () => {
+      const selectedStudentIds = Array.from(document.querySelectorAll('.csv-student-export-checkbox:checked')).map(
+        (cb) => cb.value
+      );
+      const selectedStudents = selectedStudentIds
+        .map((id) => classData.students?.[id])
+        .filter(Boolean)
+        .sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''));
+      const { headers, rowCount } = buildCsvPayload({ classData, selectedStudents, attendanceEnabled });
+
+      previewEl.innerHTML = `
+        <div class="space-y-2">
+          <div><span class="font-medium">Students Selected:</span> ${selectedStudents.length}</div>
+          <div><span class="font-medium">Rows to Export:</span> ${rowCount}</div>
+          <div><span class="font-medium">Attendance Columns:</span> ${attendanceEnabled ? 'Included' : 'Not included'}</div>
+          <div>
+            <span class="font-medium">Columns:</span>
+            <div class="mt-1 flex flex-wrap gap-1 max-h-28 overflow-auto">
+              ${headers.map((col) => `<span class="text-xs px-2 py-0.5 bg-white border border-gray-200 rounded">${col}</span>`).join('')}
+            </div>
+          </div>
+        </div>
+      `;
+    };
+
+    document.querySelectorAll('.csv-student-export-checkbox').forEach((checkbox) => {
+      checkbox.addEventListener('change', renderPreview);
+    });
+
+    renderPreview();
+  }, 50);
+}
+
+export function exportToCSV({ studentIds = null } = {}) {
+  const classData = getActiveClassData();
+  if (!classData) {
+    alert('No class data to export.');
+    return;
+  }
+
+  const { attendanceEnabled } = getAppSettingsForExports();
+
+  const students = (
+    studentIds
+      ? studentIds.map((id) => classData.students?.[id]).filter(Boolean)
+      : Object.values(classData.students || {})
+  ).sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''));
+
+  if (students.length === 0) {
+    showModal({
+      title: 'Export Cancelled',
+      content: '<p>Please select at least one student to export.</p>',
+      confirmText: null,
+      cancelText: 'Close',
+      modalWidth: 'max-w-xs',
+    });
+    return;
+  }
+
+  const { csvContent } = buildCsvPayload({ classData, selectedStudents: students, attendanceEnabled });
+  const encodedUri = encodeURI(`data:text/csv;charset=utf-8,${csvContent}`);
   const link = document.createElement('a');
   link.setAttribute('href', encodedUri);
   link.setAttribute('download', `${classData.name}_grades.csv`);
@@ -1578,6 +1776,7 @@ export function importStudentsCSV() {
 export function showPdfExportOptionsModal() {
   const classData = getActiveClassData();
   if (!classData) return;
+  const { attendanceEnabled, gradeColorIntensity } = getAppSettingsForExports();
 
   const students = Object.values(classData.students || {}).sort((a, b) =>
     (a.lastName || '').localeCompare(b.lastName || '')
@@ -1625,6 +1824,11 @@ export function showPdfExportOptionsModal() {
                     </label>
                 </div>
             </div>
+            <div class="mt-4 p-3 border rounded-md bg-slate-50">
+              <h4 class="text-md font-semibold mb-2">Export Preview</h4>
+              <p class="text-xs text-gray-500 mb-2">Quick snapshot of what will be included in this export.</p>
+              <div id="pdf-export-preview" class="text-sm text-gray-700"></div>
+            </div>
         `,
     confirmText: 'Export PDF',
     confirmClasses: 'bg-blue-600 hover:bg-blue-700',
@@ -1648,11 +1852,65 @@ export function showPdfExportOptionsModal() {
       });
     },
   });
+
+  setTimeout(() => {
+    const previewEl = document.getElementById('pdf-export-preview');
+    if (!previewEl) return;
+
+    const intensityBadges = {
+      subtle: ['bg-green-50', 'bg-blue-50', 'bg-yellow-50', 'bg-orange-50', 'bg-red-50'],
+      standard: ['bg-green-100', 'bg-blue-100', 'bg-yellow-100', 'bg-orange-100', 'bg-red-100'],
+      strong: ['bg-green-300', 'bg-blue-300', 'bg-yellow-300', 'bg-orange-300', 'bg-red-300'],
+    };
+
+    const renderPreview = () => {
+      const selectedType = document.querySelector('input[name="pdf-export-type"]:checked')?.value || 'gradebook';
+      const selectedCount = document.querySelectorAll('.student-export-checkbox:checked').length;
+      const includeMissingAssignments = document.getElementById('include-missing-assignments')?.checked;
+      const baseColumns =
+        selectedType === 'gradebook'
+          ? ['Last Name', 'First Name', 'Overall', 'Term', 'Final', 'K', 'T', 'C', 'A']
+          : ['Assessment', 'Scores', 'Summary'];
+      const columns =
+        attendanceEnabled && selectedType === 'gradebook' ? [...baseColumns, 'Abs', 'Late', 'Att%'] : baseColumns;
+
+      const swatches = (intensityBadges[gradeColorIntensity] || intensityBadges.standard)
+        .map((cls) => `<span class="inline-block w-4 h-4 rounded border border-gray-300 ${cls}"></span>`)
+        .join('');
+
+      previewEl.innerHTML = `
+        <div class="space-y-2">
+          <div><span class="font-medium">Type:</span> ${selectedType === 'gradebook' ? 'Gradebook Overview' : 'Student Reports'}</div>
+          <div><span class="font-medium">Students Selected:</span> ${selectedCount}</div>
+          <div><span class="font-medium">Missing Assignments:</span> ${includeMissingAssignments ? 'Included' : 'Hidden unless graded'}</div>
+          <div><span class="font-medium">Attendance Fields:</span> ${attendanceEnabled && selectedType === 'gradebook' ? 'Included' : 'Not included'}</div>
+          <div><span class="font-medium">Grade Intensity:</span> ${gradeColorIntensity} <span class="inline-flex items-center gap-1 ml-2 align-middle">${swatches}</span></div>
+          <div>
+            <span class="font-medium">Columns:</span>
+            <div class="mt-1 flex flex-wrap gap-1">
+              ${columns.map((col) => `<span class="text-xs px-2 py-0.5 bg-white border border-gray-200 rounded">${col}</span>`).join('')}
+            </div>
+          </div>
+        </div>
+      `;
+    };
+
+    document.querySelectorAll('input[name="pdf-export-type"]').forEach((radio) => {
+      radio.addEventListener('change', renderPreview);
+    });
+    document.querySelectorAll('.student-export-checkbox').forEach((checkbox) => {
+      checkbox.addEventListener('change', renderPreview);
+    });
+    document.getElementById('include-missing-assignments')?.addEventListener('change', renderPreview);
+
+    renderPreview();
+  }, 50);
 }
 
 function exportGradebookPDF({ studentIds = [] }) {
   const classData = getActiveClassData();
   const appState = getAppState();
+  const { attendanceEnabled, gradeColorIntensity } = getAppSettingsForExports();
   if (!classData) return;
 
   if (!window.jspdf?.jsPDF) {
@@ -1694,12 +1952,53 @@ function exportGradebookPDF({ studentIds = [] }) {
     return `${value.toFixed(1)}%`;
   };
 
+  const truncateTextToWidth = (text, fontSize, maxWidth) => {
+    const clean = String(text || '').replace(/\s+/g, ' ').trim();
+    if (!clean) return '';
+
+    doc.setFontSize(fontSize);
+    if (doc.getTextWidth(clean) <= maxWidth) return clean;
+
+    let low = 1;
+    let high = clean.length;
+    let best = '';
+
+    while (low <= high) {
+      const mid = Math.floor((low + high) / 2);
+      const candidate = `${clean.slice(0, mid).trimEnd()}...`;
+      if (doc.getTextWidth(candidate) <= maxWidth) {
+        best = candidate;
+        low = mid + 1;
+      } else {
+        high = mid - 1;
+      }
+    }
+
+    return best || '...';
+  };
+
+  const getWrappedTitleLines = (text, fontSize, maxLineWidth, maxLines = 3) => {
+    const clean = String(text || '').replace(/\s+/g, ' ').trim();
+    if (!clean) return [];
+
+    doc.setFontSize(fontSize);
+    const wrapped = doc.splitTextToSize(clean, maxLineWidth);
+    if (wrapped.length <= maxLines) return wrapped;
+
+    const visible = wrapped.slice(0, maxLines);
+    visible[maxLines - 1] = truncateTextToWidth(visible[maxLines - 1], fontSize, maxLineWidth);
+    return visible;
+  };
+
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
 
   const units = Object.values(classData.units || {}).sort((a, b) => a.order - b.order);
 
   const summaryHeaders = ['#', 'Last Name', 'First Name', 'IEP', 'Overall', 'Term', 'Final', 'K', 'T', 'C', 'A'];
+  if (attendanceEnabled) {
+    summaryHeaders.push('Abs', 'Late', 'Att%');
+  }
 
   const renderHeader = (unitLabel, chunkIndex, totalChunks) => {
     doc.setFillColor(30, 64, 175);
@@ -1724,18 +2023,23 @@ function exportGradebookPDF({ studentIds = [] }) {
   };
 
   const summaryColumnStyles = {
-    0: { cellWidth: 10, halign: 'right' },
-    1: { cellWidth: 30 },
-    2: { cellWidth: 24 },
-    3: { cellWidth: 12, halign: 'center' },
-    4: { cellWidth: 14, halign: 'right' },
+    0: { cellWidth: 9, halign: 'right' },
+    1: { cellWidth: 12 },
+    2: { cellWidth: 12 },
+    3: { cellWidth: 9, halign: 'center' },
+    4: { cellWidth: 12, halign: 'right' },
     5: { cellWidth: 12, halign: 'right' },
     6: { cellWidth: 12, halign: 'right' },
-    7: { cellWidth: 10, halign: 'right' },
-    8: { cellWidth: 10, halign: 'right' },
-    9: { cellWidth: 10, halign: 'right' },
-    10: { cellWidth: 10, halign: 'right' },
+    7: { cellWidth: 12, halign: 'right' },
+    8: { cellWidth: 12, halign: 'right' },
+    9: { cellWidth: 12, halign: 'right' },
+    10: { cellWidth: 12, halign: 'right' },
   };
+  if (attendanceEnabled) {
+    summaryColumnStyles[11] = { cellWidth: 12, halign: 'right' };
+    summaryColumnStyles[12] = { cellWidth: 12, halign: 'right' };
+    summaryColumnStyles[13] = { cellWidth: 12, halign: 'right' };
+  }
 
   const summaryColumnsWidth = Object.values(summaryColumnStyles).reduce((sum, col) => sum + col.cellWidth, 0);
   const usableTableWidth = pageWidth - 24;
@@ -1758,7 +2062,8 @@ function exportGradebookPDF({ studentIds = [] }) {
       assignments.forEach((asg) => {
         if (unit.isFinal) {
           columns.push({
-            header: `${asg.name}\n(Score)`,
+            headerTitle: asg.name,
+            headerSubtitle: '(Score)',
             getValue: (student) => {
               const value = student.grades?.[asg.id]?.grade;
               return value === undefined || value === null ? '' : String(value);
@@ -1768,7 +2073,8 @@ function exportGradebookPDF({ studentIds = [] }) {
         }
 
         columns.push({
-          header: `${asg.name}\n(K/T/C/A)`,
+          headerTitle: asg.name,
+          headerSubtitle: '(K/T/C/A)',
           getValue: (student) => {
             const grade = student.grades?.[asg.id] || {};
             const formatCat = (value) => {
@@ -1820,6 +2126,15 @@ function exportGradebookPDF({ studentIds = [] }) {
           formatPercent(avgs.categories?.a),
         ];
 
+        if (attendanceEnabled) {
+          const attendance = getAttendanceSummaryForStudent(classData, student.id);
+          row.push(
+            String(attendance.absent),
+            String(attendance.late),
+            attendance.attendancePct !== null ? `${attendance.attendancePct.toFixed(1)}%` : 'N/A'
+          );
+        }
+
         chunk.forEach((column) => {
           row.push(column.getValue(student));
         });
@@ -1867,7 +2182,7 @@ function exportGradebookPDF({ studentIds = [] }) {
 
       doc.autoTable({
         startY: 42,
-        head: [[...summaryHeaders, ...chunk.map((column) => column.header)]],
+        head: [[...summaryHeaders, ...chunk.map((column) => `${column.headerTitle}\n${column.headerSubtitle}`)]],
         body: tableBody,
         theme: 'grid',
         headStyles: {
@@ -1876,7 +2191,7 @@ function exportGradebookPDF({ studentIds = [] }) {
           fontStyle: 'bold',
           fontSize: 9,
           overflow: 'linebreak',
-          minCellHeight: 12,
+          minCellHeight: 34,
         },
         alternateRowStyles: { fillColor: [248, 250, 252] },
         styles: {
@@ -1887,6 +2202,64 @@ function exportGradebookPDF({ studentIds = [] }) {
           overflow: 'linebreak',
         },
         columnStyles,
+        didParseCell: (hookData) => {
+          if (hookData.section === 'head' && hookData.column.index >= summaryHeaders.length) {
+            // Custom-draw dynamic headers so title can be angled while subtitle stays horizontal.
+            hookData.cell.text = [''];
+            return;
+          }
+
+          if (hookData.section === 'body') {
+            const gradeColumns = new Set([4, 5, 6, 7, 8, 9, 10]);
+            if (!gradeColumns.has(hookData.column.index)) return;
+            const percent = parsePercentCellValue(hookData.cell.raw);
+            const band = getColorBandForPercent(percent, gradeColorIntensity);
+            if (!band) return;
+            hookData.cell.styles.fillColor = band.fill;
+            hookData.cell.styles.textColor = band.text;
+            hookData.cell.styles.fontStyle = 'bold';
+          }
+        },
+        didDrawCell: (hookData) => {
+          if (hookData.section !== 'head' || hookData.column.index < summaryHeaders.length) return;
+
+          const dynamicIndex = hookData.column.index - summaryHeaders.length;
+          const col = chunk[dynamicIndex];
+          if (!col) return;
+
+          const rawTitle = String(col.headerTitle || '').trim();
+          const subtitle = String(col.headerSubtitle || '').trim();
+
+          // Wrap angled title text to keep long assignment names readable inside the header cell.
+          const diagonalLength = Math.hypot(hookData.cell.width, hookData.cell.height);
+          const diagonalPadding = 10;
+          const titleFontSize = 6.4;
+          const maxLineWidth = Math.max(8, (diagonalLength - diagonalPadding) * 0.72);
+          const titleLines = getWrappedTitleLines(rawTitle, titleFontSize, maxLineWidth, 3);
+
+          const titleX = hookData.cell.x + 1.8;
+          const titleLineStep = 3.4;
+          const titleBaseY = hookData.cell.y + hookData.cell.height - 8.8;
+          const firstLineY = titleBaseY - (titleLines.length - 1) * titleLineStep;
+          const subtitleX = hookData.cell.x + hookData.cell.width / 2;
+          const subtitleY = hookData.cell.y + hookData.cell.height - 1.1;
+
+          hookData.doc.setTextColor(255, 255, 255);
+          hookData.doc.setFont(undefined, 'bold');
+          hookData.doc.setFontSize(titleFontSize);
+          titleLines.forEach((line, lineIndex) => {
+            hookData.doc.text(line, titleX, firstLineY + lineIndex * titleLineStep, {
+              angle: 50,
+              align: 'left',
+            });
+          });
+
+          hookData.doc.setFont(undefined, 'normal');
+          hookData.doc.setFontSize(6);
+          hookData.doc.text(subtitle, subtitleX, subtitleY, {
+            align: 'center',
+          });
+        },
         didDrawPage: () => {
           doc.setDrawColor(203, 213, 225);
           doc.setLineWidth(0.2);
@@ -1909,6 +2282,7 @@ function exportGradebookPDF({ studentIds = [] }) {
 function exportClassPDF({ studentIds = [], includeMissingAssignments = false }) {
   const classData = getActiveClassData();
   const appState = getAppState();
+  const { attendanceEnabled, gradeColorIntensity } = getAppSettingsForExports();
   const profile = {
     name: appState.full_name || 'Teacher',
     school: appState.school_name || 'School',
@@ -2026,12 +2400,34 @@ function exportClassPDF({ studentIds = [], includeMissingAssignments = false }) 
             'Final Mark',
             classData.hasFinal ? (avgs.finalMark !== null ? `${avgs.finalMark.toFixed(1)}%` : 'N/A') : 'N/A',
           ],
+          ...(attendanceEnabled
+            ? (() => {
+                const attendance = getAttendanceSummaryForStudent(classData, student.id);
+                return [
+                  ['Absences', String(attendance.absent)],
+                  ['Lates', String(attendance.late)],
+                  [
+                    'Attendance Rate',
+                    attendance.attendancePct !== null ? `${attendance.attendancePct.toFixed(1)}%` : 'N/A',
+                  ],
+                ];
+              })()
+            : []),
         ],
         theme: 'grid',
         headStyles: { fillColor: theme.primary, textColor: [255, 255, 255], fontStyle: 'bold' },
         alternateRowStyles: { fillColor: [248, 250, 252] },
         styles: { fontSize: 9.5, cellPadding: 2.2, lineColor: theme.border, lineWidth: 0.2 },
         columnStyles: { 0: { fontStyle: 'bold', cellWidth: 50 }, 1: { halign: 'right' } },
+        didParseCell: (hookData) => {
+          if (hookData.section !== 'body' || hookData.column.index !== 1) return;
+          const percent = parsePercentCellValue(hookData.cell.raw);
+          const band = getColorBandForPercent(percent, gradeColorIntensity);
+          if (!band) return;
+          hookData.cell.styles.fillColor = band.fill;
+          hookData.cell.styles.textColor = band.text;
+          hookData.cell.styles.fontStyle = 'bold';
+        },
       });
 
       const units = Object.values(classData.units || {}).sort((a, b) => a.order - b.order);

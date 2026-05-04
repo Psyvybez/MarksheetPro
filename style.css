@@ -1,9 +1,42 @@
 /* Add this to the top of style.css */
 :root {
   --color-brand-primary: #2b3a67; /* Dark Navy */
+  --color-brand-primary-dark: #222e54;
   --color-brand-secondary: #0d9488; /* Teal */
+  --color-brand-secondary-dark: #0f766e;
   --color-brand-accent: #c026d3; /* Fuchsia */
+  --color-brand-accent-dark: #a21caf;
   --color-brand-text: #2b3a67;
+}
+
+html.theme-ocean {
+  --color-brand-primary: #1d4ed8;
+  --color-brand-primary-dark: #1e40af;
+  --color-brand-secondary: #0f766e;
+  --color-brand-secondary-dark: #115e59;
+  --color-brand-accent: #0891b2;
+  --color-brand-accent-dark: #0e7490;
+  --color-brand-text: #1e3a8a;
+}
+
+html.theme-forest {
+  --color-brand-primary: #166534;
+  --color-brand-primary-dark: #14532d;
+  --color-brand-secondary: #1d4ed8;
+  --color-brand-secondary-dark: #1e3a8a;
+  --color-brand-accent: #ca8a04;
+  --color-brand-accent-dark: #a16207;
+  --color-brand-text: #14532d;
+}
+
+html.theme-sunset {
+  --color-brand-primary: #b45309;
+  --color-brand-primary-dark: #92400e;
+  --color-brand-secondary: #be185d;
+  --color-brand-secondary-dark: #9d174d;
+  --color-brand-accent: #dc2626;
+  --color-brand-accent-dark: #b91c1c;
+  --color-brand-text: #7c2d12;
 }
 
 /* New Theme Utility Classes */
@@ -11,22 +44,22 @@
   background-color: var(--color-brand-primary);
 }
 .hover\:bg-primary-dark:hover {
-  background-color: #222e54;
-} /* Darker Navy */
+  background-color: var(--color-brand-primary-dark);
+}
 
 .bg-accent {
   background-color: var(--color-brand-accent);
 }
 .hover\:bg-accent-dark:hover {
-  background-color: #a21caf;
-} /* Darker Fuchsia */
+  background-color: var(--color-brand-accent-dark);
+}
 
 .bg-secondary {
   background-color: var(--color-brand-secondary);
 }
 .hover\:bg-secondary-dark:hover {
-  background-color: #0f766e;
-} /* Darker Teal */
+  background-color: var(--color-brand-secondary-dark);
+}
 
 .text-primary {
   color: var(--color-brand-text);
@@ -304,4 +337,314 @@ body.modal-open {
   cursor: pointer;
   width: 0.8rem;
   height: 0.8rem;
+}
+
+/* ===== DARK MODE ===== */
+html.dark-mode body {
+  background-color: #111827 !important;
+  color: #f3f4f6 !important;
+}
+html.dark-mode #app-container > header {
+  background-color: #1f2937 !important;
+  border-color: #374151 !important;
+}
+html.dark-mode .bg-white {
+  background-color: #1f2937 !important;
+  color: #f3f4f6;
+}
+html.dark-mode .bg-gray-50 {
+  background-color: #111827 !important;
+}
+html.dark-mode .bg-gray-100 {
+  background-color: #1a2235 !important;
+}
+html.dark-mode .bg-gray-200 {
+  background-color: #374151 !important;
+  color: #f3f4f6;
+}
+html.dark-mode .text-gray-800,
+html.dark-mode .text-gray-700 {
+  color: #e2e8f0 !important;
+}
+html.dark-mode .text-gray-600 {
+  color: #cbd5e1 !important;
+}
+html.dark-mode .text-gray-500 {
+  color: #94a3b8 !important;
+}
+html.dark-mode .border-gray-200,
+html.dark-mode .border-gray-300 {
+  border-color: #374151 !important;
+}
+html.dark-mode input:not([type='checkbox']):not([type='radio']):not(.grade-input),
+html.dark-mode textarea,
+html.dark-mode select {
+  background-color: #374151 !important;
+  color: #f3f4f6 !important;
+  border-color: #4b5563 !important;
+}
+html.dark-mode input::placeholder,
+html.dark-mode textarea::placeholder {
+  color: #6b7280 !important;
+}
+html.dark-mode #gradebookTable tbody td {
+  background-color: #1f2937 !important;
+  color: #e2e8f0;
+}
+html.dark-mode #gradebookTable tbody tr.student-row:nth-child(even) td {
+  background-color: #253044 !important;
+}
+html.dark-mode #gradebookTable tbody tr.student-row:hover td {
+  background-color: #2d3b55 !important;
+}
+html.dark-mode #gradebookTable thead tr:first-child th {
+  background-color: #111827 !important;
+  color: #e2e8f0;
+}
+html.dark-mode #gradebookTable thead tr:nth-child(2) th {
+  background-color: #1a2235 !important;
+  color: #e2e8f0;
+}
+html.dark-mode #gradebookTable thead tr:nth-child(3) th {
+  background-color: #253044 !important;
+  color: #e2e8f0;
+}
+html.dark-mode #gradebookTable tfoot td {
+  background-color: #253044 !important;
+  color: #f3f4f6 !important;
+}
+html.dark-mode #custom-modal .bg-white,
+html.dark-mode #custom-modal .bg-gray-50 {
+  background-color: #1f2937 !important;
+  color: #f3f4f6;
+}
+html.dark-mode #custom-modal label,
+html.dark-mode #custom-modal p,
+html.dark-mode #custom-modal h2,
+html.dark-mode #custom-modal h3 {
+  color: #e2e8f0;
+}
+html.dark-mode .shadow-md {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5) !important;
+}
+html.dark-mode .student-name-btn {
+  color: #93c5fd !important;
+}
+html.dark-mode .student-name-btn:hover {
+  background-color: #1e3a5f !important;
+}
+html.dark-mode table input {
+  color: #f3f4f6;
+}
+html.dark-mode table input:focus {
+  background-color: #1e3a5f !important;
+}
+
+/* ===== DENSITY MODE ===== */
+html:not(.compact-mode) #gradebookTable th,
+html:not(.compact-mode) #gradebookTable td {
+  padding-top: 10px !important;
+  padding-bottom: 10px !important;
+}
+html:not(.compact-mode) #gradebookTable .student-name-btn {
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+html:not(.compact-mode) table input,
+html:not(.compact-mode) table select {
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+html.compact-mode #gradebookTable th,
+html.compact-mode #gradebookTable td {
+  padding-top: 4px !important;
+  padding-bottom: 4px !important;
+}
+html.compact-mode #gradebookTable .student-name-btn {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+html.compact-mode table input,
+html.compact-mode table select {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+/* ===== FONT SIZE MODES ===== */
+html.font-small body {
+  font-size: 14px;
+}
+html.font-large body {
+  font-size: 17px;
+}
+
+/* ===== HIGH CONTRAST MODE ===== */
+html.high-contrast-mode:not(.dark-mode) body {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+html.high-contrast-mode:not(.dark-mode) .text-gray-800,
+html.high-contrast-mode:not(.dark-mode) .text-gray-700,
+html.high-contrast-mode:not(.dark-mode) .text-gray-600,
+html.high-contrast-mode:not(.dark-mode) .text-gray-500 {
+  color: #000000 !important;
+}
+html.high-contrast-mode:not(.dark-mode) .border-gray-200,
+html.high-contrast-mode:not(.dark-mode) .border-gray-300 {
+  border-color: #111827 !important;
+}
+html.high-contrast-mode:not(.dark-mode) .bg-gray-50,
+html.high-contrast-mode:not(.dark-mode) .bg-gray-100,
+html.high-contrast-mode:not(.dark-mode) .bg-gray-200 {
+  background-color: #ffffff !important;
+}
+html.high-contrast-mode.dark-mode body {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+}
+html.high-contrast-mode.dark-mode .text-gray-800,
+html.high-contrast-mode.dark-mode .text-gray-700,
+html.high-contrast-mode.dark-mode .text-gray-600,
+html.high-contrast-mode.dark-mode .text-gray-500 {
+  color: #ffffff !important;
+}
+html.high-contrast-mode.dark-mode .bg-white,
+html.high-contrast-mode.dark-mode .bg-gray-50,
+html.high-contrast-mode.dark-mode .bg-gray-100,
+html.high-contrast-mode.dark-mode .bg-gray-200 {
+  background-color: #000000 !important;
+}
+html.high-contrast-mode.dark-mode .border-gray-200,
+html.high-contrast-mode.dark-mode .border-gray-300 {
+  border-color: #ffffff !important;
+}
+
+/* Make App Settings toggles clearly visible in high contrast mode */
+html.high-contrast-mode #attendance-enabled-toggle + div,
+html.high-contrast-mode #dark-mode-toggle + div,
+html.high-contrast-mode #high-contrast-toggle + div,
+html.high-contrast-mode #reduced-motion-toggle + div,
+html.high-contrast-mode #auto-save-settings-toggle + div {
+  border: 2px solid currentColor !important;
+}
+html.high-contrast-mode:not(.dark-mode) #attendance-enabled-toggle + div,
+html.high-contrast-mode:not(.dark-mode) #dark-mode-toggle + div,
+html.high-contrast-mode:not(.dark-mode) #high-contrast-toggle + div,
+html.high-contrast-mode:not(.dark-mode) #reduced-motion-toggle + div,
+html.high-contrast-mode:not(.dark-mode) #auto-save-settings-toggle + div {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+html.high-contrast-mode.dark-mode #attendance-enabled-toggle + div,
+html.high-contrast-mode.dark-mode #dark-mode-toggle + div,
+html.high-contrast-mode.dark-mode #high-contrast-toggle + div,
+html.high-contrast-mode.dark-mode #reduced-motion-toggle + div,
+html.high-contrast-mode.dark-mode #auto-save-settings-toggle + div {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+}
+html.high-contrast-mode #attendance-enabled-toggle:checked + div,
+html.high-contrast-mode #dark-mode-toggle:checked + div,
+html.high-contrast-mode #high-contrast-toggle:checked + div,
+html.high-contrast-mode #reduced-motion-toggle:checked + div,
+html.high-contrast-mode #auto-save-settings-toggle:checked + div {
+  background-color: #16a34a !important;
+  border-color: #16a34a !important;
+  color: #ffffff !important;
+}
+html.high-contrast-mode #attendance-enabled-toggle + div::after,
+html.high-contrast-mode #dark-mode-toggle + div::after,
+html.high-contrast-mode #high-contrast-toggle + div::after,
+html.high-contrast-mode #reduced-motion-toggle + div::after,
+html.high-contrast-mode #auto-save-settings-toggle + div::after {
+  border: 2px solid currentColor !important;
+  background-color: #ffffff !important;
+}
+
+/* ===== REDUCED MOTION ===== */
+html.reduced-motion *,
+html.reduced-motion *::before,
+html.reduced-motion *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+
+html.reduced-motion .fade-in {
+  animation: none !important;
+}
+
+/* ===== SETTINGS LABELS FOCUS STATE ===== */
+/* Font Size radio buttons */
+label:has(> input[name='font-size-mode']):focus-within {
+  outline: 3px solid var(--color-brand-primary);
+  outline-offset: 2px;
+}
+
+/* Theme preset radio buttons */
+label:has(> input[name='theme-preset']):focus-within {
+  outline: 3px solid var(--color-brand-primary);
+  outline-offset: 2px;
+}
+
+/* Grade color intensity radio buttons */
+label:has(> input[name='grade-color-intensity']):focus-within {
+  outline: 3px solid var(--color-brand-primary);
+  outline-offset: 2px;
+}
+
+/* ===== SETTINGS STATE HELPERS ===== */
+[data-setting-key] {
+  transition:
+    border-color 180ms ease,
+    background-color 180ms ease,
+    box-shadow 180ms ease,
+    padding 180ms ease;
+}
+
+[data-setting-key].setting-dirty {
+  border: 2px solid #f59e0b;
+  border-radius: 0.6rem;
+  padding: 0.6rem;
+  background: #fffbeb;
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.15);
+  animation: dirty-row-pop 220ms ease-out;
+}
+
+.dirty-indicator-pop {
+  animation: dirty-indicator-pop 240ms ease-out;
+}
+
+@keyframes dirty-row-pop {
+  from {
+    transform: scale(0.995);
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0);
+  }
+  to {
+    transform: scale(1);
+    box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.15);
+  }
+}
+
+@keyframes dirty-indicator-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+[data-setting-card] {
+  min-height: 72px;
+}
+
+@media (max-width: 640px) {
+  [data-setting-card] {
+    min-height: 64px;
+  }
 }

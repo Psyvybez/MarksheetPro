@@ -44,6 +44,8 @@
 
       .actions {
         display: flex;
+        align-items: center;
+        flex-wrap: wrap;
         gap: 8px;
       }
 
@@ -54,6 +56,20 @@
         background: #fff;
         color: var(--text);
         text-decoration: none;
+        font-size: 0.85rem;
+        font-weight: 700;
+      }
+
+      .btn:hover {
+        background: #f8fafc;
+      }
+
+      .inline-btn {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 7px 10px;
+        background: #fff;
+        color: var(--text);
         font-size: 0.85rem;
         font-weight: 700;
       }
@@ -71,9 +87,25 @@
     <header class="bar">
       <h1 class="title">THE BOOK NOOK Student Portal</h1>
       <div class="actions">
+        <button class="inline-btn" type="button" id="reload-student-portal">Reload Portal</button>
+        <a class="btn" href="./dist/student.html?v=20260414a" target="_blank" rel="noopener noreferrer">Open Fullscreen</a>
         <a class="btn" href="./Library.html">Open Staff Portal</a>
       </div>
     </header>
-    <iframe src="./dist/student.html?v=20260414a" title="THE BOOK NOOK Student Portal" loading="eager"></iframe>
+    <iframe
+      id="student-portal-frame"
+      src="./dist/student.html?v=20260414a"
+      title="THE BOOK NOOK Student Portal"
+      loading="eager"
+    ></iframe>
+    <script>
+      const iframe = document.getElementById('student-portal-frame');
+      const reloadBtn = document.getElementById('reload-student-portal');
+
+      reloadBtn?.addEventListener('click', () => {
+        if (!iframe) return;
+        iframe.src = iframe.src;
+      });
+    </script>
   </body>
 </html>

@@ -1,4 +1,4 @@
-import { getActiveClassData } from './state.js';
+import { getActiveClassData, getAppState } from './state.js';
 
 export function getGradeColorClass(value, max = 100) {
   if (value === null || value === undefined || value === '') return '';
@@ -13,13 +13,44 @@ export function getGradeColorClass(value, max = 100) {
 
   const pct = (num / maxNum) * 100;
 
-  // Using 300 scale for brighter backgrounds
-  // Using ! to override style.css white background
-  if (pct >= 80) return '!bg-green-100 !text-green-800'; // Level 4
-  if (pct >= 70) return '!bg-blue-100 !text-blue 800'; // Level 3
-  if (pct >= 60) return '!bg-yellow-100 !text-yellow-800'; // Level 2
-  if (pct >= 50) return '!bg-orange-100 !text-orange-700'; // Level 1
-  return '!bg-red-100 !text-red-800'; // R
+  const appState = getAppState();
+  const intensity = ['subtle', 'standard', 'strong'].includes(
+    appState?.gradebook_data?.appSettings?.gradeColorIntensity
+  )
+    ? appState.gradebook_data.appSettings.gradeColorIntensity
+    : 'standard';
+
+  const palette = {
+    subtle: {
+      l4: '!bg-green-50 !text-green-700',
+      l3: '!bg-blue-50 !text-blue-700',
+      l2: '!bg-yellow-50 !text-yellow-700',
+      l1: '!bg-orange-50 !text-orange-700',
+      r: '!bg-red-50 !text-red-700',
+    },
+    standard: {
+      l4: '!bg-green-100 !text-green-800',
+      l3: '!bg-blue-100 !text-blue-800',
+      l2: '!bg-yellow-100 !text-yellow-800',
+      l1: '!bg-orange-100 !text-orange-700',
+      r: '!bg-red-100 !text-red-800',
+    },
+    strong: {
+      l4: '!bg-green-300 !text-green-900',
+      l3: '!bg-blue-300 !text-blue-900',
+      l2: '!bg-yellow-300 !text-yellow-900',
+      l1: '!bg-orange-300 !text-orange-900',
+      r: '!bg-red-300 !text-red-900',
+    },
+  };
+
+  const colors = palette[intensity];
+
+  if (pct >= 80) return colors.l4; // Level 4
+  if (pct >= 70) return colors.l3; // Level 3
+  if (pct >= 60) return colors.l2; // Level 2
+  if (pct >= 50) return colors.l1; // Level 1
+  return colors.r; // R
 }
 
 export function calculateStudentAverages(student, classData) {

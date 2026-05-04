@@ -1,13 +1,20 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { BookCard } from './BookCard';
-import type { Book, CheckoutRecord, StudentCard } from '../types';
+import type { Book, CheckoutRecord, HoldRequest, StudentCard } from '../types';
 
 interface StudentReservationModalProps {
   books: Book[];
   checkouts: CheckoutRecord[];
   onAuthenticate: (cardNumber: string, studentName: string) => StudentCard | null;
   onTrackView: (book: Book, studentCard: StudentCard) => void;
-  onReserve: (book: Book, studentCard: StudentCard) => boolean;
+  onReserve: (book: Book, studentCard: StudentCard) => HoldRequest | null;
+  onCancelReservation: (book: Book, holdId: string) => boolean;
+  onRegisterReservationNotification: (input: {
+    hold: HoldRequest;
+    book: Book;
+    studentCard: StudentCard;
+    phoneNumber: string;
+  }) => Promise<boolean>;
   onClose?: () => void;
   standalone?: boolean;
 }
@@ -31,12 +38,18 @@ function getGenreTokens(genre: string): string[] {
     .filter(Boolean);
 }
 
+const STUDENT_PORTAL_IDENTITY_KEY = 'library-tracker.student-portal.identity';
+const MAX_STUDENT_RESERVATIONS = 2;
+const MAX_STUDENT_CHECKOUTS = 1;
+
 export function StudentReservationModal({
   books,
   checkouts,
   onAuthenticate,
   onTrackView,
   onReserve,
+  onCancelReservation,
+  onRegisterReservationNotification,
   onClose,
   standalone = false,
 }: StudentReservationModalProps) {
@@ -51,6 +64,29 @@ export function StudentReservationModal({
   const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [savedIdentityAt, setSavedIdentityAt] = useState<string | null>(null);
+  const [registeringNotification, setRegisteringNotification] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    try {
+      const raw = window.localStorage.getItem(STUDENT_PORTAL_IDENTITY_KEY);
+      if (!raw) return;
+
+      const parsed = JSON.parse(raw) as { cardNumber?: unknown; studentName?: unknown; savedAt?: unknown };
+      if (typeof parsed.cardNumber === 'string' && typeof parsed.studentName === 'string') {
+        setCardNumber(parsed.cardNumber);
+        setStudentName(parsed.studentName);
+      }
+
+      if (typeof parsed.savedAt === 'string') {
+        setSavedIdentityAt(parsed.savedAt);
+      }
+    } catch {
+      // Ignore malformed localStorage payload.
+    }
+  }, []);
 
   const genreOptions = useMemo(() => {
     const unique = new Set<string>();
@@ -79,6 +115,15 @@ export function StudentReservationModal({
             (!!entry.studentCardNumber &&
               entry.studentCardNumber.toLowerCase() === activeStudent.cardNumber.toLowerCase())
         );
+      const activeStudentQueueIndex =
+        !activeStudent
+          ? -1
+          : queue.findIndex(
+              (entry) =>
+                entry.studentCardId === activeStudent.id ||
+                (!!entry.studentCardNumber &&
+                  entry.studentCardNumber.toLowerCase() === activeStudent.cardNumber.toLowerCase())
+            );
 
       return {
         book,
@@ -86,6 +131,7 @@ export function StudentReservationModal({
         availableCopies,
         queue,
         isQueuedByActiveStudent,
+        activeStudentQueuePosition: activeStudentQueueIndex >= 0 ? activeStudentQueueIndex + 1 : null,
       };
     });
   }, [books, checkouts, activeStudent]);
@@ -224,6 +270,35 @@ export function StudentReservationModal({
     }, 0);
   }, [books, activeStudent]);
 
+  const studentActiveCheckoutCount = useMemo(() => {
+    if (!activeStudent) return 0;
+    return checkouts.filter(
+      (record) =>
+        !record.returnedAt && record.borrowerName.trim().toLowerCase() === activeStudent.studentName.trim().toLowerCase()
+    ).length;
+  }, [checkouts, activeStudent]);
+
+  const studentReservations = useMemo(() => {
+    if (!activeStudent) return [] as Array<{ hold: HoldRequest; book: Book; queuePosition: number }>;
+
+    const reservations: Array<{ hold: HoldRequest; book: Book; queuePosition: number }> = [];
+    for (const book of books) {
+      const queue = Array.isArray(book.holds) ? book.holds : [];
+      queue.forEach((hold, index) => {
+        const isOwner =
+          hold.studentCardId === activeStudent.id ||
+          (!!hold.studentCardNumber && hold.studentCardNumber.toLowerCase() === activeStudent.cardNumber.toLowerCase());
+        if (!isOwner) return;
+        reservations.push({ hold, book, queuePosition: index + 1 });
+      });
+    }
+
+    reservations.sort((a, b) => new Date(a.hold.requestedAt).getTime() - new Date(b.hold.requestedAt).getTime());
+    return reservations;
+  }, [books, activeStudent]);
+
+  const isCheckoutEligibleForAutoAssign = studentActiveCheckoutCount < MAX_STUDENT_CHECKOUTS;
+
   const hasActiveExtraFilters = searchScope !== 'all' || genreFilter !== 'all' || sortMode !== 'relevance';
 
   const handleSignIn = (event: React.FormEvent) => {
@@ -240,6 +315,14 @@ export function StudentReservationModal({
     setActiveStudent(card);
     setCardNumber(card.cardNumber);
     setStudentName(card.studentName);
+    if (typeof window !== 'undefined') {
+      const savedAt = new Date().toISOString();
+      window.localStorage.setItem(
+        STUDENT_PORTAL_IDENTITY_KEY,
+        JSON.stringify({ cardNumber: card.cardNumber, studentName: card.studentName, savedAt })
+      );
+      setSavedIdentityAt(savedAt);
+    }
     setMessage(`Signed in as ${card.studentName}.`);
   };
 
@@ -250,7 +333,7 @@ export function StudentReservationModal({
     }
   };
 
-  const handleReserve = (book: Book) => {
+  const handleReserve = async (book: Book) => {
     if (!activeStudent) return;
     setError(null);
     setMessage(null);
@@ -261,8 +344,10 @@ export function StudentReservationModal({
         (!!h.studentCardNumber && h.studentCardNumber.toLowerCase() === activeStudent.cardNumber.toLowerCase())
     );
 
-    if (studentActiveHoldCount >= 1 && !isAlreadyQueuedForThisBook) {
-      setError('You can only reserve 1 book at a time. Cancel your current reservation to reserve a different book.');
+    if (studentActiveHoldCount >= MAX_STUDENT_RESERVATIONS && !isAlreadyQueuedForThisBook) {
+      setError(
+        `You can reserve up to ${MAX_STUDENT_RESERVATIONS} books at a time. Cancel one reservation to add another.`
+      );
       return;
     }
 
@@ -272,7 +357,60 @@ export function StudentReservationModal({
       return;
     }
 
-    setMessage(`Reservation saved for ${book.title}.`);
+    const reservedAt = new Date(reserved.requestedAt).toLocaleString();
+    const confirmationCode = reserved.id.slice(0, 8).toUpperCase();
+    setMessage(`Reservation confirmed for ${book.title} (Ref ${confirmationCode}) at ${reservedAt}.`);
+
+    if (typeof window !== 'undefined' && typeof window.confirm === 'function' && typeof window.prompt === 'function') {
+      const wantsSms = window.confirm(
+        'Would you like a text message when this reservation becomes available? Phone numbers are never saved in app data.'
+      );
+      if (!wantsSms) return;
+
+      const phoneNumber = window.prompt('Enter phone number for this one reservation notice:', '')?.trim() ?? '';
+      if (!phoneNumber) return;
+
+      setRegisteringNotification(true);
+      const linked = await onRegisterReservationNotification({
+        hold: reserved,
+        book,
+        studentCard: activeStudent,
+        phoneNumber,
+      });
+      setRegisteringNotification(false);
+
+      if (linked) {
+        setMessage(
+          `Reservation confirmed for ${book.title} (Ref ${confirmationCode}) at ${reservedAt}. SMS alerts are now enabled.`
+        );
+      } else {
+        setError('Reservation saved, but SMS enrollment failed. Please ask staff to retry notification setup.');
+      }
+    }
+  };
+
+  const handleCancelReservation = (book: Book) => {
+    if (!activeStudent) return;
+    const activeHold = (Array.isArray(book.holds) ? book.holds : []).find(
+      (entry) =>
+        entry.studentCardId === activeStudent.id ||
+        (!!entry.studentCardNumber && entry.studentCardNumber.toLowerCase() === activeStudent.cardNumber.toLowerCase())
+    );
+
+    if (!activeHold) {
+      setError('No active reservation was found for this title.');
+      return;
+    }
+
+    setError(null);
+    setMessage(null);
+    const cancelled = onCancelReservation(book, activeHold.id);
+    if (!cancelled) {
+      setError('This reservation could not be canceled. Please try again.');
+      return;
+    }
+
+    setMessage(`Reservation canceled for ${book.title}.`);
   };
 
   const outerClassName = standalone ? 'student-portal-page' : 'modal-backdrop';
@@ -330,6 +468,12 @@ export function StudentReservationModal({
               Sign In
             </button>
 
+            {savedIdentityAt && (
+              <p className="settings-hint" role="status">
+                Last saved sign-in: {new Date(savedIdentityAt).toLocaleString()}
+              </p>
+            )}
+
             <p className="settings-hint">Only active assigned library cards can access reservation mode.</p>
           </form>
         ) : (
@@ -361,11 +505,51 @@ export function StudentReservationModal({
               </button>
             </div>
 
-            {studentActiveHoldCount >= 1 && (
+            {(studentActiveHoldCount >= 1 || studentActiveCheckoutCount >= 1) && (
               <p className="settings-hint student-limit-notice" role="status">
-                You have an active reservation. Students may only reserve 1 book at a time.
+                You currently have {studentActiveHoldCount} of {MAX_STUDENT_RESERVATIONS} reservations and{' '}
+                {studentActiveCheckoutCount} of {MAX_STUDENT_CHECKOUTS} checkouts.
               </p>
             )}
+
+            <div className={`student-checkout-eligibility ${isCheckoutEligibleForAutoAssign ? 'eligible' : 'blocked'}`}>
+              {isCheckoutEligibleForAutoAssign
+                ? 'Checkout Eligibility: Eligible for automatic pickup when you are next in line.'
+                : 'Checkout Eligibility: Not currently eligible for automatic pickup (you already have 1 active checkout).'}
+            </div>
+
+            <section className="student-reservation-summary" aria-label="My reservations">
+              <div className="student-reservation-summary-head">
+                <h3>My Reservations</h3>
+                <span>
+                  {studentReservations.length} / {MAX_STUDENT_RESERVATIONS}
+                </span>
+              </div>
+              {studentReservations.length === 0 ? (
+                <p className="student-reservation-empty">You have no active reservations.</p>
+              ) : (
+                <ul className="student-reservation-list">
+                  {studentReservations.map((reservation) => (
+                    <li key={reservation.hold.id} className="student-reservation-item">
+                      <div>
+                        <strong>{reservation.book.title}</strong>
+                        <p>
+                          Queue position #{reservation.queuePosition} • Requested{' '}
+                          {new Date(reservation.hold.requestedAt).toLocaleString()}
+                        </p>
+                      </div>
+                      <button
+                        className="btn btn-secondary"
+                        onClick={() => handleCancelReservation(reservation.book)}
+                        type="button"
+                      >
+                        Cancel
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
 
             <div className="student-portal-shell">
               <div className="student-portal-catalog">
@@ -488,6 +672,7 @@ export function StudentReservationModal({
                             book={status.book}
                             activeCheckouts={status.activeCheckouts}
                             availableCopies={status.availableCopies}
+                            hideBorrowerDetails
                             onClick={() => handleSelectBook(status.book)}
                           />
                           <div className="student-book-card-actions">
@@ -498,21 +683,32 @@ export function StudentReservationModal({
                                   : `Waitlist length ${status.queue.length}`}
                               </span>
                               {status.isQueuedByActiveStudent && (
-                                <span className="student-book-card-reserved">You are already in line</span>
+                                <span className="student-book-card-reserved">
+                                  You are already in line
+                                  {status.activeStudentQueuePosition ? ` • Position #${status.activeStudentQueuePosition}` : ''}
+                                </span>
                               )}
                             </div>
                             <button
                               className="btn btn-primary"
-                              onClick={() => handleReserve(status.book)}
+                              onClick={() => {
+                                if (status.isQueuedByActiveStudent) {
+                                  handleCancelReservation(status.book);
+                                  return;
+                                }
+                                void handleReserve(status.book);
+                              }}
                               disabled={
-                                status.isQueuedByActiveStudent ||
-                                (studentActiveHoldCount >= 1 && !status.isQueuedByActiveStudent)
+                                (studentActiveHoldCount >= MAX_STUDENT_RESERVATIONS && !status.isQueuedByActiveStudent) ||
+                                registeringNotification
                               }
                             >
                               {status.isQueuedByActiveStudent
-                                ? 'Already Reserved'
-                                : studentActiveHoldCount >= 1
-                                  ? '1 Book Limit Reached'
+                                ? 'Cancel Reservation'
+                                : studentActiveHoldCount >= MAX_STUDENT_RESERVATIONS
+                                  ? `${MAX_STUDENT_RESERVATIONS} Book Limit Reached`
+                                  : registeringNotification
+                                    ? 'Saving Notification…'
                                   : status.availableCopies > 0
                                     ? 'Reserve This Copy'
                                     : 'Join Waitlist'}
@@ -565,7 +761,7 @@ export function StudentReservationModal({
                         <h4 className="modal-section-title">Waitlist Snapshot</h4>
                         <p className="student-book-waitlist-text">
                           {selectedBookStatus.isQueuedByActiveStudent
-                            ? 'You are already in the queue for this book.'
+                            ? `You are already in the queue for this book${selectedBookStatus.activeStudentQueuePosition ? ` at position #${selectedBookStatus.activeStudentQueuePosition}` : ''}.`
                             : `There ${selectedBookStatus.queue.length === 1 ? 'is' : 'are'} ${selectedBookStatus.queue.length} student${selectedBookStatus.queue.length === 1 ? '' : 's'} waiting for this title.`}
                         </p>
                       </div>

@@ -4,6 +4,7 @@ export interface HoldRequest {
   borrowerName: string;
   studentCardId?: string;
   studentCardNumber?: string;
+  notificationContactId?: string;
   requestedAt: string;
 }
 

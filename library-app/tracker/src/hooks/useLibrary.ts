@@ -14,6 +14,10 @@ import {
 import { loadCloudLibraryState, saveCloudLibraryState } from '../services/cloudStorage';
 import { lookupCatalogBook } from '../services/catalog';
 import { fetchGoogleBooksMetadata } from '../services/api';
+import { sendReadyNotice } from '../services/notifications';
+
+const MAX_STUDENT_RESERVATIONS = 2;
+const MAX_STUDENT_CHECKOUTS = 1;
 
 export interface BookStatus {
   book: Book;
@@ -94,6 +98,16 @@ function generateStudentCardNumber(existingCards: StudentCard[]): string {
   }, 0);
 
   return `LIB-${String(maxNumber + 1).padStart(5, '0')}`;
+}
+
+function countActiveCheckoutsByBorrower(checkouts: CheckoutRecord[], borrowerName: string): number {
+  const normalizedBorrower = borrowerName.trim().toLowerCase();
+  if (!normalizedBorrower) return 0;
+
+  return checkouts.filter((checkout) => {
+    if (checkout.returnedAt) return false;
+    return checkout.borrowerName.trim().toLowerCase() === normalizedBorrower;
+  }).length;
 }
 
 export function useLibrary() {
@@ -463,6 +477,24 @@ export function useLibrary() {
         return null;
       }
 
+      if (studentCard) {
+        const activeReservations = books.reduce((count, entry) => {
+          const queueEntries = Array.isArray(entry.holds) ? entry.holds : [];
+          const matched = queueEntries.some(
+            (hold) =>
+              hold.studentCardId === studentCard.id ||
+              (!!hold.studentCardNumber &&
+                hold.studentCardNumber.toLowerCase() === studentCard.cardNumber.toLowerCase())
+          );
+          return count + (matched ? 1 : 0);
+        }, 0);
+
+        if (activeReservations >= MAX_STUDENT_RESERVATIONS) {
+          setError(`Students can reserve up to ${MAX_STUDENT_RESERVATIONS} books at a time.`);
+          return null;
+        }
+      }
+
       const hold: HoldRequest = {
         id: crypto.randomUUID(),
         borrowerName: trimmedName,
@@ -514,6 +546,34 @@ export function useLibrary() {
         };
       });
 
+      saveBooks(updated);
+      return updated;
+    });
+  }, []);
+
+  const attachHoldNotificationContact = useCallback((isbn: string, holdId: string, contactId: string) => {
+    const normalizedTarget = normalizeIsbn(isbn);
+    const trimmedContactId = contactId.trim();
+    if (!trimmedContactId) return;
+
+    setBooks((prev) => {
+      const updated = prev.map((book) => {
+        const isMatch =
+          normalizeIsbn(book.isbn) === normalizedTarget || normalizeIsbn(book.isbn13) === normalizedTarget;
+        if (!isMatch) return book;
+
+        return {
+          ...book,
+          holds: (book.holds ?? []).map((entry) =>
+            entry.id === holdId
+              ? {
+                  ...entry,
+                  notificationContactId: trimmedContactId,
+                }
+              : entry
+          ),
+        };
+      });
       saveBooks(updated);
       return updated;
     });
@@ -584,16 +644,30 @@ export function useLibrary() {
             normalizeIsbn(book.isbn13) === normalizeIsbn(target.isbn)
         );
 
-        const nextHold = matchedBook?.holds?.[0];
-        if (matchedBook && nextHold) {
+        const holdQueue = matchedBook?.holds ?? [];
+        const nextEligibleHold = holdQueue.find((hold) => {
+          if (!hold.studentCardId) return true;
+
+          const matchedCard = studentCards.find((card) => card.id === hold.studentCardId);
+          const borrowerLabel = matchedCard?.studentName ?? hold.borrowerName;
+          const activeCount = countActiveCheckoutsByBorrower(updated, borrowerLabel);
+          return activeCount < MAX_STUDENT_CHECKOUTS;
+        });
+
+        if (matchedBook && nextEligibleHold) {
           const due = new Date();
           due.setDate(due.getDate() + 14);
+
+          const matchedCard = nextEligibleHold.studentCardId
+            ? studentCards.find((card) => card.id === nextEligibleHold.studentCardId)
+            : null;
+          const borrowerForCheckout = matchedCard?.studentName ?? nextEligibleHold.borrowerName;
 
           updated.push({
             id: crypto.randomUUID(),
             isbn: normalizeIsbn(target.isbn),
             bookTitle: matchedBook.title,
-            borrowerName: nextHold.borrowerName,
+            borrowerName: borrowerForCheckout,
             checkedOutAt: returnedAt,
             dueDate: due.toISOString(),
           });
@@ -606,23 +680,31 @@ export function useLibrary() {
               if (!isMatch) return book;
               return {
                 ...book,
-                holds: (book.holds ?? []).slice(1),
+                holds: (book.holds ?? []).filter((hold) => hold.id !== nextEligibleHold.id),
               };
             });
             saveBooks(booksUpdated);
             return booksUpdated;
           });
 
-          if (nextHold.studentCardId && nextHold.studentCardNumber) {
-            const matchedCard = studentCards.find((card) => card.id === nextHold.studentCardId);
+          if (nextEligibleHold.studentCardId && nextEligibleHold.studentCardNumber) {
             appendReservationActivity({
               type: 'auto-assigned',
-              studentCardId: nextHold.studentCardId,
-              studentCardNumber: nextHold.studentCardNumber,
-              studentName: matchedCard?.studentName ?? nextHold.borrowerName,
+              studentCardId: nextEligibleHold.studentCardId,
+              studentCardNumber: nextEligibleHold.studentCardNumber,
+              studentName: borrowerForCheckout,
               bookIsbn: matchedBook.isbn13 || matchedBook.isbn,
               bookTitle: matchedBook.title,
             });
+
+            if (nextEligibleHold.notificationContactId) {
+              void sendReadyNotice({
+                contactId: nextEligibleHold.notificationContactId,
+                reservationId: nextEligibleHold.id,
+                studentName: borrowerForCheckout,
+                bookTitle: matchedBook.title,
+              });
+            }
           }
         }
 
@@ -816,6 +898,7 @@ export function useLibrary() {
     removeBook,
     placeHold,
     cancelHold,
+    attachHoldNotificationContact,
     checkoutBook,
     returnBook,
     authenticateStudentCard,

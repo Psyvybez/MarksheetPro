@@ -9,7 +9,8 @@ import { ManualBookModal } from './components/ManualBookModal';
 import { SettingsModal } from './components/SettingsModal';
 import { StudentReservationModal } from './components/StudentReservationModal';
 import { ReservationActivityModal } from './components/ReservationActivityModal';
-import type { AppView, Book, StudentCard } from './types';
+import type { AppView, Book, HoldRequest, StudentCard } from './types';
+import { registerReservationContact } from './services/notifications';
 
 function isStudentPortalMode(): boolean {
   if (typeof document !== 'undefined' && document.body.dataset.appMode === 'student') {
@@ -197,9 +198,38 @@ export default function App() {
   );
 
   const handleStudentReserve = useCallback(
-    (book: Book, studentCard: StudentCard): boolean => {
+    (book: Book, studentCard: StudentCard): HoldRequest | null => {
       const created = library.placeHold(book.isbn13 || book.isbn, studentCard.studentName, studentCard);
-      return Boolean(created);
+      return created;
+    },
+    [library]
+  );
+
+  const handleStudentReservationCancel = useCallback(
+    (book: Book, holdId: string): boolean => {
+      library.cancelHold(book.isbn13 || book.isbn, holdId);
+      return true;
+    },
+    [library]
+  );
+
+  const handleRegisterReservationNotification = useCallback(
+    async (input: { hold: HoldRequest; book: Book; studentCard: StudentCard; phoneNumber: string }): Promise<boolean> => {
+      const result = await registerReservationContact({
+        reservationId: input.hold.id,
+        studentCardId: input.studentCard.id,
+        studentName: input.studentCard.studentName,
+        studentCardNumber: input.studentCard.cardNumber,
+        bookTitle: input.book.title,
+        phoneNumber: input.phoneNumber,
+      });
+
+      if (!result.contactId) {
+        return false;
+      }
+
+      library.attachHoldNotificationContact(input.book.isbn13 || input.book.isbn, input.hold.id, result.contactId);
+      return true;
     },
     [library]
   );
@@ -231,6 +261,8 @@ export default function App() {
             onAuthenticate={handleStudentSignIn}
             onTrackView={handleStudentBookView}
             onReserve={handleStudentReserve}
+            onCancelReservation={handleStudentReservationCancel}
+            onRegisterReservationNotification={handleRegisterReservationNotification}
             standalone
           />
         </main>
