@@ -214,7 +214,12 @@ export default function App() {
   );
 
   const handleRegisterReservationNotification = useCallback(
-    async (input: { hold: HoldRequest; book: Book; studentCard: StudentCard; phoneNumber: string }): Promise<boolean> => {
+    async (input: {
+      hold: HoldRequest;
+      book: Book;
+      studentCard: StudentCard;
+      phoneNumber: string;
+    }): Promise<boolean> => {
       const result = await registerReservationContact({
         reservationId: input.hold.id,
         studentCardId: input.studentCard.id,

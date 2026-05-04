@@ -115,15 +115,14 @@ export function StudentReservationModal({
             (!!entry.studentCardNumber &&
               entry.studentCardNumber.toLowerCase() === activeStudent.cardNumber.toLowerCase())
         );
-      const activeStudentQueueIndex =
-        !activeStudent
-          ? -1
-          : queue.findIndex(
-              (entry) =>
-                entry.studentCardId === activeStudent.id ||
-                (!!entry.studentCardNumber &&
-                  entry.studentCardNumber.toLowerCase() === activeStudent.cardNumber.toLowerCase())
-            );
+      const activeStudentQueueIndex = !activeStudent
+        ? -1
+        : queue.findIndex(
+            (entry) =>
+              entry.studentCardId === activeStudent.id ||
+              (!!entry.studentCardNumber &&
+                entry.studentCardNumber.toLowerCase() === activeStudent.cardNumber.toLowerCase())
+          );
 
       return {
         book,
@@ -274,7 +273,8 @@ export function StudentReservationModal({
     if (!activeStudent) return 0;
     return checkouts.filter(
       (record) =>
-        !record.returnedAt && record.borrowerName.trim().toLowerCase() === activeStudent.studentName.trim().toLowerCase()
+        !record.returnedAt &&
+        record.borrowerName.trim().toLowerCase() === activeStudent.studentName.trim().toLowerCase()
     ).length;
   }, [checkouts, activeStudent]);
 
@@ -685,7 +685,9 @@ export function StudentReservationModal({
                               {status.isQueuedByActiveStudent && (
                                 <span className="student-book-card-reserved">
                                   You are already in line
-                                  {status.activeStudentQueuePosition ? ` • Position #${status.activeStudentQueuePosition}` : ''}
+                                  {status.activeStudentQueuePosition
+                                    ? ` • Position #${status.activeStudentQueuePosition}`
+                                    : ''}
                                 </span>
                               )}
                             </div>
@@ -699,7 +701,8 @@ export function StudentReservationModal({
                                 void handleReserve(status.book);
                               }}
                               disabled={
-                                (studentActiveHoldCount >= MAX_STUDENT_RESERVATIONS && !status.isQueuedByActiveStudent) ||
+                                (studentActiveHoldCount >= MAX_STUDENT_RESERVATIONS &&
+                                  !status.isQueuedByActiveStudent) ||
                                 registeringNotification
                               }
                             >
@@ -709,9 +712,9 @@ export function StudentReservationModal({
                                   ? `${MAX_STUDENT_RESERVATIONS} Book Limit Reached`
                                   : registeringNotification
                                     ? 'Saving Notification…'
-                                  : status.availableCopies > 0
-                                    ? 'Reserve This Copy'
-                                    : 'Join Waitlist'}
+                                    : status.availableCopies > 0
+                                      ? 'Reserve This Copy'
+                                      : 'Join Waitlist'}
                             </button>
                           </div>
                         </div>
