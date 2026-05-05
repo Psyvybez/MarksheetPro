@@ -11,6 +11,18 @@ export interface CloudLibraryState {
   reservationActivity: ReservationActivity[];
 }
 
+function getTeacherIdFromUrl(): string | null {
+  if (typeof window === 'undefined') return null;
+
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const teacher = params.get('teacher');
+    return teacher ? teacher.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
 function ensureBookArray(value: unknown): Book[] {
   if (!Array.isArray(value)) return [];
   return (value as Book[]).map((book) => ({
@@ -72,6 +84,12 @@ export async function loadCloudLibraryState(): Promise<CloudLibraryState | null>
   const userId = await getCurrentUserId();
   if (!userId) return null;
 
+  const requestedTeacherId = getTeacherIdFromUrl();
+  if (requestedTeacherId && requestedTeacherId !== userId) {
+    console.warn('Teacher scope mismatch. Ignoring cloud load for this URL context.');
+    return null;
+  }
+
   const { data, error } = await supabase
     .from(CLOUD_TABLE)
     .select('books, checkouts, student_cards, reservation_activity')
@@ -96,6 +114,12 @@ export async function loadCloudLibraryState(): Promise<CloudLibraryState | null>
 export async function saveCloudLibraryState(input: CloudLibraryState): Promise<boolean> {
   const userId = await getCurrentUserId();
   if (!userId) return false;
+
+  const requestedTeacherId = getTeacherIdFromUrl();
+  if (requestedTeacherId && requestedTeacherId !== userId) {
+    console.warn('Teacher scope mismatch. Ignoring cloud save for this URL context.');
+    return false;
+  }
 
   const { error } = await supabase.from(CLOUD_TABLE).upsert(
     {

@@ -228,8 +228,7 @@
       };
 
       const loadFallbackQrImage = () => {
-        const fallbackQrUrl =
-          `https://api.qrserver.com/v1/create-qr-code/?size=320x320&ecc=H&margin=8&data=${encodeURIComponent(portalUrl)}`;
+        const fallbackQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=320x320&ecc=H&margin=8&data=${encodeURIComponent(portalUrl)}`;
 
         qrImg.addEventListener(
           'load',

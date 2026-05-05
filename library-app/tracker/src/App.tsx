@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useLibrary, type ManualBookInput } from './hooks/useLibrary';
 import { Scanner } from './components/Scanner';
 import { BookActionModal } from './components/BookActionModal';
@@ -9,7 +9,7 @@ import { ManualBookModal } from './components/ManualBookModal';
 import { SettingsModal } from './components/SettingsModal';
 import { StudentReservationModal } from './components/StudentReservationModal';
 import { ReservationActivityModal } from './components/ReservationActivityModal';
-import { getTeacherIdForLinks } from './services/cloudStorage';
+import { getCurrentUserId, getTeacherIdForLinks } from './services/cloudStorage';
 import type { AppView, Book, HoldRequest, StudentCard } from './types';
 import { registerReservationContact } from './services/notifications';
 
@@ -27,6 +27,7 @@ function isStudentPortalMode(): boolean {
 
 export default function App() {
   const studentPortalMode = isStudentPortalMode();
+  const [teacherScopeError, setTeacherScopeError] = useState<string | null>(null);
   const [view, setView] = useState<AppView>('dashboard');
   const [showScanner, setShowScanner] = useState(false);
   const [scannerMode, setScannerMode] = useState<'add' | 'search'>('add');
@@ -40,6 +41,35 @@ export default function App() {
   const [scanError, setScanError] = useState<string | null>(null);
 
   const library = useLibrary();
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const validateTeacherScope = async () => {
+      if (typeof window === 'undefined') return;
+      const teacherFromUrl = new URLSearchParams(window.location.search).get('teacher');
+      if (!teacherFromUrl) {
+        if (!cancelled) setTeacherScopeError(null);
+        return;
+      }
+
+      const userId = await getCurrentUserId();
+      if (cancelled) return;
+
+      if (userId && userId !== teacherFromUrl) {
+        setTeacherScopeError('This student portal link belongs to a different teacher account.');
+        return;
+      }
+
+      setTeacherScopeError(null);
+    };
+
+    validateTeacherScope();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // After a successful scan: look up the book and open the appropriate modal
   const handleScan = useCallback(
@@ -258,6 +288,22 @@ export default function App() {
   ].sort((a, b) => a.localeCompare(b));
 
   if (studentPortalMode) {
+    if (teacherScopeError) {
+      return (
+        <div className="app">
+          <header className="app-header">
+            <h1 className="app-title">THE BOOK NOOK</h1>
+          </header>
+
+          <main className="app-main">
+            <div className="error-banner" role="alert">
+              <span>{teacherScopeError}</span>
+            </div>
+          </main>
+        </div>
+      );
+    }
+
     return (
       <div className="app">
         <header className="app-header">
