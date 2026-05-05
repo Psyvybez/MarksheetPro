@@ -97,6 +97,8 @@
         border-radius: 12px;
         padding: 0.7rem;
         border: 1px solid #cfd9e6;
+        width: 320px;
+        height: 320px;
       }
 
       .info-panel {
@@ -179,7 +181,7 @@
         </header>
         <div class="poster-body">
           <div class="qr-panel">
-            <canvas id="portal-qr" width="320" height="320" aria-label="Student portal QR code"></canvas>
+            <img id="portal-qr" alt="Student portal QR code" />
           </div>
           <div class="info-panel">
             <h2>How To Access</h2>
@@ -200,26 +202,31 @@
 
     <script>
       const portalUrl = new URL('./dist/student.html', window.location.href).toString();
-      const qrCanvas = document.getElementById('portal-qr');
+      const qrImg = document.getElementById('portal-qr');
       const urlEl = document.getElementById('portal-url');
       const printBtn = document.getElementById('print-poster');
       const copyBtn = document.getElementById('copy-link');
       const openBtn = document.getElementById('open-portal');
 
       urlEl.textContent = portalUrl;
+      printBtn.disabled = true;
 
-      QRCode.toCanvas(
-        qrCanvas,
+      QRCode.toDataURL(
         portalUrl,
         {
           width: 320,
           margin: 1,
           errorCorrectionLevel: 'H',
         },
-        (err) => {
+        (err, dataUrl) => {
           if (err) {
             urlEl.textContent = `Failed to generate QR code. Use link: ${portalUrl}`;
+            printBtn.disabled = false;
+            return;
           }
+
+          qrImg.src = dataUrl;
+          printBtn.disabled = false;
         }
       );
 

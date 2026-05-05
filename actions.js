@@ -1952,44 +1952,6 @@ function exportGradebookPDF({ studentIds = [] }) {
     return `${value.toFixed(1)}%`;
   };
 
-  const truncateTextToWidth = (text, fontSize, maxWidth) => {
-    const clean = String(text || '').replace(/\s+/g, ' ').trim();
-    if (!clean) return '';
-
-    doc.setFontSize(fontSize);
-    if (doc.getTextWidth(clean) <= maxWidth) return clean;
-
-    let low = 1;
-    let high = clean.length;
-    let best = '';
-
-    while (low <= high) {
-      const mid = Math.floor((low + high) / 2);
-      const candidate = `${clean.slice(0, mid).trimEnd()}...`;
-      if (doc.getTextWidth(candidate) <= maxWidth) {
-        best = candidate;
-        low = mid + 1;
-      } else {
-        high = mid - 1;
-      }
-    }
-
-    return best || '...';
-  };
-
-  const getWrappedTitleLines = (text, fontSize, maxLineWidth, maxLines = 3) => {
-    const clean = String(text || '').replace(/\s+/g, ' ').trim();
-    if (!clean) return [];
-
-    doc.setFontSize(fontSize);
-    const wrapped = doc.splitTextToSize(clean, maxLineWidth);
-    if (wrapped.length <= maxLines) return wrapped;
-
-    const visible = wrapped.slice(0, maxLines);
-    visible[maxLines - 1] = truncateTextToWidth(visible[maxLines - 1], fontSize, maxLineWidth);
-    return visible;
-  };
-
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
 
@@ -2023,21 +1985,21 @@ function exportGradebookPDF({ studentIds = [] }) {
   };
 
   const summaryColumnStyles = {
-    0: { cellWidth: 9, halign: 'right' },
-    1: { cellWidth: 12 },
-    2: { cellWidth: 12 },
-    3: { cellWidth: 9, halign: 'center' },
-    4: { cellWidth: 12, halign: 'right' },
+    0: { cellWidth: 10, halign: 'right' },
+    1: { cellWidth: 30 },
+    2: { cellWidth: 24 },
+    3: { cellWidth: 12, halign: 'center' },
+    4: { cellWidth: 14, halign: 'right' },
     5: { cellWidth: 12, halign: 'right' },
     6: { cellWidth: 12, halign: 'right' },
-    7: { cellWidth: 12, halign: 'right' },
-    8: { cellWidth: 12, halign: 'right' },
-    9: { cellWidth: 12, halign: 'right' },
-    10: { cellWidth: 12, halign: 'right' },
+    7: { cellWidth: 10, halign: 'right' },
+    8: { cellWidth: 10, halign: 'right' },
+    9: { cellWidth: 10, halign: 'right' },
+    10: { cellWidth: 10, halign: 'right' },
   };
   if (attendanceEnabled) {
-    summaryColumnStyles[11] = { cellWidth: 12, halign: 'right' };
-    summaryColumnStyles[12] = { cellWidth: 12, halign: 'right' };
+    summaryColumnStyles[11] = { cellWidth: 10, halign: 'right' };
+    summaryColumnStyles[12] = { cellWidth: 10, halign: 'right' };
     summaryColumnStyles[13] = { cellWidth: 12, halign: 'right' };
   }
 
@@ -2230,26 +2192,25 @@ function exportGradebookPDF({ studentIds = [] }) {
           const rawTitle = String(col.headerTitle || '').trim();
           const subtitle = String(col.headerSubtitle || '').trim();
 
-          // Wrap angled title text to keep long assignment names readable inside the header cell.
-          const diagonalLength = Math.hypot(hookData.cell.width, hookData.cell.height);
-          const diagonalPadding = 10;
-          const titleFontSize = 6.4;
-          const maxLineWidth = Math.max(8, (diagonalLength - diagonalPadding) * 0.72);
-          const titleLines = getWrappedTitleLines(rawTitle, titleFontSize, maxLineWidth, 3);
+          const titleLinesRaw = hookData.doc.splitTextToSize(rawTitle, Math.max(8, hookData.cell.width * 1.1));
+          const maxTitleLines = 3;
+          const titleLines = titleLinesRaw.slice(0, maxTitleLines);
+          if (titleLinesRaw.length > maxTitleLines && titleLines.length) {
+            titleLines[titleLines.length - 1] = `${titleLines[titleLines.length - 1]}...`;
+          }
 
-          const titleX = hookData.cell.x + 1.8;
-          const titleLineStep = 3.4;
-          const titleBaseY = hookData.cell.y + hookData.cell.height - 8.8;
-          const firstLineY = titleBaseY - (titleLines.length - 1) * titleLineStep;
+          const titleX = hookData.cell.x + 1.2;
+          const titleLineGap = 2.8;
+          const titleY = hookData.cell.y + hookData.cell.height - 12 - (titleLines.length - 1) * titleLineGap;
           const subtitleX = hookData.cell.x + hookData.cell.width / 2;
-          const subtitleY = hookData.cell.y + hookData.cell.height - 1.1;
+          const subtitleY = hookData.cell.y + hookData.cell.height - 1.2;
 
           hookData.doc.setTextColor(255, 255, 255);
           hookData.doc.setFont(undefined, 'bold');
-          hookData.doc.setFontSize(titleFontSize);
-          titleLines.forEach((line, lineIndex) => {
-            hookData.doc.text(line, titleX, firstLineY + lineIndex * titleLineStep, {
-              angle: 50,
+          hookData.doc.setFontSize(6);
+          titleLines.forEach((line, index) => {
+            hookData.doc.text(line, titleX, titleY + index * titleLineGap, {
+              angle: 55,
               align: 'left',
             });
           });
