@@ -165,7 +165,6 @@
         }
       }
     </style>
-    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
   </head>
   <body>
     <div class="toolbar">
@@ -207,31 +206,81 @@
       const printBtn = document.getElementById('print-poster');
       const copyBtn = document.getElementById('copy-link');
       const openBtn = document.getElementById('open-portal');
+      const PRINT_WAIT_MS = 1200;
+      let qrState = 'pending';
+      let queuedPrintTimer = null;
 
       urlEl.textContent = portalUrl;
-      printBtn.disabled = true;
 
-      QRCode.toDataURL(
-        portalUrl,
-        {
-          width: 320,
-          margin: 1,
-          errorCorrectionLevel: 'H',
-        },
-        (err, dataUrl) => {
-          if (err) {
-            urlEl.textContent = `Failed to generate QR code. Use link: ${portalUrl}`;
-            printBtn.disabled = false;
-            return;
-          }
-
-          qrImg.src = dataUrl;
-          printBtn.disabled = false;
+      const runPrint = () => {
+        if (queuedPrintTimer) {
+          clearTimeout(queuedPrintTimer);
+          queuedPrintTimer = null;
         }
-      );
+        printBtn.textContent = 'Print Poster';
+        window.print();
+      };
+
+      const loadFallbackQrImage = () => {
+        const fallbackQrUrl =
+          `https://api.qrserver.com/v1/create-qr-code/?size=320x320&ecc=H&margin=8&data=${encodeURIComponent(portalUrl)}`;
+
+        qrImg.addEventListener(
+          'load',
+          () => {
+            qrState = 'ready';
+            if (queuedPrintTimer) runPrint();
+          },
+          { once: true }
+        );
+
+        qrImg.addEventListener(
+          'error',
+          () => {
+            qrState = 'failed';
+            urlEl.textContent = `Failed to generate QR code. Use link: ${portalUrl}`;
+            if (queuedPrintTimer) runPrint();
+          },
+          { once: true }
+        );
+
+        qrImg.src = fallbackQrUrl;
+      };
+
+      if (typeof QRCode !== 'undefined' && typeof QRCode.toDataURL === 'function') {
+        QRCode.toDataURL(
+          portalUrl,
+          {
+            width: 320,
+            margin: 1,
+            errorCorrectionLevel: 'H',
+          },
+          (err, dataUrl) => {
+            if (err) {
+              loadFallbackQrImage();
+              return;
+            }
+
+            qrState = 'ready';
+            qrImg.src = dataUrl;
+            if (queuedPrintTimer) runPrint();
+          }
+        );
+      } else {
+        loadFallbackQrImage();
+      }
 
       printBtn.addEventListener('click', () => {
-        window.print();
+        if (qrState !== 'pending') {
+          runPrint();
+          return;
+        }
+
+        if (queuedPrintTimer) return;
+        printBtn.textContent = 'Preparing QR...';
+        queuedPrintTimer = setTimeout(() => {
+          runPrint();
+        }, PRINT_WAIT_MS);
       });
 
       copyBtn.addEventListener('click', async () => {
