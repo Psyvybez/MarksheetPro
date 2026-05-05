@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 import { exportLibraryBackup, importLibraryBackup } from '../services/storage';
-import { getCurrentUserId } from '../services/cloudStorage';
+import { getLocalTeacherId, getTeacherIdForLinks } from '../services/cloudStorage';
 
 interface SettingsModalProps {
   onDataImported: () => void;
@@ -29,14 +29,17 @@ export function SettingsModal({
   const [backupError, setBackupError] = useState<string | null>(null);
   const [portalQrDataUrl, setPortalQrDataUrl] = useState<string | null>(null);
   const [portalQrError, setPortalQrError] = useState<string | null>(null);
-  const [teacherUserId, setTeacherUserId] = useState<string | null>(null);
+  const [teacherUserId, setTeacherUserId] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    return getLocalTeacherId();
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let cancelled = false;
 
     const resolveUserId = async () => {
-      const userId = await getCurrentUserId();
+      const userId = await getTeacherIdForLinks();
       if (!cancelled) {
         setTeacherUserId(userId);
       }

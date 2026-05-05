@@ -2,6 +2,7 @@ import type { Book, CheckoutRecord, StudentCard, ReservationActivity } from '../
 import { supabase } from './supabase';
 
 const CLOUD_TABLE = 'library_tracker_state';
+const LOCAL_TEACHER_ID_KEY = 'library_tracker_teacher_id';
 
 export interface CloudLibraryState {
   books: Book[];
@@ -42,6 +43,29 @@ export async function getCurrentUserId(): Promise<string | null> {
   }
 
   return session?.user?.id ?? null;
+}
+
+export function getLocalTeacherId(): string {
+  try {
+    const existing = localStorage.getItem(LOCAL_TEACHER_ID_KEY);
+    if (existing) return existing;
+
+    const generated =
+      typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : `local-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
+    localStorage.setItem(LOCAL_TEACHER_ID_KEY, generated);
+    return generated;
+  } catch {
+    return 'local-anonymous';
+  }
+}
+
+export async function getTeacherIdForLinks(): Promise<string> {
+  const userId = await getCurrentUserId();
+  if (userId) return userId;
+  return getLocalTeacherId();
 }
 
 export async function loadCloudLibraryState(): Promise<CloudLibraryState | null> {
