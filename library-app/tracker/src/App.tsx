@@ -9,6 +9,7 @@ import { ManualBookModal } from './components/ManualBookModal';
 import { SettingsModal } from './components/SettingsModal';
 import { StudentReservationModal } from './components/StudentReservationModal';
 import { ReservationActivityModal } from './components/ReservationActivityModal';
+import { getCurrentUserId } from './services/cloudStorage';
 import type { AppView, Book, HoldRequest, StudentCard } from './types';
 import { registerReservationContact } from './services/notifications';
 
@@ -239,8 +240,12 @@ export default function App() {
     [library]
   );
 
-  const handleOpenStudentPortal = useCallback(() => {
+  const handleOpenStudentPortal = useCallback(async () => {
     const url = new URL('./student.html', window.location.href);
+    const teacherUserId = await getCurrentUserId();
+    if (teacherUserId) {
+      url.searchParams.set('teacher', teacherUserId);
+    }
     window.open(url.toString(), '_blank', 'noopener,noreferrer');
   }, []);
 

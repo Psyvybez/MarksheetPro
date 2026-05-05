@@ -30,7 +30,7 @@ function ensureReservationActivityArray(value: unknown): ReservationActivity[] {
   return Array.isArray(value) ? (value as ReservationActivity[]) : [];
 }
 
-async function getCurrentUserId(): Promise<string | null> {
+export async function getCurrentUserId(): Promise<string | null> {
   const {
     data: { session },
     error,

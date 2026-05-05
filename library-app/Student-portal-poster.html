@@ -200,7 +200,13 @@
     </main>
 
     <script>
-      const portalUrl = new URL('./dist/student.html', window.location.href).toString();
+      const pageParams = new URLSearchParams(window.location.search);
+      const teacherId = pageParams.get('teacher');
+      const portalTarget = new URL('./dist/student.html', window.location.href);
+      if (teacherId) {
+        portalTarget.searchParams.set('teacher', teacherId);
+      }
+      const portalUrl = portalTarget.toString();
       const qrImg = document.getElementById('portal-qr');
       const urlEl = document.getElementById('portal-url');
       const printBtn = document.getElementById('print-poster');

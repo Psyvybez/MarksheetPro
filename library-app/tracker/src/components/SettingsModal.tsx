@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 import { exportLibraryBackup, importLibraryBackup } from '../services/storage';
+import { getCurrentUserId } from '../services/cloudStorage';
 
 interface SettingsModalProps {
   onDataImported: () => void;
@@ -28,12 +29,34 @@ export function SettingsModal({
   const [backupError, setBackupError] = useState<string | null>(null);
   const [portalQrDataUrl, setPortalQrDataUrl] = useState<string | null>(null);
   const [portalQrError, setPortalQrError] = useState<string | null>(null);
+  const [teacherUserId, setTeacherUserId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const resolveUserId = async () => {
+      const userId = await getCurrentUserId();
+      if (!cancelled) {
+        setTeacherUserId(userId);
+      }
+    };
+
+    resolveUserId();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const studentPortalUrl = useMemo(() => {
     if (typeof window === 'undefined') return '';
-    return new URL('./student.html', window.location.href).toString();
-  }, []);
+    const url = new URL('./student.html', window.location.href);
+    if (teacherUserId) {
+      url.searchParams.set('teacher', teacherUserId);
+    }
+    return url.toString();
+  }, [teacherUserId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -141,8 +164,11 @@ export function SettingsModal({
 
   const handleOpenPosterPage = () => {
     if (typeof window === 'undefined') return;
-    const posterUrl = new URL('/library-app/Student-portal-poster.html', window.location.origin).toString();
-    window.open(posterUrl, '_blank', 'noopener,noreferrer');
+    const posterUrl = new URL('/library-app/Student-portal-poster.html', window.location.origin);
+    if (teacherUserId) {
+      posterUrl.searchParams.set('teacher', teacherUserId);
+    }
+    window.open(posterUrl.toString(), '_blank', 'noopener,noreferrer');
   };
 
   const handleCopyStudentPortalLink = async () => {
