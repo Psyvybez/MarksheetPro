@@ -14,7 +14,7 @@ import {
 import { loadCloudLibraryState, saveCloudLibraryState } from '../services/cloudStorage';
 import { lookupCatalogBook } from '../services/catalog';
 import { fetchGoogleBooksMetadata } from '../services/api';
-import { sendReadyNotice, sendBookAvailableNotice, sendCheckoutNotice } from '../services/notifications';
+import { sendBookAvailableNotice, sendCheckoutNotice } from '../services/notifications';
 
 const MAX_STUDENT_RESERVATIONS = 2;
 const MAX_STUDENT_CHECKOUTS = 1;
