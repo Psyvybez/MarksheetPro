@@ -11,7 +11,7 @@ import { StudentReservationModal } from './components/StudentReservationModal';
 import { ReservationActivityModal } from './components/ReservationActivityModal';
 import { getCurrentUserId, getTeacherIdForLinks } from './services/cloudStorage';
 import type { AppView, Book, HoldRequest, StudentCard } from './types';
-import { registerReservationContact } from './services/notifications';
+import { registerReservationContact, sendBookAvailableNotice } from './services/notifications';
 
 function isStudentPortalMode(): boolean {
   if (typeof document !== 'undefined' && document.body.dataset.appMode === 'student') {
@@ -249,7 +249,8 @@ export default function App() {
       hold: HoldRequest;
       book: Book;
       studentCard: StudentCard;
-      phoneNumber: string;
+      email: string;
+      isBookImmediatelyAvailable: boolean;
     }): Promise<boolean> => {
       const result = await registerReservationContact({
         reservationId: input.hold.id,
@@ -257,7 +258,7 @@ export default function App() {
         studentName: input.studentCard.studentName,
         studentCardNumber: input.studentCard.cardNumber,
         bookTitle: input.book.title,
-        phoneNumber: input.phoneNumber,
+        email: input.email,
       });
 
       if (!result.contactId) {
@@ -265,6 +266,17 @@ export default function App() {
       }
 
       library.attachHoldNotificationContact(input.book.isbn13 || input.book.isbn, input.hold.id, result.contactId);
+
+      // Book was available with no queue when the student placed the reservation —
+      // send the "available" SMS immediately rather than waiting for a return.
+      if (input.isBookImmediatelyAvailable) {
+        void sendBookAvailableNotice({
+          contactId: result.contactId,
+          studentName: input.studentCard.studentName,
+          bookTitle: input.book.title,
+        });
+      }
+
       return true;
     },
     [library]

@@ -14,7 +14,7 @@ import {
 import { loadCloudLibraryState, saveCloudLibraryState } from '../services/cloudStorage';
 import { lookupCatalogBook } from '../services/catalog';
 import { fetchGoogleBooksMetadata } from '../services/api';
-import { sendReadyNotice } from '../services/notifications';
+import { sendReadyNotice, sendBookAvailableNotice, sendCheckoutNotice } from '../services/notifications';
 
 const MAX_STUDENT_RESERVATIONS = 2;
 const MAX_STUDENT_CHECKOUTS = 1;
@@ -698,9 +698,15 @@ export function useLibrary() {
             });
 
             if (nextEligibleHold.notificationContactId) {
-              void sendReadyNotice({
+              void sendBookAvailableNotice({
                 contactId: nextEligibleHold.notificationContactId,
-                reservationId: nextEligibleHold.id,
+                studentName: borrowerForCheckout,
+                bookTitle: matchedBook.title,
+              });
+
+              // Also send checkout notice immediately since we're auto-assigning
+              void sendCheckoutNotice({
+                contactId: nextEligibleHold.notificationContactId,
                 studentName: borrowerForCheckout,
                 bookTitle: matchedBook.title,
               });

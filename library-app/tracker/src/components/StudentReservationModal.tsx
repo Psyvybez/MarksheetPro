@@ -13,7 +13,8 @@ interface StudentReservationModalProps {
     hold: HoldRequest;
     book: Book;
     studentCard: StudentCard;
-    phoneNumber: string;
+    email: string;
+    isBookImmediatelyAvailable: boolean;
   }) => Promise<boolean>;
   onClose?: () => void;
   standalone?: boolean;
@@ -351,6 +352,16 @@ export function StudentReservationModal({
       return;
     }
 
+    // Capture availability BEFORE onReserve mutates state — used to fire
+    // an immediate "book available" SMS if the student is first in line.
+    const statusBeforeReserve = bookStatuses.find(
+      (s) => normalizeIsbn(s.book.isbn) === normalizeIsbn(book.isbn) || normalizeIsbn(s.book.isbn13) === normalizeIsbn(book.isbn13)
+    );
+    const isBookImmediatelyAvailable =
+      !!statusBeforeReserve &&
+      statusBeforeReserve.availableCopies > 0 &&
+      statusBeforeReserve.queue.length === 0;
+
     const reserved = onReserve(book, activeStudent);
     if (!reserved) {
       setError('This reservation could not be completed. You may already be in line for this title.');
@@ -362,29 +373,30 @@ export function StudentReservationModal({
     setMessage(`Reservation confirmed for ${book.title} (Ref ${confirmationCode}) at ${reservedAt}.`);
 
     if (typeof window !== 'undefined' && typeof window.confirm === 'function' && typeof window.prompt === 'function') {
-      const wantsSms = window.confirm(
-        'Would you like a text message when this reservation becomes available? Phone numbers are never saved in app data.'
+      const wantsEmail = window.confirm(
+        'Would you like an email notification when this reservation becomes available? Email addresses are never saved in app data.'
       );
-      if (!wantsSms) return;
+      if (!wantsEmail) return;
 
-      const phoneNumber = window.prompt('Enter phone number for this one reservation notice:', '')?.trim() ?? '';
-      if (!phoneNumber) return;
+      const email = window.prompt('Enter your email address for this one reservation notice:', '')?.trim() ?? '';
+      if (!email) return;
 
       setRegisteringNotification(true);
       const linked = await onRegisterReservationNotification({
         hold: reserved,
         book,
         studentCard: activeStudent,
-        phoneNumber,
+        email,
+        isBookImmediatelyAvailable,
       });
       setRegisteringNotification(false);
 
       if (linked) {
         setMessage(
-          `Reservation confirmed for ${book.title} (Ref ${confirmationCode}) at ${reservedAt}. SMS alerts are now enabled.`
+          `Reservation confirmed for ${book.title} (Ref ${confirmationCode}) at ${reservedAt}. Email alerts are now enabled.`
         );
       } else {
-        setError('Reservation saved, but SMS enrollment failed. Please ask staff to retry notification setup.');
+        setError('Reservation saved, but email enrollment failed. Please ask staff to retry notification setup.');
       }
     }
   };

@@ -13,22 +13,38 @@ interface RegisterReservationContactPayload {
   studentName: string;
   studentCardNumber: string;
   bookTitle: string;
-  phoneNumber: string;
+  email: string;
 }
 
-interface SendReadyNoticePayload {
+interface SendBookAvailableNoticePayload {
   contactId: string;
-  reservationId: string;
   studentName: string;
   bookTitle: string;
 }
 
+interface SendCheckoutNoticePayload {
+  contactId: string;
+  studentName: string;
+  bookTitle: string;
+}
+
+interface CheckAndSendDueRemindersPayload {
+  // No specific payload needed; runs check on all records
+}
+
 interface ContactRow {
   id: string;
-  phone_hash: string;
-  encrypted_phone: string;
+  email_hash: string;
+  encrypted_email: string;
+  student_name: string;
+  book_title: string;
   expires_at: string;
-  consumed_at: string | null;
+  checkout_date: string | null;
+  due_date: string | null;
+  available_notice_sent_at: string | null;
+  due_reminder_2days_sent_at: string | null;
+  due_reminder_1day_sent_at: string | null;
+  due_reminder_dayof_sent_at: string | null;
 }
 
 function json(status: number, body: unknown): Response {
@@ -41,8 +57,8 @@ function json(status: number, body: unknown): Response {
   });
 }
 
-async function hashPhone(phoneNumber: string): Promise<string> {
-  const bytes = new TextEncoder().encode(phoneNumber);
+async function hashEmail(email: string): Promise<string> {
+  const bytes = new TextEncoder().encode(email.toLowerCase().trim());
   const digest = await crypto.subtle.digest('SHA-256', bytes);
   return Array.from(new Uint8Array(digest))
     .map((value) => value.toString(16).padStart(2, '0'))
@@ -71,37 +87,35 @@ function xorDecrypt(value: string, key: string): string {
   return new TextDecoder().decode(decrypted);
 }
 
-function normalizePhone(phoneNumber: string): string {
-  return phoneNumber.replace(/[^\d+]/g, '');
+function normalizeEmail(email: string): string {
+  return email.toLowerCase().trim();
 }
 
-async function sendTwilioSms(to: string, message: string): Promise<void> {
-  const sid = Deno.env.get('TWILIO_ACCOUNT_SID');
-  const token = Deno.env.get('TWILIO_AUTH_TOKEN');
-  const from = Deno.env.get('TWILIO_FROM_NUMBER');
+async function sendResendEmail(to: string, subject: string, html: string): Promise<void> {
+  const apiKey = Deno.env.get('RESEND_API_KEY');
+  const fromEmail = Deno.env.get('NOTIFICATION_FROM_EMAIL') ?? 'noreply@thebooknook.app';
 
-  if (!sid || !token || !from) {
-    throw new Error('Missing Twilio configuration in environment variables.');
+  if (!apiKey) {
+    throw new Error('Missing RESEND_API_KEY in environment variables.');
   }
 
-  const body = new URLSearchParams({
-    To: to,
-    From: from,
-    Body: message,
-  });
-
-  const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
+  const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
-      Authorization: `Basic ${btoa(`${sid}:${token}`)}`,
-      'Content-Type': 'application/x-www-form-urlencoded',
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
     },
-    body,
+    body: JSON.stringify({
+      from: `The Book Nook <${fromEmail}>`,
+      to: [to],
+      subject,
+      html,
+    }),
   });
 
   if (!response.ok) {
     const details = await response.text();
-    throw new Error(`Twilio send failed: ${response.status} ${details}`);
+    throw new Error(`Resend send failed: ${response.status} ${details}`);
   }
 }
 
@@ -142,15 +156,15 @@ serve(async (request) => {
         });
       }
 
-      const normalizedPhone = normalizePhone(payload.phoneNumber);
-      if (!normalizedPhone) {
+      const normalizedEmail = normalizeEmail(payload.email);
+      if (!normalizedEmail || !normalizedEmail.includes('@')) {
         return json(400, {
-          error: 'Phone number is required',
+          error: 'A valid email address is required',
         });
       }
 
-      const phoneHash = await hashPhone(normalizedPhone);
-      const encryptedPhone = xorEncrypt(normalizedPhone, encryptionKey);
+      const emailHash = await hashEmail(normalizedEmail);
+      const encryptedEmail = xorEncrypt(normalizedEmail, encryptionKey);
       const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30).toISOString();
 
       const { data, error } = await supabase
@@ -161,8 +175,8 @@ serve(async (request) => {
           student_name: payload.studentName,
           student_card_number: payload.studentCardNumber,
           book_title: payload.bookTitle,
-          phone_hash: phoneHash,
-          encrypted_phone: encryptedPhone,
+          email_hash: emailHash,
+          encrypted_email: encryptedEmail,
           expires_at: expiresAt,
         })
         .select('id')
@@ -179,8 +193,8 @@ serve(async (request) => {
       });
     }
 
-    if (action === 'send_ready_notice') {
-      const payload = body?.payload as SendReadyNoticePayload | undefined;
+    if (action === 'send_book_available_notice') {
+      const payload = body?.payload as SendBookAvailableNoticePayload | undefined;
       if (!payload) {
         return json(400, {
           error: 'Missing payload',
@@ -189,7 +203,7 @@ serve(async (request) => {
 
       const { data, error } = await supabase
         .from('reservation_notification_contacts')
-        .select('id, phone_hash, encrypted_phone, expires_at, consumed_at')
+        .select('id, email_hash, encrypted_email, student_name, book_title, expires_at, available_notice_sent_at')
         .eq('id', payload.contactId)
         .single<ContactRow>();
 
@@ -199,10 +213,10 @@ serve(async (request) => {
         });
       }
 
-      if (data.consumed_at) {
+      if (data.available_notice_sent_at) {
         return json(200, {
           ok: true,
-          skipped: 'already_consumed',
+          skipped: 'already_sent',
         });
       }
 
@@ -213,26 +227,169 @@ serve(async (request) => {
         });
       }
 
-      const phone = xorDecrypt(data.encrypted_phone, encryptionKey);
-      const message = `THE BOOK NOOK: ${payload.studentName}, your reserved book \"${payload.bookTitle}\" is ready for pickup.`;
-      await sendTwilioSms(phone, message);
+      const email = xorDecrypt(data.encrypted_email, encryptionKey);
+      const subject = 'Your Reserved Book Is Available — The Book Nook';
+      const html = `<p>Hi ${payload.studentName},</p><p>Great news! Your reserved book <strong>&quot;${payload.bookTitle}&quot;</strong> is now available for pickup.</p><p>Please visit the library at your earliest convenience to check it out.</p><p>— The Book Nook</p>`;
+      await sendResendEmail(email, subject, html);
 
-      const { error: consumeError } = await supabase
+      const { error: updateError } = await supabase
         .from('reservation_notification_contacts')
         .update({
-          consumed_at: new Date().toISOString(),
+          available_notice_sent_at: new Date().toISOString(),
         })
         .eq('id', payload.contactId)
-        .is('consumed_at', null);
+        .is('available_notice_sent_at', null);
 
-      if (consumeError) {
+      if (updateError) {
         return json(500, {
-          error: consumeError.message,
+          error: updateError.message,
         });
       }
 
       return json(200, {
         ok: true,
+      });
+    }
+
+    if (action === 'send_checkout_notice') {
+      const payload = body?.payload as SendCheckoutNoticePayload | undefined;
+      if (!payload) {
+        return json(400, {
+          error: 'Missing payload',
+        });
+      }
+
+      const { data, error } = await supabase
+        .from('reservation_notification_contacts')
+        .select('id, email_hash, encrypted_email, student_name, book_title, expires_at')
+        .eq('id', payload.contactId)
+        .single<ContactRow>();
+
+      if (error || !data) {
+        return json(404, {
+          error: 'Contact registration not found',
+        });
+      }
+
+      if (new Date(data.expires_at).getTime() <= Date.now()) {
+        return json(200, {
+          ok: true,
+          skipped: 'expired',
+        });
+      }
+
+      const checkoutDate = new Date();
+      const dueDate = new Date(checkoutDate.getTime() + 14 * 24 * 60 * 60 * 1000);
+
+      const emailCo = xorDecrypt(data.encrypted_email, encryptionKey);
+      const dueDateStr = dueDate.toLocaleDateString();
+      const subjectCo = 'Checkout Confirmation — The Book Nook';
+      const htmlCo = `<p>Hi ${payload.studentName},</p><p>You have successfully checked out <strong>&quot;${payload.bookTitle}&quot;</strong>.</p><p><strong>Due date:</strong> ${dueDateStr} by 9:00 AM.</p><p>Please return it on time to avoid late fees.</p><p>— The Book Nook</p>`;
+      await sendResendEmail(emailCo, subjectCo, htmlCo);
+
+      const { error: updateError } = await supabase
+        .from('reservation_notification_contacts')
+        .update({
+          checkout_date: checkoutDate.toISOString(),
+          due_date: dueDate.toISOString(),
+        })
+        .eq('id', payload.contactId);
+
+      if (updateError) {
+        return json(500, {
+          error: updateError.message,
+        });
+      }
+
+      return json(200, {
+        ok: true,
+      });
+    }
+
+    if (action === 'check_and_send_due_reminders') {
+      const now = new Date();
+      const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const nineAmUtc = new Date(todayMidnight.getTime() + 9 * 60 * 60 * 1000);
+
+      // Get all records with due dates that need reminders
+      const { data: records, error: selectError } = await supabase
+        .from('reservation_notification_contacts')
+        .select(
+          'id, email_hash, encrypted_email, student_name, book_title, due_date, due_reminder_2days_sent_at, due_reminder_1day_sent_at, due_reminder_dayof_sent_at'
+        )
+        .not('due_date', 'is', null)
+        .order('due_date', { ascending: true });
+
+      if (selectError) {
+        return json(500, {
+          error: selectError.message,
+        });
+      }
+
+      const sentReminders = [];
+
+      for (const record of records as ContactRow[]) {
+        const dueDate = new Date(record.due_date);
+        const daysUntilDue = Math.floor((dueDate.getTime() - todayMidnight.getTime()) / (24 * 60 * 60 * 1000));
+
+        const emailDr = xorDecrypt(record.encrypted_email, encryptionKey);
+        const updates: Record<string, string> = {};
+
+        // 2 days before due date
+        if (daysUntilDue === 2 && !record.due_reminder_2days_sent_at) {
+          const sub = `Reminder: "${record.book_title}" Due in 2 Days — The Book Nook`;
+          const htm = `<p>Hi ${record.student_name},</p><p>This is a reminder that <strong>&quot;${record.book_title}&quot;</strong> is due back in <strong>2 days</strong>.</p><p>Please return it by 9:00 AM on the due date.</p><p>— The Book Nook</p>`;
+          await sendResendEmail(emailDr, sub, htm);
+          updates.due_reminder_2days_sent_at = now.toISOString();
+          sentReminders.push({ contactId: record.id, type: 'due_reminder_2days' });
+        }
+
+        // 1 day before due date
+        if (daysUntilDue === 1 && !record.due_reminder_1day_sent_at) {
+          const sub = `Reminder: "${record.book_title}" Due Tomorrow — The Book Nook`;
+          const htm = `<p>Hi ${record.student_name},</p><p>This is a reminder that <strong>&quot;${record.book_title}&quot;</strong> is due back <strong>tomorrow</strong> by 9:00 AM.</p><p>— The Book Nook</p>`;
+          await sendResendEmail(emailDr, sub, htm);
+          updates.due_reminder_1day_sent_at = now.toISOString();
+          sentReminders.push({ contactId: record.id, type: 'due_reminder_1day' });
+        }
+
+        // On the due date
+        if (daysUntilDue === 0 && !record.due_reminder_dayof_sent_at) {
+          const sub = `"${record.book_title}" Is Due Today — The Book Nook`;
+          const htm = `<p>Hi ${record.student_name},</p><p><strong>&quot;${record.book_title}&quot;</strong> is due back <strong>today by 9:00 AM</strong>.</p><p>Please return it as soon as possible to avoid late fees.</p><p>— The Book Nook</p>`;
+          await sendResendEmail(emailDr, sub, htm);
+          updates.due_reminder_dayof_sent_at = now.toISOString();
+          sentReminders.push({ contactId: record.id, type: 'due_reminder_dayof' });
+        }
+
+        if (Object.keys(updates).length > 0) {
+          const { error: updateError } = await supabase
+            .from('reservation_notification_contacts')
+            .update(updates)
+            .eq('id', record.id);
+
+          if (updateError) {
+            console.error(`Failed to update record ${record.id}: ${updateError.message}`);
+          }
+        }
+      }
+
+      return json(200, {
+        ok: true,
+        sentReminders,
+      });
+    }
+
+    if (action === 'send_ready_notice') {
+      const payload = body?.payload as SendBookAvailableNoticePayload | undefined;
+      if (!payload) {
+        return json(400, {
+          error: 'Missing payload',
+        });
+      }
+
+      return json(400, {
+        error: 'send_ready_notice is deprecated. Use send_book_available_notice instead.',
       });
     }
 

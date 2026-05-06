@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 import { exportLibraryBackup, importLibraryBackup } from '../services/storage';
 import { getLocalTeacherId, getTeacherIdForLinks } from '../services/cloudStorage';
+import { checkAndSendDueReminders } from '../services/notifications';
 
 interface SettingsModalProps {
   onDataImported: () => void;
@@ -29,6 +30,9 @@ export function SettingsModal({
   const [backupError, setBackupError] = useState<string | null>(null);
   const [portalQrDataUrl, setPortalQrDataUrl] = useState<string | null>(null);
   const [portalQrError, setPortalQrError] = useState<string | null>(null);
+  const [sendingDueReminders, setSendingDueReminders] = useState(false);
+  const [dueRemindersMessage, setDueRemindersMessage] = useState<string | null>(null);
+  const [dueRemindersError, setDueRemindersError] = useState<string | null>(null);
   const [teacherUserId, setTeacherUserId] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null;
     return getLocalTeacherId();
@@ -174,6 +178,26 @@ export function SettingsModal({
     window.open(posterUrl.toString(), '_blank', 'noopener,noreferrer');
   };
 
+  const handleSendDueReminders = async () => {
+    setDueRemindersError(null);
+    setDueRemindersMessage(null);
+    setSendingDueReminders(true);
+
+    try {
+      const result = await checkAndSendDueReminders();
+      setSendingDueReminders(false);
+
+      if (result.ok) {
+        setDueRemindersMessage('Due reminders sent successfully.');
+      } else {
+        setDueRemindersError(result.error || 'Failed to send due reminders.');
+      }
+    } catch (err) {
+      setSendingDueReminders(false);
+      setDueRemindersError(err instanceof Error ? err.message : 'Failed to send due reminders.');
+    }
+  };
+
   const handleCopyStudentPortalLink = async () => {
     if (!studentPortalUrl) return;
 
@@ -309,6 +333,33 @@ export function SettingsModal({
               Open Printable Poster
             </button>
           </div>
+        </div>
+
+        <div className="settings-vault-box">
+          <h3 className="settings-label">SMS Notifications</h3>
+          <p className="settings-hint">Manually trigger due date reminders to send to students.</p>
+          {dueRemindersMessage && (
+            <p className="settings-success" role="alert">
+              {dueRemindersMessage}
+            </p>
+          )}
+          {dueRemindersError && (
+            <p className="settings-error" role="alert">
+              {dueRemindersError}
+            </p>
+          )}
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={handleSendDueReminders}
+            disabled={sendingDueReminders}
+          >
+            {sendingDueReminders ? 'Sending...' : 'Send Due Date Reminders'}
+          </button>
+          <p className="settings-hint">
+            This sends reminders to students for books due in 2 days, 1 day, or today. Normally runs at 9am via
+            scheduler.
+          </p>
         </div>
 
         <div className="settings-danger-box">

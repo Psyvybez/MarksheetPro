@@ -1,5 +1,5 @@
--- Stores one-reservation notification contacts for SMS readiness alerts.
--- This table keeps encrypted phone values server-side only.
+-- Stores notification contacts for email alerts (available, checkout, due reminders).
+-- This table keeps encrypted email values server-side only.
 
 create table if not exists public.reservation_notification_contacts (
   id uuid primary key default gen_random_uuid(),
@@ -8,10 +8,15 @@ create table if not exists public.reservation_notification_contacts (
   student_name text not null,
   student_card_number text not null,
   book_title text not null,
-  phone_hash text not null,
-  encrypted_phone text not null,
+  email_hash text not null,
+  encrypted_email text not null,
   expires_at timestamptz not null,
-  consumed_at timestamptz,
+  available_notice_sent_at timestamptz,
+  checkout_date timestamptz,
+  due_date timestamptz,
+  due_reminder_2days_sent_at timestamptz,
+  due_reminder_1day_sent_at timestamptz,
+  due_reminder_dayof_sent_at timestamptz,
   created_at timestamptz not null default timezone('utc', now())
 );
 

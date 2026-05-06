@@ -6,7 +6,7 @@ interface RegisterReservationContactInput {
   studentName: string;
   studentCardNumber: string;
   bookTitle: string;
-  phoneNumber: string;
+  email: string;
 }
 
 interface RegisterReservationContactResult {
@@ -14,11 +14,21 @@ interface RegisterReservationContactResult {
   error: string | null;
 }
 
-interface SendReadyNoticeInput {
+interface SendBookAvailableNoticeInput {
   contactId: string;
-  reservationId: string;
   studentName: string;
   bookTitle: string;
+}
+
+interface SendCheckoutNoticeInput {
+  contactId: string;
+  studentName: string;
+  bookTitle: string;
+}
+
+interface SendNoticeResult {
+  ok: boolean;
+  error: string | null;
 }
 
 export async function registerReservationContact(
@@ -45,10 +55,10 @@ export async function registerReservationContact(
   };
 }
 
-export async function sendReadyNotice(input: SendReadyNoticeInput): Promise<{ ok: boolean; error: string | null }> {
+export async function sendBookAvailableNotice(input: SendBookAvailableNoticeInput): Promise<SendNoticeResult> {
   const { error } = await supabase.functions.invoke('library-notifications', {
     body: {
-      action: 'send_ready_notice',
+      action: 'send_book_available_notice',
       payload: input,
     },
   });
@@ -64,4 +74,55 @@ export async function sendReadyNotice(input: SendReadyNoticeInput): Promise<{ ok
     ok: true,
     error: null,
   };
+}
+
+export async function sendCheckoutNotice(input: SendCheckoutNoticeInput): Promise<SendNoticeResult> {
+  const { error } = await supabase.functions.invoke('library-notifications', {
+    body: {
+      action: 'send_checkout_notice',
+      payload: input,
+    },
+  });
+
+  if (error) {
+    return {
+      ok: false,
+      error: error.message,
+    };
+  }
+
+  return {
+    ok: true,
+    error: null,
+  };
+}
+
+export async function checkAndSendDueReminders(): Promise<SendNoticeResult> {
+  const { error } = await supabase.functions.invoke('library-notifications', {
+    body: {
+      action: 'check_and_send_due_reminders',
+      payload: {},
+    },
+  });
+
+  if (error) {
+    return {
+      ok: false,
+      error: error.message,
+    };
+  }
+
+  return {
+    ok: true,
+    error: null,
+  };
+}
+
+// Deprecated: Use sendBookAvailableNotice instead
+export async function sendReadyNotice(input: {
+  contactId: string;
+  studentName: string;
+  bookTitle: string;
+}): Promise<SendNoticeResult> {
+  return sendBookAvailableNotice(input);
 }
