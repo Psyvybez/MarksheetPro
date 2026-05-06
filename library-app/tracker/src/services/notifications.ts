@@ -6,7 +6,18 @@ interface RegisterReservationContactInput {
   studentName: string;
   studentCardNumber: string;
   bookTitle: string;
+  email?: string;
+}
+
+interface SaveStudentEmailInput {
+  studentCardId: string;
+  studentCardNumber: string;
+  studentName: string;
   email: string;
+}
+
+interface GetStudentEmailResult {
+  email: string | null;
 }
 
 interface RegisterReservationContactResult {
@@ -115,6 +126,46 @@ export async function checkAndSendDueReminders(): Promise<SendNoticeResult> {
   return {
     ok: true,
     error: null,
+  };
+}
+
+export async function saveStudentEmail(input: SaveStudentEmailInput): Promise<SendNoticeResult> {
+  const { error } = await supabase.functions.invoke('library-notifications', {
+    body: {
+      action: 'save_student_email',
+      payload: input,
+    },
+  });
+
+  if (error) {
+    return {
+      ok: false,
+      error: error.message,
+    };
+  }
+
+  return {
+    ok: true,
+    error: null,
+  };
+}
+
+export async function getStudentEmail(studentCardId: string): Promise<GetStudentEmailResult> {
+  const { data, error } = await supabase.functions.invoke('library-notifications', {
+    body: {
+      action: 'get_student_email',
+      payload: { studentCardId },
+    },
+  });
+
+  if (error) {
+    return {
+      email: null,
+    };
+  }
+
+  return {
+    email: typeof data?.email === 'string' ? data.email : null,
   };
 }
 

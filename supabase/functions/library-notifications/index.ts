@@ -13,7 +13,18 @@ interface RegisterReservationContactPayload {
   studentName: string;
   studentCardNumber: string;
   bookTitle: string;
+  email?: string;
+}
+
+interface SaveStudentEmailPayload {
+  studentCardId: string;
+  studentCardNumber: string;
+  studentName: string;
   email: string;
+}
+
+interface GetStudentEmailPayload {
+  studentCardId: string;
 }
 
 interface SendBookAvailableNoticePayload {
@@ -148,8 +159,8 @@ serve(async (request) => {
     const body = await request.json();
     const action = typeof body?.action === 'string' ? body.action : '';
 
-    if (action === 'register_reservation_contact') {
-      const payload = body?.payload as RegisterReservationContactPayload | undefined;
+    if (action === 'save_student_email') {
+      const payload = body?.payload as SaveStudentEmailPayload | undefined;
       if (!payload) {
         return json(400, {
           error: 'Missing payload',
@@ -165,6 +176,110 @@ serve(async (request) => {
 
       const emailHash = await hashEmail(normalizedEmail);
       const encryptedEmail = xorEncrypt(normalizedEmail, encryptionKey);
+
+      const { data, error } = await supabase
+        .from('student_notification_emails')
+        .upsert({
+          student_card_id: payload.studentCardId,
+          student_card_number: payload.studentCardNumber,
+          student_name: payload.studentName,
+          email_hash: emailHash,
+          encrypted_email: encryptedEmail,
+          updated_at: new Date().toISOString(),
+        })
+        .select('id')
+        .single();
+
+      if (error) {
+        return json(500, {
+          error: error.message,
+        });
+      }
+
+      return json(200, {
+        ok: true,
+      });
+    }
+
+    if (action === 'get_student_email') {
+      const payload = body?.payload as GetStudentEmailPayload | undefined;
+      if (!payload) {
+        return json(400, {
+          error: 'Missing payload',
+        });
+      }
+
+      const { data, error } = await supabase
+        .from('student_notification_emails')
+        .select('encrypted_email')
+        .eq('student_card_id', payload.studentCardId)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        return json(500, {
+          error: error.message,
+        });
+      }
+
+      if (!data) {
+        return json(200, {
+          email: null,
+        });
+      }
+
+      const email = xorDecrypt(data.encrypted_email, encryptionKey);
+      return json(200, {
+        email,
+      });
+    }
+
+    if (action === 'register_reservation_contact') {
+      const payload = body?.payload as RegisterReservationContactPayload | undefined;
+      if (!payload) {
+        return json(400, {
+          error: 'Missing payload',
+        });
+      }
+
+      let emailToUse = payload.email ? normalizeEmail(payload.email) : null;
+
+      // If no email provided, try to get the student's saved email
+      if (!emailToUse) {
+        const { data: studentEmailData, error: studentEmailError } = await supabase
+          .from('student_notification_emails')
+          .select('encrypted_email')
+          .eq('student_card_id', payload.studentCardId)
+          .single();
+
+        if (!studentEmailError && studentEmailData) {
+          emailToUse = xorDecrypt(studentEmailData.encrypted_email, encryptionKey);
+        }
+      }
+
+      if (!emailToUse || !emailToUse.includes('@')) {
+        return json(400, {
+          error: 'A valid email address is required. Please provide or save your email first.',
+        });
+      }
+
+      // If email was provided, save it to student's profile for future use
+      if (payload.email) {
+        const emailHash = await hashEmail(emailToUse);
+        const encryptedEmail = xorEncrypt(emailToUse, encryptionKey);
+        await supabase
+          .from('student_notification_emails')
+          .upsert({
+            student_card_id: payload.studentCardId,
+            student_card_number: payload.studentCardNumber,
+            student_name: payload.studentName,
+            email_hash: emailHash,
+            encrypted_email: encryptedEmail,
+            updated_at: new Date().toISOString(),
+          });
+      }
+
+      const emailHash = await hashEmail(emailToUse);
+      const encryptedEmail = xorEncrypt(emailToUse, encryptionKey);
       const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30).toISOString();
 
       const { data, error } = await supabase
@@ -329,6 +444,8 @@ serve(async (request) => {
       const sentReminders = [];
 
       for (const record of records as ContactRow[]) {
+        if (!record.due_date) continue;
+
         const dueDate = new Date(record.due_date);
         const daysUntilDue = Math.floor((dueDate.getTime() - todayMidnight.getTime()) / (24 * 60 * 60 * 1000));
 

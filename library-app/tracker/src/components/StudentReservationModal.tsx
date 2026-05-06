@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { BookCard } from './BookCard';
 import type { Book, CheckoutRecord, HoldRequest, StudentCard } from '../types';
+import { getStudentEmail, saveStudentEmail } from '../services/notifications';
 
 interface StudentReservationModalProps {
   books: Book[];
@@ -378,10 +379,31 @@ export function StudentReservationModal({
       );
       if (!wantsEmail) return;
 
-      const email = window.prompt('Enter your email address for this one reservation notice:', '')?.trim() ?? '';
+      // Try to get the student's saved email
+      const savedEmailResult = await getStudentEmail(activeStudent.id);
+      const defaultEmail = savedEmailResult.email || '';
+
+      const promptMessage = savedEmailResult.email
+        ? `Your saved email: ${savedEmailResult.email}\n\nEnter a different email (or leave blank to use saved):`
+        : 'Enter your email address for this reservation notice:';
+
+      const emailInput = window.prompt(promptMessage, defaultEmail)?.trim() ?? '';
+      const email = emailInput || defaultEmail;
+
       if (!email) return;
 
       setRegisteringNotification(true);
+
+      // Save the email if it's different from what we had
+      if (email !== savedEmailResult.email) {
+        await saveStudentEmail({
+          studentCardId: activeStudent.id,
+          studentCardNumber: activeStudent.cardNumber,
+          studentName: activeStudent.studentName,
+          email,
+        });
+      }
+
       const linked = await onRegisterReservationNotification({
         hold: reserved,
         book,
