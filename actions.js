@@ -2528,6 +2528,19 @@ function exportClassPDF({ studentIds = [], includeMissingAssignments = false }) 
         doc.setTextColor(30, 41, 59);
         doc.text(unitTitle, 14, cursorY + 3);
 
+        const unitTableColumnStyles = unit.isFinal
+          ? {
+              0: { cellWidth: 90 },
+              1: { halign: 'right' },
+            }
+          : {
+              0: { cellWidth: 90 },
+              1: { halign: 'right' },
+              2: { halign: 'right' },
+              3: { halign: 'right' },
+              4: { halign: 'right' },
+            };
+
         doc.autoTable({
           startY: cursorY + 8,
           head: [unit.isFinal ? ['Assignment', 'Score'] : ['Assignment', 'K', 'T', 'C', 'A']],
@@ -2536,6 +2549,7 @@ function exportClassPDF({ studentIds = [], includeMissingAssignments = false }) 
           headStyles: { fillColor: theme.secondary, textColor: [255, 255, 255], fontStyle: 'bold' },
           alternateRowStyles: { fillColor: [248, 250, 252] },
           styles: { fontSize: 8.5, cellPadding: 1.8, lineColor: theme.border, lineWidth: 0.2 },
+          columnStyles: unitTableColumnStyles,
         });
         cursorY = doc.autoTable.previous.finalY + 7;
       });
