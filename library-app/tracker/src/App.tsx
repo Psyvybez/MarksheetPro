@@ -267,14 +267,17 @@ export default function App() {
 
       library.attachHoldNotificationContact(input.book.isbn13 || input.book.isbn, input.hold.id, result.contactId);
 
-      // Book was available with no queue when the student placed the reservation —
-      // send the "available" SMS immediately rather than waiting for a return.
+      // Book was available with no queue when the student placed the reservation.
       if (input.isBookImmediatelyAvailable) {
-        void sendBookAvailableNotice({
+        const noticeResult = await sendBookAvailableNotice({
           contactId: result.contactId,
           studentName: input.studentCard.studentName,
           bookTitle: input.book.title,
         });
+
+        if (!noticeResult.ok) {
+          return false;
+        }
       }
 
       return true;

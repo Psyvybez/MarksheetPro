@@ -374,36 +374,32 @@ export function StudentReservationModal({
     setMessage(`Reservation confirmed for ${book.title} (Ref ${confirmationCode}) at ${reservedAt}.`);
 
     if (typeof window !== 'undefined' && typeof window.confirm === 'function' && typeof window.prompt === 'function') {
-      const wantsEmail = window.confirm(
-        'Would you like an email notification when this reservation becomes available? Email addresses are never saved in app data.'
-      );
-      if (!wantsEmail) return;
-
-      // Try to get the student's saved email
       const savedEmailResult = await getStudentEmail(activeStudent.id);
-      const defaultEmail = savedEmailResult.email || '';
+      let email = savedEmailResult.email;
 
-      const promptMessage = savedEmailResult.email
-        ? `Your saved email: ${savedEmailResult.email}\n\nEnter a different email (or leave blank to use saved):`
-        : 'Enter your email address for this reservation notice:';
+      if (!email) {
+        const wantsEmail = window.confirm(
+          'Would you like an email notification when this reservation becomes available? Your email will be saved only for this library card.'
+        );
+        if (!wantsEmail) return;
 
-      const emailInput = window.prompt(promptMessage, defaultEmail)?.trim() ?? '';
-      const email = emailInput || defaultEmail;
+        email = window.prompt('Enter your email address for this library card:', '')?.trim() ?? '';
+        if (!email) return;
 
-      if (!email) return;
-
-      setRegisteringNotification(true);
-
-      // Save the email if it's different from what we had
-      if (email !== savedEmailResult.email) {
-        await saveStudentEmail({
+        const saved = await saveStudentEmail({
           studentCardId: activeStudent.id,
           studentCardNumber: activeStudent.cardNumber,
           studentName: activeStudent.studentName,
           email,
         });
+
+        if (!saved.ok) {
+          setError('Reservation saved, but the email could not be saved for this library card. Please try again.');
+          return;
+        }
       }
 
+      setRegisteringNotification(true);
       const linked = await onRegisterReservationNotification({
         hold: reserved,
         book,
@@ -414,9 +410,10 @@ export function StudentReservationModal({
       setRegisteringNotification(false);
 
       if (linked) {
-        setMessage(
-          `Reservation confirmed for ${book.title} (Ref ${confirmationCode}) at ${reservedAt}. Email alerts are now enabled.`
-        );
+        const enabledMessage = savedEmailResult.email
+          ? `Reservation confirmed for ${book.title} (Ref ${confirmationCode}) at ${reservedAt}. Notifications will use your saved email.`
+          : `Reservation confirmed for ${book.title} (Ref ${confirmationCode}) at ${reservedAt}. Email alerts are now enabled.`;
+        setMessage(enabledMessage);
       } else {
         setError('Reservation saved, but email enrollment failed. Please ask staff to retry notification setup.');
       }
