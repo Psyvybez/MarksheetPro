@@ -2324,6 +2324,26 @@ function exportClassPDF({ studentIds = [], includeMissingAssignments = false }) 
       .filter(Boolean)
       .sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''));
 
+    // Pre-compute class-wide averages for the chart
+    const allClassStudents = Object.values(classData.students || {});
+    const _clsSums = { overall: 0, term: 0, final: 0, k: 0, t: 0, c: 0, a: 0 };
+    const _clsCounts = { overall: 0, term: 0, final: 0, k: 0, t: 0, c: 0, a: 0 };
+    allClassStudents.forEach((s) => {
+      const a = calculateStudentAverages(s, classData);
+      const pushIf = (key, val) => { if (val !== null) { _clsSums[key] += val; _clsCounts[key]++; } };
+      pushIf('overall', a.overallGrade);
+      pushIf('term', a.termMark);
+      pushIf('final', a.finalMark);
+      pushIf('k', a.categories.k);
+      pushIf('t', a.categories.t);
+      pushIf('c', a.categories.c);
+      pushIf('a', a.categories.a);
+    });
+    const classAvgData = {};
+    Object.keys(_clsSums).forEach((k) => {
+      classAvgData[k] = _clsCounts[k] > 0 ? _clsSums[k] / _clsCounts[k] : null;
+    });
+
     if (selectedStudents.length === 0) {
       showModal({
         title: 'Export Cancelled',
@@ -2351,48 +2371,114 @@ function exportClassPDF({ studentIds = [], includeMissingAssignments = false }) 
       doc.setTextColor(15, 23, 42);
       doc.text(`Student: ${studentName || 'Unnamed Student'}`, 12, 42);
 
-      doc.autoTable({
-        startY: 46,
-        head: [['Summary', 'Value']],
-        body: [
-          ['Overall Mark', avgs.overallGrade !== null ? `${avgs.overallGrade.toFixed(1)}%` : 'N/A'],
-          ['Term Mark', avgs.termMark !== null ? `${avgs.termMark.toFixed(1)}%` : 'N/A'],
-          [
-            'Final Mark',
-            classData.hasFinal ? (avgs.finalMark !== null ? `${avgs.finalMark.toFixed(1)}%` : 'N/A') : 'N/A',
-          ],
-          ...(attendanceEnabled
-            ? (() => {
-                const attendance = getAttendanceSummaryForStudent(classData, student.id);
-                return [
-                  ['Absences', String(attendance.absent)],
-                  ['Lates', String(attendance.late)],
-                  [
-                    'Attendance Rate',
-                    attendance.attendancePct !== null ? `${attendance.attendancePct.toFixed(1)}%` : 'N/A',
-                  ],
-                ];
-              })()
-            : []),
-        ],
-        theme: 'grid',
-        headStyles: { fillColor: theme.primary, textColor: [255, 255, 255], fontStyle: 'bold' },
-        alternateRowStyles: { fillColor: [248, 250, 252] },
-        styles: { fontSize: 9.5, cellPadding: 2.2, lineColor: theme.border, lineWidth: 0.2 },
-        columnStyles: { 0: { fontStyle: 'bold', cellWidth: 50 }, 1: { halign: 'right' } },
-        didParseCell: (hookData) => {
-          if (hookData.section !== 'body' || hookData.column.index !== 1) return;
-          const percent = parsePercentCellValue(hookData.cell.raw);
-          const band = getColorBandForPercent(percent, gradeColorIntensity);
-          if (!band) return;
-          hookData.cell.styles.fillColor = band.fill;
-          hookData.cell.styles.textColor = band.text;
-          hookData.cell.styles.fontStyle = 'bold';
-        },
+      // --- Performance Summary Bar Chart ---
+      const chartMetrics = [
+        { label: 'Overall', studentVal: avgs.overallGrade, classVal: classAvgData.overall },
+        { label: 'Term', studentVal: avgs.termMark, classVal: classAvgData.term },
+        { label: 'Final', studentVal: classData.hasFinal ? avgs.finalMark : null, classVal: classData.hasFinal ? classAvgData.final : null },
+        { label: 'K', studentVal: avgs.categories.k, classVal: classAvgData.k },
+        { label: 'T/I', studentVal: avgs.categories.t, classVal: classAvgData.t },
+        { label: 'C', studentVal: avgs.categories.c, classVal: classAvgData.c },
+        { label: 'A', studentVal: avgs.categories.a, classVal: classAvgData.a },
+      ];
+
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const chartStartY = 46;
+      const labelColW = 20;
+      const valueColW = 16;
+      const barAreaX = 12 + labelColW;
+      const barAreaW = pageWidth - 12 - labelColW - valueColW - 12; // subtract margins + value col
+      const rowH = 11;
+      const barH = 3.6;
+      const studentBarColor = [30, 64, 175];
+      const classBarColor = [148, 163, 184];
+
+      // Section heading
+      doc.setFontSize(9);
+      doc.setFont(undefined, 'bold');
+      doc.setTextColor(...theme.secondary);
+      doc.text('Performance Summary', 12, chartStartY);
+
+      // Legend
+      const legendY = chartStartY + 5;
+      doc.setFillColor(...studentBarColor);
+      doc.rect(12, legendY - 2.8, 7, 3, 'F');
+      doc.setFontSize(8);
+      doc.setFont(undefined, 'normal');
+      doc.setTextColor(30, 41, 59);
+      doc.text('Student', 21, legendY);
+      doc.setFillColor(...classBarColor);
+      doc.rect(50, legendY - 2.8, 7, 3, 'F');
+      doc.text('Class Average', 59, legendY);
+
+      // Attendance note at the right of legend
+      if (attendanceEnabled) {
+        const attendance = getAttendanceSummaryForStudent(classData, student.id);
+        const attendanceText = `Absent: ${attendance.absent}  Late: ${attendance.late}  Attendance: ${attendance.attendancePct !== null ? attendance.attendancePct.toFixed(1) + '%' : 'N/A'}`;
+        doc.setFontSize(7.5);
+        doc.setTextColor(...theme.muted);
+        doc.text(attendanceText, pageWidth - 12, legendY, { align: 'right' });
+      }
+
+      // Grid lines + x-axis labels
+      const gridStartY = legendY + 4;
+      const gridEndY = gridStartY + chartMetrics.length * rowH + 1;
+      doc.setDrawColor(...theme.border);
+      doc.setLineWidth(0.15);
+      [0, 25, 50, 75, 100].forEach((pct) => {
+        const x = barAreaX + (pct / 100) * barAreaW;
+        doc.setDrawColor(220, 227, 237);
+        doc.line(x, gridStartY, x, gridEndY);
+        doc.setFontSize(6.5);
+        doc.setTextColor(...theme.muted);
+        doc.text(`${pct}%`, x, gridEndY + 3.5, { align: 'center' });
+      });
+
+      // Bars
+      chartMetrics.forEach((metric, idx) => {
+        const rowY = gridStartY + idx * rowH;
+
+        // Row label
+        doc.setFontSize(8);
+        doc.setFont(undefined, 'bold');
+        doc.setTextColor(30, 41, 59);
+        doc.text(metric.label, barAreaX - 2, rowY + barH * 2 + 0.5, { align: 'right' });
+
+        // Student bar
+        if (metric.studentVal !== null) {
+          const w = Math.max((metric.studentVal / 100) * barAreaW, 0.5);
+          doc.setFillColor(...studentBarColor);
+          doc.rect(barAreaX, rowY, w, barH, 'F');
+          doc.setFontSize(7.5);
+          doc.setFont(undefined, 'bold');
+          doc.setTextColor(...studentBarColor);
+          doc.text(`${metric.studentVal.toFixed(1)}%`, barAreaX + barAreaW + valueColW - 1, rowY + barH - 0.5, { align: 'right' });
+        } else {
+          doc.setFontSize(7);
+          doc.setFont(undefined, 'normal');
+          doc.setTextColor(...theme.muted);
+          doc.text('N/A', barAreaX + 1, rowY + barH - 0.5);
+        }
+
+        // Class average bar
+        if (metric.classVal !== null) {
+          const w = Math.max((metric.classVal / 100) * barAreaW, 0.5);
+          doc.setFillColor(...classBarColor);
+          doc.rect(barAreaX, rowY + barH + 1, w, barH, 'F');
+          doc.setFontSize(7.5);
+          doc.setFont(undefined, 'normal');
+          doc.setTextColor(71, 85, 105);
+          doc.text(`${metric.classVal.toFixed(1)}%`, barAreaX + barAreaW + valueColW - 1, rowY + barH * 2 + 0.5, { align: 'right' });
+        } else if (metric.studentVal !== null) {
+          doc.setFontSize(7);
+          doc.setFont(undefined, 'normal');
+          doc.setTextColor(...theme.muted);
+          doc.text('N/A', barAreaX + 1, rowY + barH * 2 + 0.5);
+        }
       });
 
       const units = Object.values(classData.units || {}).sort((a, b) => a.order - b.order);
-      let cursorY = doc.autoTable.previous.finalY + 8;
+      let cursorY = gridEndY + 9;
 
       units.forEach((unit) => {
         const assignments = Object.values(unit.assignments || {}).sort((a, b) => a.order - b.order);
