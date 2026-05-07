@@ -266,16 +266,14 @@ serve(async (request) => {
       if (payload.email) {
         const emailHash = await hashEmail(emailToUse);
         const encryptedEmail = xorEncrypt(emailToUse, encryptionKey);
-        await supabase
-          .from('student_notification_emails')
-          .upsert({
-            student_card_id: payload.studentCardId,
-            student_card_number: payload.studentCardNumber,
-            student_name: payload.studentName,
-            email_hash: emailHash,
-            encrypted_email: encryptedEmail,
-            updated_at: new Date().toISOString(),
-          });
+        await supabase.from('student_notification_emails').upsert({
+          student_card_id: payload.studentCardId,
+          student_card_number: payload.studentCardNumber,
+          student_name: payload.studentName,
+          email_hash: emailHash,
+          encrypted_email: encryptedEmail,
+          updated_at: new Date().toISOString(),
+        });
       }
 
       const emailHash = await hashEmail(emailToUse);

@@ -1870,7 +1870,7 @@ export function showPdfExportOptionsModal() {
       const baseColumns =
         selectedType === 'gradebook'
           ? ['Last Name', 'First Name', 'Overall', 'Term', 'Final', 'K', 'T', 'C', 'A']
-          : ['Assessment', 'Scores', 'Summary'];
+          : ['Assignment', 'Scores', 'Summary'];
       const columns =
         attendanceEnabled && selectedType === 'gradebook' ? [...baseColumns, 'Abs', 'Late', 'Att%'] : baseColumns;
 
@@ -2518,7 +2518,7 @@ function exportClassPDF({ studentIds = [], includeMissingAssignments = false }) 
         if (body.length === 0) return;
 
         const unitTitle = unit.isFinal
-          ? 'Final Assessment'
+          ? 'Final Assignment'
           : `Unit ${unit.order}${unit.title ? `: ${unit.title}` : ''}${unit.subtitle ? ` - ${unit.subtitle}` : ''}`;
         doc.setFillColor(...theme.headerBg);
         doc.setDrawColor(...theme.border);
@@ -2530,7 +2530,7 @@ function exportClassPDF({ studentIds = [], includeMissingAssignments = false }) 
 
         doc.autoTable({
           startY: cursorY + 8,
-          head: [unit.isFinal ? ['Assessment', 'Score'] : ['Assessment', 'K', 'T', 'C', 'A']],
+          head: [unit.isFinal ? ['Assignment', 'Score'] : ['Assignment', 'K', 'T', 'C', 'A']],
           body,
           theme: 'grid',
           headStyles: { fillColor: theme.secondary, textColor: [255, 255, 255], fontStyle: 'bold' },
