@@ -2330,7 +2330,12 @@ function exportClassPDF({ studentIds = [], includeMissingAssignments = false }) 
     const _clsCounts = { overall: 0, term: 0, final: 0, k: 0, t: 0, c: 0, a: 0 };
     allClassStudents.forEach((s) => {
       const a = calculateStudentAverages(s, classData);
-      const pushIf = (key, val) => { if (val !== null) { _clsSums[key] += val; _clsCounts[key]++; } };
+      const pushIf = (key, val) => {
+        if (val !== null) {
+          _clsSums[key] += val;
+          _clsCounts[key]++;
+        }
+      };
       pushIf('overall', a.overallGrade);
       pushIf('term', a.termMark);
       pushIf('final', a.finalMark);
@@ -2375,7 +2380,11 @@ function exportClassPDF({ studentIds = [], includeMissingAssignments = false }) 
       const chartMetrics = [
         { label: 'Overall', studentVal: avgs.overallGrade, classVal: classAvgData.overall },
         { label: 'Term', studentVal: avgs.termMark, classVal: classAvgData.term },
-        { label: 'Final', studentVal: classData.hasFinal ? avgs.finalMark : null, classVal: classData.hasFinal ? classAvgData.final : null },
+        {
+          label: 'Final',
+          studentVal: classData.hasFinal ? avgs.finalMark : null,
+          classVal: classData.hasFinal ? classAvgData.final : null,
+        },
         { label: 'K', studentVal: avgs.categories.k, classVal: classAvgData.k },
         { label: 'T/I', studentVal: avgs.categories.t, classVal: classAvgData.t },
         { label: 'C', studentVal: avgs.categories.c, classVal: classAvgData.c },
@@ -2383,102 +2392,101 @@ function exportClassPDF({ studentIds = [], includeMissingAssignments = false }) 
       ];
 
       const pageWidth = doc.internal.pageSize.getWidth();
-      const chartStartY = 46;
-      const labelColW = 20;
-      const valueColW = 16;
-      const barAreaX = 12 + labelColW;
-      const barAreaW = pageWidth - 12 - labelColW - valueColW - 12; // subtract margins + value col
-      const rowH = 11;
-      const barH = 3.6;
       const studentBarColor = [30, 64, 175];
       const classBarColor = [148, 163, 184];
+
+      // --- Vertical grouped bar chart ---
+      const chartX = 12; // left margin
+      const chartW = pageWidth - 24; // full usable width
+      const chartTopY = 46;
+      const chartH = 52; // height of the plot area (bars grow upward from baseline)
+      const baselineY = chartTopY + chartH;
+
+      const n = chartMetrics.length;
+      const groupW = chartW / n;
+      const barPairGap = 1.2;
+      const barW = (groupW - barPairGap * 3) / 2;
 
       // Section heading
       doc.setFontSize(9);
       doc.setFont(undefined, 'bold');
       doc.setTextColor(...theme.secondary);
-      doc.text('Performance Summary', 12, chartStartY);
+      doc.text('Performance Summary', chartX, chartTopY - 3);
 
-      // Legend
-      const legendY = chartStartY + 5;
+      // Horizontal grid lines at 0, 25, 50, 75, 100 %
+      doc.setLineWidth(0.15);
+      [0, 25, 50, 75, 100].forEach((pct) => {
+        const y = baselineY - (pct / 100) * chartH;
+        doc.setDrawColor(220, 227, 237);
+        doc.line(chartX, y, chartX + chartW, y);
+        doc.setFontSize(6);
+        doc.setTextColor(...theme.muted);
+        doc.text(`${pct}%`, chartX - 1, y + 1, { align: 'right' });
+      });
+
+      // Baseline
+      doc.setDrawColor(...theme.border);
+      doc.setLineWidth(0.3);
+      doc.line(chartX, baselineY, chartX + chartW, baselineY);
+
+      // Bars
+      chartMetrics.forEach((metric, idx) => {
+        const groupX = chartX + idx * groupW;
+        const sBarX = groupX + barPairGap;
+        const cBarX = sBarX + barW + barPairGap;
+
+        // Student bar
+        if (metric.studentVal !== null) {
+          const h = Math.max((metric.studentVal / 100) * chartH, 0.5);
+          doc.setFillColor(...studentBarColor);
+          doc.rect(sBarX, baselineY - h, barW, h, 'F');
+          doc.setFontSize(6.2);
+          doc.setFont(undefined, 'bold');
+          doc.setTextColor(...studentBarColor);
+          doc.text(`${metric.studentVal.toFixed(1)}%`, sBarX + barW / 2, baselineY - h - 1.2, { align: 'center' });
+        }
+
+        // Class average bar
+        if (metric.classVal !== null) {
+          const h = Math.max((metric.classVal / 100) * chartH, 0.5);
+          doc.setFillColor(...classBarColor);
+          doc.rect(cBarX, baselineY - h, barW, h, 'F');
+          doc.setFontSize(6.2);
+          doc.setFont(undefined, 'normal');
+          doc.setTextColor(71, 85, 105);
+          doc.text(`${metric.classVal.toFixed(1)}%`, cBarX + barW / 2, baselineY - h - 1.2, { align: 'center' });
+        }
+
+        // X-axis label
+        doc.setFontSize(7.5);
+        doc.setFont(undefined, 'bold');
+        doc.setTextColor(30, 41, 59);
+        doc.text(metric.label, groupX + groupW / 2, baselineY + 4.5, { align: 'center' });
+      });
+
+      // Legend (below x-axis labels)
+      const legendY = baselineY + 10;
       doc.setFillColor(...studentBarColor);
-      doc.rect(12, legendY - 2.8, 7, 3, 'F');
-      doc.setFontSize(8);
+      doc.rect(chartX, legendY - 2.5, 6, 3, 'F');
+      doc.setFontSize(7.5);
       doc.setFont(undefined, 'normal');
       doc.setTextColor(30, 41, 59);
-      doc.text('Student', 21, legendY);
+      doc.text('Student', chartX + 8, legendY);
       doc.setFillColor(...classBarColor);
-      doc.rect(50, legendY - 2.8, 7, 3, 'F');
-      doc.text('Class Average', 59, legendY);
+      doc.rect(chartX + 36, legendY - 2.5, 6, 3, 'F');
+      doc.text('Class Average', chartX + 44, legendY);
 
-      // Attendance note at the right of legend
+      // Attendance (right-aligned in legend row)
       if (attendanceEnabled) {
         const attendance = getAttendanceSummaryForStudent(classData, student.id);
         const attendanceText = `Absent: ${attendance.absent}  Late: ${attendance.late}  Attendance: ${attendance.attendancePct !== null ? attendance.attendancePct.toFixed(1) + '%' : 'N/A'}`;
         doc.setFontSize(7.5);
         doc.setTextColor(...theme.muted);
-        doc.text(attendanceText, pageWidth - 12, legendY, { align: 'right' });
+        doc.text(attendanceText, chartX + chartW, legendY, { align: 'right' });
       }
 
-      // Grid lines + x-axis labels
-      const gridStartY = legendY + 4;
-      const gridEndY = gridStartY + chartMetrics.length * rowH + 1;
-      doc.setDrawColor(...theme.border);
-      doc.setLineWidth(0.15);
-      [0, 25, 50, 75, 100].forEach((pct) => {
-        const x = barAreaX + (pct / 100) * barAreaW;
-        doc.setDrawColor(220, 227, 237);
-        doc.line(x, gridStartY, x, gridEndY);
-        doc.setFontSize(6.5);
-        doc.setTextColor(...theme.muted);
-        doc.text(`${pct}%`, x, gridEndY + 3.5, { align: 'center' });
-      });
-
-      // Bars
-      chartMetrics.forEach((metric, idx) => {
-        const rowY = gridStartY + idx * rowH;
-
-        // Row label
-        doc.setFontSize(8);
-        doc.setFont(undefined, 'bold');
-        doc.setTextColor(30, 41, 59);
-        doc.text(metric.label, barAreaX - 2, rowY + barH * 2 + 0.5, { align: 'right' });
-
-        // Student bar
-        if (metric.studentVal !== null) {
-          const w = Math.max((metric.studentVal / 100) * barAreaW, 0.5);
-          doc.setFillColor(...studentBarColor);
-          doc.rect(barAreaX, rowY, w, barH, 'F');
-          doc.setFontSize(7.5);
-          doc.setFont(undefined, 'bold');
-          doc.setTextColor(...studentBarColor);
-          doc.text(`${metric.studentVal.toFixed(1)}%`, barAreaX + barAreaW + valueColW - 1, rowY + barH - 0.5, { align: 'right' });
-        } else {
-          doc.setFontSize(7);
-          doc.setFont(undefined, 'normal');
-          doc.setTextColor(...theme.muted);
-          doc.text('N/A', barAreaX + 1, rowY + barH - 0.5);
-        }
-
-        // Class average bar
-        if (metric.classVal !== null) {
-          const w = Math.max((metric.classVal / 100) * barAreaW, 0.5);
-          doc.setFillColor(...classBarColor);
-          doc.rect(barAreaX, rowY + barH + 1, w, barH, 'F');
-          doc.setFontSize(7.5);
-          doc.setFont(undefined, 'normal');
-          doc.setTextColor(71, 85, 105);
-          doc.text(`${metric.classVal.toFixed(1)}%`, barAreaX + barAreaW + valueColW - 1, rowY + barH * 2 + 0.5, { align: 'right' });
-        } else if (metric.studentVal !== null) {
-          doc.setFontSize(7);
-          doc.setFont(undefined, 'normal');
-          doc.setTextColor(...theme.muted);
-          doc.text('N/A', barAreaX + 1, rowY + barH * 2 + 0.5);
-        }
-      });
-
       const units = Object.values(classData.units || {}).sort((a, b) => a.order - b.order);
-      let cursorY = gridEndY + 9;
+      let cursorY = legendY + 7;
 
       units.forEach((unit) => {
         const assignments = Object.values(unit.assignments || {}).sort((a, b) => a.order - b.order);
