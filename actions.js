@@ -2398,7 +2398,7 @@ function exportClassPDF({ studentIds = [], includeMissingAssignments = false }) 
       // --- Vertical grouped bar chart ---
       const chartX = 12; // left margin
       const chartW = pageWidth - 24; // full usable width
-      const chartTopY = 46;
+      const chartTopY = 56;
       const chartH = 52; // height of the plot area (bars grow upward from baseline)
       const baselineY = chartTopY + chartH;
 
