@@ -2275,6 +2275,10 @@ function exportClassPDF({ studentIds = [], includeMissingAssignments = false }) 
   };
 
   const generatedAt = new Date().toLocaleString();
+  const reportHeaderBrand =
+    typeof appState.school_name === 'string' && appState.school_name.trim()
+      ? appState.school_name.trim()
+      : 'Marksheet Pro';
 
   const drawStandardHeader = (doc, title, subtitle) => {
     const pageWidth = doc.internal.pageSize.getWidth();
@@ -2283,7 +2287,7 @@ function exportClassPDF({ studentIds = [], includeMissingAssignments = false }) 
     doc.setFontSize(12);
     doc.setFont(undefined, 'bold');
     doc.setTextColor(255, 255, 255);
-    doc.text('Marksheet Pro', 12, 11);
+    doc.text(reportHeaderBrand, 12, 11);
     doc.setFontSize(9);
     doc.setFont(undefined, 'normal');
     doc.text(generatedAt, pageWidth - 12, 11, { align: 'right' });
