@@ -14,7 +14,7 @@ import {
 import { loadCloudLibraryState, saveCloudLibraryState } from '../services/cloudStorage';
 import { lookupCatalogBook } from '../services/catalog';
 import { fetchGoogleBooksMetadata } from '../services/api';
-import { sendBookAvailableNotice, sendCheckoutNotice } from '../services/notifications';
+import { sendBookAvailableNotice } from '../services/notifications';
 
 const MAX_STUDENT_RESERVATIONS = 2;
 const MAX_STUDENT_CHECKOUTS = 1;
@@ -644,81 +644,23 @@ export function useLibrary() {
             normalizeIsbn(book.isbn13) === normalizeIsbn(target.isbn)
         );
 
-        const holdQueue = matchedBook?.holds ?? [];
-        const nextEligibleHold = holdQueue.find((hold) => {
-          if (!hold.studentCardId) return true;
+        const nextHold = (matchedBook?.holds ?? [])[0] ?? null;
 
-          const matchedCard = studentCards.find((card) => card.id === hold.studentCardId);
-          const borrowerLabel = matchedCard?.studentName ?? hold.borrowerName;
-          const activeCount = countActiveCheckoutsByBorrower(updated, borrowerLabel);
-          return activeCount < MAX_STUDENT_CHECKOUTS;
-        });
-
-        if (matchedBook && nextEligibleHold) {
-          const due = new Date();
-          due.setDate(due.getDate() + 14);
-
-          const matchedCard = nextEligibleHold.studentCardId
-            ? studentCards.find((card) => card.id === nextEligibleHold.studentCardId)
-            : null;
-          const borrowerForCheckout = matchedCard?.studentName ?? nextEligibleHold.borrowerName;
-
-          updated.push({
-            id: crypto.randomUUID(),
-            isbn: normalizeIsbn(target.isbn),
+        if (matchedBook && nextHold?.notificationContactId) {
+          // Notify the next student that a copy is now available,
+          // but require staff to perform the actual checkout manually.
+          void sendBookAvailableNotice({
+            contactId: nextHold.notificationContactId,
+            studentName: nextHold.borrowerName,
             bookTitle: matchedBook.title,
-            borrowerName: borrowerForCheckout,
-            checkedOutAt: returnedAt,
-            dueDate: due.toISOString(),
           });
-
-          setBooks((bookPrev) => {
-            const booksUpdated = bookPrev.map((book) => {
-              const isMatch =
-                normalizeIsbn(book.isbn) === normalizeIsbn(target.isbn) ||
-                normalizeIsbn(book.isbn13) === normalizeIsbn(target.isbn);
-              if (!isMatch) return book;
-              return {
-                ...book,
-                holds: (book.holds ?? []).filter((hold) => hold.id !== nextEligibleHold.id),
-              };
-            });
-            saveBooks(booksUpdated);
-            return booksUpdated;
-          });
-
-          if (nextEligibleHold.studentCardId && nextEligibleHold.studentCardNumber) {
-            appendReservationActivity({
-              type: 'auto-assigned',
-              studentCardId: nextEligibleHold.studentCardId,
-              studentCardNumber: nextEligibleHold.studentCardNumber,
-              studentName: borrowerForCheckout,
-              bookIsbn: matchedBook.isbn13 || matchedBook.isbn,
-              bookTitle: matchedBook.title,
-            });
-
-            if (nextEligibleHold.notificationContactId) {
-              void sendBookAvailableNotice({
-                contactId: nextEligibleHold.notificationContactId,
-                studentName: borrowerForCheckout,
-                bookTitle: matchedBook.title,
-              });
-
-              // Also send checkout notice immediately since we're auto-assigning
-              void sendCheckoutNotice({
-                contactId: nextEligibleHold.notificationContactId,
-                studentName: borrowerForCheckout,
-                bookTitle: matchedBook.title,
-              });
-            }
-          }
         }
 
         saveCheckouts(updated);
         return updated;
       });
     },
-    [appendReservationActivity, books, studentCards]
+    [books]
   );
 
   /** Get availability info for a given ISBN. Returns null if not in library. */

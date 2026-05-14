@@ -420,7 +420,7 @@ describe('cancelHold', () => {
 });
 
 // =========================================================================
-// returnBook  (including auto-assignment to waitlisted students)
+// returnBook  (manual checkout required for waitlisted students)
 // =========================================================================
 
 describe('returnBook', () => {
@@ -441,7 +441,7 @@ describe('returnBook', () => {
     expect(returned?.returnedAt).toBeDefined();
   });
 
-  it('auto-assigns the next hold as a new checkout when the queue has entries', async () => {
+  it('does not auto-assign the next hold as a new checkout when the queue has entries', async () => {
     const book = makeBook({
       copies: 1,
       holds: [makeHold({ id: 'hold-1', borrowerName: 'Bob Smith' })],
@@ -457,13 +457,11 @@ describe('returnBook', () => {
       result.current.returnBook(record!.id);
     });
 
-    await waitFor(() => {
-      const bobCheckout = result.current.checkouts.find((c) => c.borrowerName === 'Bob Smith' && !c.returnedAt);
-      expect(bobCheckout).toBeDefined();
-    });
+    const bobCheckout = result.current.checkouts.find((c) => c.borrowerName === 'Bob Smith' && !c.returnedAt);
+    expect(bobCheckout).toBeUndefined();
   });
 
-  it('removes the auto-assigned hold from the queue', async () => {
+  it('keeps the hold in the queue after return so staff can check out manually', async () => {
     const book = makeBook({
       copies: 1,
       holds: [makeHold({ id: 'hold-1', borrowerName: 'Bob Smith' })],
@@ -479,12 +477,11 @@ describe('returnBook', () => {
       result.current.returnBook(record!.id);
     });
 
-    await waitFor(() => {
-      expect(result.current.books[0].holds).toHaveLength(0);
-    });
+    expect(result.current.books[0].holds).toHaveLength(1);
+    expect(result.current.books[0].holds[0].id).toBe('hold-1');
   });
 
-  it('preserves remaining holds (FIFO — only first entry is auto-assigned)', async () => {
+  it('preserves FIFO hold order when a copy is returned', async () => {
     const book = makeBook({
       copies: 1,
       holds: [makeHold({ id: 'hold-1', borrowerName: 'Bob' }), makeHold({ id: 'hold-2', borrowerName: 'Carol' })],
@@ -500,14 +497,12 @@ describe('returnBook', () => {
       result.current.returnBook(record!.id);
     });
 
-    await waitFor(() => {
-      // Carol's hold should remain at position 0
-      expect(result.current.books[0].holds).toHaveLength(1);
-      expect(result.current.books[0].holds[0].id).toBe('hold-2');
-    });
+    expect(result.current.books[0].holds).toHaveLength(2);
+    expect(result.current.books[0].holds[0].id).toBe('hold-1');
+    expect(result.current.books[0].holds[1].id).toBe('hold-2');
   });
 
-  it('logs an auto-assigned activity when the hold has card info', async () => {
+  it('does not log auto-assigned activity on return', async () => {
     const card = makeStudentCard({ id: 'card-bob', cardNumber: 'LIB-00002', studentName: 'Bob Smith' });
     const book = makeBook({
       copies: 1,
@@ -531,13 +526,8 @@ describe('returnBook', () => {
       result.current.returnBook(record!.id);
     });
 
-    await waitFor(() => {
-      const activity = result.current.reservationActivities.find((a) => a.type === 'auto-assigned');
-      expect(activity).toBeDefined();
-      expect(activity?.studentCardId).toBe('card-bob');
-      expect(activity?.studentName).toBe('Bob Smith');
-      expect(activity?.bookTitle).toBe('Test Book');
-    });
+    const activity = result.current.reservationActivities.find((a) => a.type === 'auto-assigned');
+    expect(activity).toBeUndefined();
   });
 
   it('does NOT auto-assign and adds no extra checkout when queue is empty', async () => {
@@ -577,7 +567,7 @@ describe('returnBook', () => {
     expect(checkout?.returnedAt).toBeUndefined();
   });
 
-  it('skips a queued student with an active checkout and assigns the next eligible hold', async () => {
+  it('does not auto-checkout any queued student even if later holds are eligible', async () => {
     const cardBob = makeStudentCard({ id: 'card-bob', cardNumber: 'LIB-00002', studentName: 'Bob Smith' });
     const cardCarol = makeStudentCard({ id: 'card-carol', cardNumber: 'LIB-00003', studentName: 'Carol Smith' });
 
@@ -626,15 +616,14 @@ describe('returnBook', () => {
       result.current.returnBook(currentLoan!.id);
     });
 
-    await waitFor(() => {
-      const carolCheckout = result.current.checkouts.find(
-        (c) => c.borrowerName === 'Carol Smith' && c.bookTitle === 'Queued Book' && !c.returnedAt
-      );
-      expect(carolCheckout).toBeDefined();
-    });
+    const carolCheckout = result.current.checkouts.find(
+      (c) => c.borrowerName === 'Carol Smith' && c.bookTitle === 'Queued Book' && !c.returnedAt
+    );
+    expect(carolCheckout).toBeUndefined();
 
-    expect(result.current.books[0].holds).toHaveLength(1);
+    expect(result.current.books[0].holds).toHaveLength(2);
     expect(result.current.books[0].holds[0].id).toBe('hold-bob');
+    expect(result.current.books[0].holds[1].id).toBe('hold-carol');
   });
 });
 
