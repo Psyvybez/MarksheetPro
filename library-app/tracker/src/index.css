@@ -1463,6 +1463,35 @@ ul {
   max-height: 96vh;
 }
 
+.student-portal-guest-bar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 0.75rem 1rem;
+  background: rgba(255, 248, 235, 0.85);
+  border: 1px solid #e8d8b4;
+  border-radius: var(--radius-md);
+  margin-bottom: 0.5rem;
+}
+
+.student-portal-guest-text {
+  flex: 1;
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+}
+
+.student-portal-signin-btn {
+  white-space: nowrap;
+}
+
+.student-portal-signin-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
 .student-portal-page {
   min-height: 100%;
   padding: 1rem;

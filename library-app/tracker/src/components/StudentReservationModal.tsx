@@ -41,6 +41,8 @@ function getGenreTokens(genre: string): string[] {
 }
 
 const STUDENT_PORTAL_IDENTITY_KEY = 'library-tracker.student-portal.identity';
+const STUDENT_PORTAL_EMAIL_CACHE_KEY = 'library-tracker.student-portal.email-cache';
+const STUDENT_PORTAL_EMAIL_PROMPT_SKIP_KEY = 'library-tracker.student-portal.email-prompt-skip';
 const MAX_STUDENT_RESERVATIONS = 2;
 const MAX_STUDENT_CHECKOUTS = 1;
 
@@ -68,6 +70,7 @@ export function StudentReservationModal({
   const [message, setMessage] = useState<string | null>(null);
   const [savedIdentityAt, setSavedIdentityAt] = useState<string | null>(null);
   const [registeringNotification, setRegisteringNotification] = useState(false);
+  const [showSignInForm, setShowSignInForm] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -374,29 +377,106 @@ export function StudentReservationModal({
     setMessage(`Reservation confirmed for ${book.title} (Ref ${confirmationCode}) at ${reservedAt}.`);
 
     if (typeof window !== 'undefined' && typeof window.confirm === 'function' && typeof window.prompt === 'function') {
-      const savedEmailResult = await getStudentEmail(activeStudent.id);
-      let email = savedEmailResult.email;
+      const readCachedEmail = (): string | null => {
+        try {
+          const raw = window.localStorage.getItem(STUDENT_PORTAL_EMAIL_CACHE_KEY);
+          if (!raw) return null;
+          const parsed = JSON.parse(raw) as Record<string, unknown>;
+          const value = parsed[activeStudent.id];
+          return typeof value === 'string' && value.includes('@') ? value : null;
+        } catch {
+          return null;
+        }
+      };
+
+      const writeCachedEmail = (emailToSave: string): void => {
+        try {
+          const raw = window.localStorage.getItem(STUDENT_PORTAL_EMAIL_CACHE_KEY);
+          const parsed = raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
+          parsed[activeStudent.id] = emailToSave;
+          window.localStorage.setItem(STUDENT_PORTAL_EMAIL_CACHE_KEY, JSON.stringify(parsed));
+        } catch {
+          // Ignore localStorage write failures.
+        }
+      };
+
+      const readPromptSkip = (): boolean => {
+        try {
+          const raw = window.localStorage.getItem(STUDENT_PORTAL_EMAIL_PROMPT_SKIP_KEY);
+          if (!raw) return false;
+          const parsed = JSON.parse(raw) as Record<string, unknown>;
+          return parsed[activeStudent.id] === true;
+        } catch {
+          return false;
+        }
+      };
+
+      const writePromptSkip = (skip: boolean): void => {
+        try {
+          const raw = window.localStorage.getItem(STUDENT_PORTAL_EMAIL_PROMPT_SKIP_KEY);
+          const parsed = raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
+          parsed[activeStudent.id] = skip;
+          window.localStorage.setItem(STUDENT_PORTAL_EMAIL_PROMPT_SKIP_KEY, JSON.stringify(parsed));
+        } catch {
+          // Ignore localStorage write failures.
+        }
+      };
+
+      let email = readCachedEmail();
+      let usedExistingEmail = !!email;
+
+      const savedEmailResult = email ? { email, error: null } : await getStudentEmail(activeStudent.id);
+      if (!email && savedEmailResult.email) {
+        email = savedEmailResult.email;
+        usedExistingEmail = true;
+        writeCachedEmail(savedEmailResult.email);
+      }
 
       if (!email) {
+        if (readPromptSkip()) {
+          return;
+        }
+
         const wantsEmail = window.confirm(
           'Would you like an email notification when this reservation becomes available? Your email will be saved only for this library card.'
         );
-        if (!wantsEmail) return;
+        if (!wantsEmail) {
+          writePromptSkip(true);
+          return;
+        }
 
         email = window.prompt('Enter your email address for this library card:', '')?.trim() ?? '';
-        if (!email) return;
+        if (!email) {
+          writePromptSkip(true);
+          return;
+        }
+
+        const normalizedEmail = email.toLowerCase();
+        if (!normalizedEmail.includes('@')) {
+          setError('Please enter a valid email address.');
+          return;
+        }
 
         const saved = await saveStudentEmail({
           studentCardId: activeStudent.id,
           studentCardNumber: activeStudent.cardNumber,
           studentName: activeStudent.studentName,
-          email,
+          email: normalizedEmail,
         });
 
         if (!saved.ok) {
-          setError('Reservation saved, but the email could not be saved for this library card. Please try again.');
-          return;
+          const saveErrorText = (saved.error ?? '').toLowerCase();
+          const isLegacyFunction = saveErrorText.includes('unknown action');
+          if (!isLegacyFunction) {
+            setError('Reservation saved, but the email could not be saved for this library card. Please try again.');
+            return;
+          }
         }
+
+        email = normalizedEmail;
+        usedExistingEmail = false;
+        writeCachedEmail(normalizedEmail);
+        writePromptSkip(false);
       }
 
       setRegisteringNotification(true);
@@ -410,7 +490,7 @@ export function StudentReservationModal({
       setRegisteringNotification(false);
 
       if (linked) {
-        const enabledMessage = savedEmailResult.email
+        const enabledMessage = usedExistingEmail
           ? `Reservation confirmed for ${book.title} (Ref ${confirmationCode}) at ${reservedAt}. Notifications will use your saved email.`
           : `Reservation confirmed for ${book.title} (Ref ${confirmationCode}) at ${reservedAt}. Email alerts are now enabled.`;
         setMessage(enabledMessage);
@@ -466,47 +546,71 @@ export function StudentReservationModal({
         <h2 className="modal-title">Student Reservation Portal</h2>
 
         {!activeStudent ? (
-          <form className="checkout-form" onSubmit={handleSignIn}>
-            <label className="checkout-label" htmlFor="student-card-number">
-              Library Card Number
-            </label>
-            <input
-              id="student-card-number"
-              className="checkout-input"
-              type="text"
-              value={cardNumber}
-              onChange={(event) => setCardNumber(event.target.value)}
-              placeholder="Example: LIB-00001"
-              autoComplete="off"
-              required
-            />
+          <div className="student-portal-guest-bar">
+            <p className="student-portal-guest-text">
+              Browse the catalog below. Sign in with your library card to make reservations.
+            </p>
+            {showSignInForm ? (
+              <form className="checkout-form" onSubmit={handleSignIn}>
+                <label className="checkout-label" htmlFor="student-card-number">
+                  Library Card Number
+                </label>
+                <input
+                  id="student-card-number"
+                  className="checkout-input"
+                  type="text"
+                  value={cardNumber}
+                  onChange={(event) => setCardNumber(event.target.value)}
+                  placeholder="Example: LIB-00001"
+                  autoComplete="off"
+                  required
+                />
 
-            <label className="checkout-label" htmlFor="student-name">
-              Student Name
-            </label>
-            <input
-              id="student-name"
-              className="checkout-input"
-              type="text"
-              value={studentName}
-              onChange={(event) => setStudentName(event.target.value)}
-              placeholder="Name on card"
-              autoComplete="off"
-              required
-            />
+                <label className="checkout-label" htmlFor="student-name">
+                  Student Name
+                </label>
+                <input
+                  id="student-name"
+                  className="checkout-input"
+                  type="text"
+                  value={studentName}
+                  onChange={(event) => setStudentName(event.target.value)}
+                  placeholder="Name on card"
+                  autoComplete="off"
+                  required
+                />
 
-            <button className="btn btn-primary" type="submit">
-              Sign In
-            </button>
+                <div className="student-portal-signin-actions">
+                  <button className="btn btn-primary" type="submit">
+                    Sign In
+                  </button>
+                  <button
+                    className="btn btn-secondary"
+                    type="button"
+                    onClick={() => setShowSignInForm(false)}
+                  >
+                    Cancel
+                  </button>
+                </div>
 
-            {savedIdentityAt && (
-              <p className="settings-hint" role="status">
-                Last saved sign-in: {new Date(savedIdentityAt).toLocaleString()}
-              </p>
+                {savedIdentityAt && (
+                  <p className="settings-hint" role="status">
+                    Last saved sign-in: {new Date(savedIdentityAt).toLocaleString()}
+                  </p>
+                )}
+
+                <p className="settings-hint">Only active assigned library cards can access reservation mode.</p>
+              </form>
+            ) : (
+              <button
+                className="btn btn-primary student-portal-signin-btn"
+                type="button"
+                onClick={() => setShowSignInForm(true)}
+              >
+                Sign In
+              </button>
             )}
-
-            <p className="settings-hint">Only active assigned library cards can access reservation mode.</p>
-          </form>
+          </div>
         ) : (
           <>
             <div className="student-session-bar">
@@ -581,6 +685,8 @@ export function StudentReservationModal({
                 </ul>
               )}
             </section>
+          </>
+        )}
 
             <div className="student-portal-shell">
               <div className="student-portal-catalog">
@@ -725,6 +831,10 @@ export function StudentReservationModal({
                             <button
                               className="btn btn-primary"
                               onClick={() => {
+                                if (!activeStudent) {
+                                  setShowSignInForm(true);
+                                  return;
+                                }
                                 if (status.isQueuedByActiveStudent) {
                                   handleCancelReservation(status.book);
                                   return;
@@ -732,20 +842,23 @@ export function StudentReservationModal({
                                 void handleReserve(status.book);
                               }}
                               disabled={
-                                (studentActiveHoldCount >= MAX_STUDENT_RESERVATIONS &&
+                                !!activeStudent &&
+                                ((studentActiveHoldCount >= MAX_STUDENT_RESERVATIONS &&
                                   !status.isQueuedByActiveStudent) ||
-                                registeringNotification
+                                  registeringNotification)
                               }
                             >
-                              {status.isQueuedByActiveStudent
-                                ? 'Cancel Reservation'
-                                : studentActiveHoldCount >= MAX_STUDENT_RESERVATIONS
-                                  ? `${MAX_STUDENT_RESERVATIONS} Book Limit Reached`
-                                  : registeringNotification
-                                    ? 'Saving Notification…'
-                                    : status.availableCopies > 0
-                                      ? 'Reserve This Copy'
-                                      : 'Join Waitlist'}
+                              {!activeStudent
+                                ? 'Sign In to Reserve'
+                                : status.isQueuedByActiveStudent
+                                  ? 'Cancel Reservation'
+                                  : studentActiveHoldCount >= MAX_STUDENT_RESERVATIONS
+                                    ? `${MAX_STUDENT_RESERVATIONS} Book Limit Reached`
+                                    : registeringNotification
+                                      ? 'Saving Notification…'
+                                      : status.availableCopies > 0
+                                        ? 'Reserve This Copy'
+                                        : 'Join Waitlist'}
                             </button>
                           </div>
                         </div>
@@ -810,8 +923,6 @@ export function StudentReservationModal({
                 )}
               </aside>
             </div>
-          </>
-        )}
 
         {message && (
           <p className="settings-success" role="status">

@@ -130,7 +130,7 @@ async function sendResendEmail(to: string, subject: string, html: string): Promi
   }
 }
 
-serve(async (request) => {
+serve(async (request: Request) => {
   if (request.method === 'OPTIONS') {
     return new Response(null, {
       status: 204,
@@ -177,7 +177,7 @@ serve(async (request) => {
       const emailHash = await hashEmail(normalizedEmail);
       const encryptedEmail = xorEncrypt(normalizedEmail, encryptionKey);
 
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('student_notification_emails')
         .upsert({
           student_card_id: payload.studentCardId,
@@ -186,9 +186,7 @@ serve(async (request) => {
           email_hash: emailHash,
           encrypted_email: encryptedEmail,
           updated_at: new Date().toISOString(),
-        })
-        .select('id')
-        .single();
+        });
 
       if (error) {
         return json(500, {
@@ -314,11 +312,11 @@ serve(async (request) => {
         });
       }
 
-      const { data, error } = await supabase
+      const { data, error } = (await supabase
         .from('reservation_notification_contacts')
         .select('id, email_hash, encrypted_email, student_name, book_title, expires_at, available_notice_sent_at')
         .eq('id', payload.contactId)
-        .single<ContactRow>();
+        .single()) as { data: ContactRow | null; error: unknown };
 
       if (error || !data) {
         return json(404, {
@@ -372,11 +370,11 @@ serve(async (request) => {
         });
       }
 
-      const { data, error } = await supabase
+      const { data, error } = (await supabase
         .from('reservation_notification_contacts')
         .select('id, email_hash, encrypted_email, student_name, book_title, expires_at')
         .eq('id', payload.contactId)
-        .single<ContactRow>();
+        .single()) as { data: ContactRow | null; error: unknown };
 
       if (error || !data) {
         return json(404, {

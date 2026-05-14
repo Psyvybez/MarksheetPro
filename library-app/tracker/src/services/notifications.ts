@@ -18,6 +18,7 @@ interface SaveStudentEmailInput {
 
 interface GetStudentEmailResult {
   email: string | null;
+  error: string | null;
 }
 
 interface RegisterReservationContactResult {
@@ -73,6 +74,28 @@ export async function sendBookAvailableNotice(input: SendBookAvailableNoticeInpu
       payload: input,
     },
   });
+
+  // Backward compatibility for older deployed edge function versions.
+  if (error?.message?.toLowerCase().includes('unknown action')) {
+    const { error: legacyError } = await supabase.functions.invoke('library-notifications', {
+      body: {
+        action: 'send_ready_notice',
+        payload: input,
+      },
+    });
+
+    if (legacyError) {
+      return {
+        ok: false,
+        error: legacyError.message,
+      };
+    }
+
+    return {
+      ok: true,
+      error: null,
+    };
+  }
 
   if (error) {
     return {
@@ -161,11 +184,13 @@ export async function getStudentEmail(studentCardId: string): Promise<GetStudent
   if (error) {
     return {
       email: null,
+      error: error.message,
     };
   }
 
   return {
     email: typeof data?.email === 'string' ? data.email : null,
+    error: null,
   };
 }
 
