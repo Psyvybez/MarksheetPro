@@ -29,7 +29,15 @@ export function ReservationActivityModal({ activities, onClose }: ReservationAct
   };
 
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Reservation activity">
+    <div
+      className="modal-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Reservation activity"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
       <div className="modal-sheet">
         <button className="modal-close-btn" onClick={onClose} aria-label="Close reservation activity">
           ✕

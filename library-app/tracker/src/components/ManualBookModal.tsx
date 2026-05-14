@@ -204,7 +204,15 @@ export function ManualBookModal({
   };
 
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Add a book manually">
+    <div
+      className="modal-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Add a book manually"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
       <div className="modal-sheet">
         <button className="modal-close-btn" onClick={onClose} aria-label="Close manual add form">
           ✕

@@ -71,7 +71,15 @@ export function BookActionModal({
   };
 
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Book details">
+    <div
+      className="modal-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Book details"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
       <div className="modal-sheet">
         <button className="modal-close-btn" onClick={onClose} aria-label="Close">
           ✕

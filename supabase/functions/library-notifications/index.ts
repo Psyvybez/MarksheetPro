@@ -177,16 +177,14 @@ serve(async (request: Request) => {
       const emailHash = await hashEmail(normalizedEmail);
       const encryptedEmail = xorEncrypt(normalizedEmail, encryptionKey);
 
-      const { error } = await supabase
-        .from('student_notification_emails')
-        .upsert({
-          student_card_id: payload.studentCardId,
-          student_card_number: payload.studentCardNumber,
-          student_name: payload.studentName,
-          email_hash: emailHash,
-          encrypted_email: encryptedEmail,
-          updated_at: new Date().toISOString(),
-        });
+      const { error } = await supabase.from('student_notification_emails').upsert({
+        student_card_id: payload.studentCardId,
+        student_card_number: payload.studentCardNumber,
+        student_name: payload.studentName,
+        email_hash: emailHash,
+        encrypted_email: encryptedEmail,
+        updated_at: new Date().toISOString(),
+      });
 
       if (error) {
         return json(500, {

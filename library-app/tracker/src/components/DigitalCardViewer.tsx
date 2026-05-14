@@ -192,7 +192,15 @@ export function DigitalCardViewer({ card, onClose }: DigitalCardViewerProps) {
   };
 
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Digital library card">
+    <div
+      className="modal-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Digital library card"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
       <div className="modal-sheet" style={{ maxWidth: '500px' }}>
         <button className="modal-close-btn" onClick={onClose} aria-label="Close">
           ✕

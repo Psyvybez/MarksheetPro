@@ -368,8 +368,16 @@ ul {
 
 .overdue-item {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.625rem;
   font-size: 0.875rem;
+}
+
+.overdue-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .overdue-name {
@@ -436,6 +444,72 @@ ul {
 .activity-person {
   font-size: 0.8125rem;
   color: var(--color-text-muted);
+}
+
+.dashboard-loan-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.dashboard-loan-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.625rem;
+  padding: 0.625rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.65);
+}
+
+.dashboard-loan-info {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.dashboard-loan-title {
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.dashboard-loan-meta {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+}
+
+.dashboard-return-btn {
+  white-space: nowrap;
+}
+
+.dashboard-card-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.dashboard-card-form-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+@media (max-width: 680px) {
+  .overdue-item,
+  .dashboard-loan-item {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .dashboard-return-btn {
+    width: 100%;
+  }
+
+  .dashboard-card-form-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ============================================================

@@ -371,6 +371,8 @@ export default function App() {
             books={library.books}
             checkouts={library.checkouts}
             studentCards={library.studentCards}
+            onReturnCheckout={handleReturn}
+            onAddStudentCard={library.addStudentCard}
             onScanClick={handleScanFromDash}
             onLibraryClick={() => setView('library')}
           />

@@ -6,6 +6,8 @@ interface DashboardViewProps {
   books: Book[];
   checkouts: CheckoutRecord[];
   studentCards: StudentCard[];
+  onReturnCheckout: (checkoutId: string) => void;
+  onAddStudentCard: (input: Omit<StudentCard, 'id' | 'cardNumber' | 'createdAt' | 'updatedAt'>) => void;
   onScanClick: () => void;
   onLibraryClick: () => void;
 }
@@ -22,8 +24,21 @@ function isDue(dueDateIso: string): boolean {
   return new Date(dueDateIso) < new Date();
 }
 
-export function DashboardView({ books, checkouts, studentCards, onScanClick, onLibraryClick }: DashboardViewProps) {
+export function DashboardView({
+  books,
+  checkouts,
+  studentCards,
+  onReturnCheckout,
+  onAddStudentCard,
+  onScanClick,
+  onLibraryClick,
+}: DashboardViewProps) {
   const [profileName, setProfileName] = useState<string | null>(null);
+  const [studentNameInput, setStudentNameInput] = useState('');
+  const [gradeInput, setGradeInput] = useState('');
+  const [homeroomInput, setHomeroomInput] = useState('');
+  const [cardCreateError, setCardCreateError] = useState<string | null>(null);
+  const [cardCreateMessage, setCardCreateMessage] = useState<string | null>(null);
   const hasBooks = books.length > 0;
   const stats = useMemo(() => {
     const totalCopies = books.reduce((s, b) => s + b.copies, 0);
@@ -44,7 +59,7 @@ export function DashboardView({ books, checkouts, studentCards, onScanClick, onL
         (a, b) =>
           new Date(b.returnedAt ?? b.checkedOutAt).getTime() - new Date(a.returnedAt ?? a.checkedOutAt).getTime()
       )
-      .slice(0, 5);
+      .slice(0, 8);
   }, [checkouts]);
 
   const overdueList = useMemo(() => {
@@ -52,6 +67,38 @@ export function DashboardView({ books, checkouts, studentCards, onScanClick, onL
       .filter((c) => !c.returnedAt && isDue(c.dueDate))
       .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
   }, [checkouts]);
+
+  const handleQuickReturn = (checkout: CheckoutRecord) => {
+    const confirmed = window.confirm(
+      `Confirm return for "${checkout.bookTitle}" checked out to ${checkout.borrowerName}?`
+    );
+    if (!confirmed) return;
+    onReturnCheckout(checkout.id);
+  };
+
+  const handleQuickCreateCard = (event: React.FormEvent) => {
+    event.preventDefault();
+    const trimmedName = studentNameInput.trim();
+    if (!trimmedName) {
+      setCardCreateError('Student name is required.');
+      setCardCreateMessage(null);
+      return;
+    }
+
+    onAddStudentCard({
+      studentName: trimmedName,
+      grade: gradeInput.trim(),
+      homeroom: homeroomInput.trim(),
+      notes: '',
+      isActive: true,
+    });
+
+    setCardCreateError(null);
+    setCardCreateMessage(`${trimmedName} card created.`);
+    setStudentNameInput('');
+    setGradeInput('');
+    setHomeroomInput('');
+  };
 
   return (
     <>
@@ -92,16 +139,68 @@ export function DashboardView({ books, checkouts, studentCards, onScanClick, onL
             <ul className="overdue-list">
               {overdueList.map((c) => (
                 <li key={c.id} className="overdue-item">
-                  <button className="student-name-btn" onClick={() => setProfileName(c.borrowerName)}>
-                    {c.borrowerName}
+                  <div className="overdue-main">
+                    <button className="student-name-btn" onClick={() => setProfileName(c.borrowerName)}>
+                      {c.borrowerName}
+                    </button>
+                    <span className="overdue-book">{c.bookTitle}</span>
+                    <span className="overdue-date">Due {formatDate(c.dueDate)}</span>
+                  </div>
+                  <button className="btn btn-return dashboard-return-btn" onClick={() => handleQuickReturn(c)}>
+                    Confirm Return
                   </button>
-                  <span className="overdue-book">{c.bookTitle}</span>
-                  <span className="overdue-date">Due {formatDate(c.dueDate)}</span>
                 </li>
               ))}
             </ul>
           </div>
         )}
+
+        <div className="activity-section">
+          <h3 className="section-title">Create Student Card</h3>
+          <form className="dashboard-card-form" onSubmit={handleQuickCreateCard}>
+            <input
+              className="search-input"
+              type="text"
+              value={studentNameInput}
+              onChange={(event) => setStudentNameInput(event.target.value)}
+              placeholder="Student name"
+              maxLength={120}
+              required
+            />
+            <div className="dashboard-card-form-row">
+              <input
+                className="search-input"
+                type="text"
+                value={gradeInput}
+                onChange={(event) => setGradeInput(event.target.value)}
+                placeholder="Grade (optional)"
+                maxLength={40}
+              />
+              <input
+                className="search-input"
+                type="text"
+                value={homeroomInput}
+                onChange={(event) => setHomeroomInput(event.target.value)}
+                placeholder="Homeroom (optional)"
+                maxLength={80}
+              />
+            </div>
+            <button className="btn btn-primary" type="submit">
+              Create Card
+            </button>
+          </form>
+          {cardCreateError && (
+            <p className="settings-error" role="alert">
+              {cardCreateError}
+            </p>
+          )}
+          {cardCreateMessage && (
+            <p className="settings-success" role="status">
+              {cardCreateMessage}
+            </p>
+          )}
+          <p className="settings-hint">Total student cards: {studentCards.length}</p>
+        </div>
 
         {/* Recent activity */}
         {recentActivity.length > 0 ? (

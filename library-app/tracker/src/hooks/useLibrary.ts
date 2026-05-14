@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import type { Book, CheckoutRecord, HoldRequest, ReservationActivity, StudentCard } from '../types';
 import {
   getBooks,
@@ -118,6 +118,7 @@ export function useLibrary() {
   const [cloudHydrated, setCloudHydrated] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const stateSnapshotRef = useRef({ books, checkouts, studentCards, reservationActivities });
 
   useEffect(() => {
     let cancelled = false;
@@ -168,6 +169,56 @@ export function useLibrary() {
       window.clearTimeout(timer);
     };
   }, [books, checkouts, studentCards, reservationActivities, cloudHydrated]);
+
+  useEffect(() => {
+    stateSnapshotRef.current = { books, checkouts, studentCards, reservationActivities };
+  }, [books, checkouts, studentCards, reservationActivities]);
+
+  useEffect(() => {
+    if (!cloudHydrated) return;
+
+    let cancelled = false;
+
+    const syncFromCloudIfChanged = async () => {
+      const cloud = await loadCloudLibraryState();
+      if (cancelled || !cloud) return;
+
+      const local = stateSnapshotRef.current;
+      const localSnapshot = JSON.stringify({
+        books: local.books,
+        checkouts: local.checkouts,
+        studentCards: local.studentCards,
+        reservationActivity: local.reservationActivities,
+      });
+
+      const cloudSnapshot = JSON.stringify({
+        books: cloud.books,
+        checkouts: cloud.checkouts,
+        studentCards: cloud.studentCards,
+        reservationActivity: cloud.reservationActivity,
+      });
+
+      if (localSnapshot === cloudSnapshot) return;
+
+      setBooks(cloud.books);
+      setCheckouts(cloud.checkouts);
+      setStudentCards(cloud.studentCards);
+      setReservationActivities(cloud.reservationActivity);
+      saveBooks(cloud.books);
+      saveCheckouts(cloud.checkouts);
+      saveStudentCards(cloud.studentCards);
+      saveReservationActivity(cloud.reservationActivity);
+    };
+
+    const timer = window.setInterval(() => {
+      void syncFromCloudIfChanged();
+    }, 5000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [cloudHydrated]);
 
   const appendReservationActivity = useCallback(
     (input: Omit<ReservationActivity, 'id' | 'at'> & { at?: string }): ReservationActivity => {

@@ -238,7 +238,15 @@ export function SettingsModal({
   };
 
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Settings">
+    <div
+      className="modal-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Settings"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
       <div className="modal-sheet">
         <button className="modal-close-btn" onClick={onClose} aria-label="Close settings">
           ✕

@@ -535,6 +535,11 @@ export function StudentReservationModal({
       role={standalone ? undefined : 'dialog'}
       aria-modal={standalone ? undefined : true}
       aria-label="Student reservation portal"
+      onClick={(event) => {
+        if (!standalone && onClose && event.target === event.currentTarget) {
+          onClose();
+        }
+      }}
     >
       <div className={innerClassName}>
         {!standalone && onClose && (
@@ -584,11 +589,7 @@ export function StudentReservationModal({
                   <button className="btn btn-primary" type="submit">
                     Sign In
                   </button>
-                  <button
-                    className="btn btn-secondary"
-                    type="button"
-                    onClick={() => setShowSignInForm(false)}
-                  >
+                  <button className="btn btn-secondary" type="button" onClick={() => setShowSignInForm(false)}>
                     Cancel
                   </button>
                 </div>
@@ -688,241 +689,240 @@ export function StudentReservationModal({
           </>
         )}
 
-            <div className="student-portal-shell">
-              <div className="student-portal-catalog">
-                <div className="library-toolbar student-portal-toolbar">
-                  <input
-                    className="search-input"
-                    type="search"
-                    value={query}
-                    onChange={(event) => setQuery(event.target.value)}
-                    placeholder="Search the catalog"
-                    aria-label="Search catalog for reservation"
-                  />
-                  <div className="library-filter-row">
-                    <select
-                      className="search-input library-select"
-                      value={searchScope}
-                      onChange={(event) => setSearchScope(event.target.value as SearchScope)}
-                      aria-label="Search scope"
-                    >
-                      <option value="all">Search: All fields</option>
-                      <option value="title">Search: Title</option>
-                      <option value="author">Search: Author</option>
-                      <option value="isbn">Search: ISBN</option>
-                      <option value="genre">Search: Genre</option>
-                    </select>
-                    <select
-                      className="search-input library-select"
-                      value={genreFilter}
-                      onChange={(event) => setGenreFilter(event.target.value)}
-                      aria-label="Filter by genre"
-                    >
-                      <option value="all">Genre: All</option>
-                      {genreOptions.map((genre) => (
-                        <option key={genre} value={genre}>
-                          {genre}
-                        </option>
-                      ))}
-                    </select>
-                    <select
-                      className="search-input library-select"
-                      value={sortMode}
-                      onChange={(event) => setSortMode(event.target.value as SortMode)}
-                      aria-label="Sort books"
-                    >
-                      <option value="relevance">Sort: Relevance</option>
-                      <option value="title-az">Sort: Title A-Z</option>
-                      <option value="newest-added">Sort: Newest Added</option>
-                      <option value="oldest-added">Sort: Oldest Added</option>
-                      <option value="copies-high-low">Sort: Most Available Copies</option>
-                      <option value="copies-low-high">Sort: Fewest Available Copies</option>
-                    </select>
-                  </div>
-                  <div className="filter-tabs" role="group" aria-label="Filter books by availability">
-                    {(['all', 'available', 'out'] as FilterMode[]).map((mode) => (
-                      <button
-                        key={mode}
-                        className={`filter-tab ${filter === mode ? 'active' : ''}`}
-                        onClick={() => setFilter(mode)}
-                      >
-                        {mode === 'all' ? 'All' : mode === 'available' ? 'Available' : 'Checked Out'}
-                      </button>
-                    ))}
-                  </div>
+        <div className="student-portal-shell">
+          <div className="student-portal-catalog">
+            <div className="library-toolbar student-portal-toolbar">
+              <input
+                className="search-input"
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search the catalog"
+                aria-label="Search catalog for reservation"
+              />
+              <div className="library-filter-row">
+                <select
+                  className="search-input library-select"
+                  value={searchScope}
+                  onChange={(event) => setSearchScope(event.target.value as SearchScope)}
+                  aria-label="Search scope"
+                >
+                  <option value="all">Search: All fields</option>
+                  <option value="title">Search: Title</option>
+                  <option value="author">Search: Author</option>
+                  <option value="isbn">Search: ISBN</option>
+                  <option value="genre">Search: Genre</option>
+                </select>
+                <select
+                  className="search-input library-select"
+                  value={genreFilter}
+                  onChange={(event) => setGenreFilter(event.target.value)}
+                  aria-label="Filter by genre"
+                >
+                  <option value="all">Genre: All</option>
+                  {genreOptions.map((genre) => (
+                    <option key={genre} value={genre}>
+                      {genre}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  className="search-input library-select"
+                  value={sortMode}
+                  onChange={(event) => setSortMode(event.target.value as SortMode)}
+                  aria-label="Sort books"
+                >
+                  <option value="relevance">Sort: Relevance</option>
+                  <option value="title-az">Sort: Title A-Z</option>
+                  <option value="newest-added">Sort: Newest Added</option>
+                  <option value="oldest-added">Sort: Oldest Added</option>
+                  <option value="copies-high-low">Sort: Most Available Copies</option>
+                  <option value="copies-low-high">Sort: Fewest Available Copies</option>
+                </select>
+              </div>
+              <div className="filter-tabs" role="group" aria-label="Filter books by availability">
+                {(['all', 'available', 'out'] as FilterMode[]).map((mode) => (
+                  <button
+                    key={mode}
+                    className={`filter-tab ${filter === mode ? 'active' : ''}`}
+                    onClick={() => setFilter(mode)}
+                  >
+                    {mode === 'all' ? 'All' : mode === 'available' ? 'Available' : 'Checked Out'}
+                  </button>
+                ))}
+              </div>
 
-                  {genreQuickChips.length > 0 && (
-                    <div className="library-genre-chips" role="group" aria-label="Quick genre filters">
-                      <button
-                        className={`library-genre-chip ${genreFilter === 'all' ? 'active' : ''}`}
-                        onClick={() => setGenreFilter('all')}
-                      >
-                        All Genres
-                      </button>
-                      {genreQuickChips.map((genre) => (
-                        <button
-                          key={genre.name}
-                          className={`library-genre-chip ${genreFilter === genre.name ? 'active' : ''}`}
-                          onClick={() => setGenreFilter(genre.name)}
-                        >
-                          {genre.name} ({genre.count})
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  {hasActiveExtraFilters && (
+              {genreQuickChips.length > 0 && (
+                <div className="library-genre-chips" role="group" aria-label="Quick genre filters">
+                  <button
+                    className={`library-genre-chip ${genreFilter === 'all' ? 'active' : ''}`}
+                    onClick={() => setGenreFilter('all')}
+                  >
+                    All Genres
+                  </button>
+                  {genreQuickChips.map((genre) => (
                     <button
-                      className="btn btn-secondary library-manual-add-btn"
-                      onClick={() => {
-                        setSearchScope('all');
-                        setGenreFilter('all');
-                        setSortMode('relevance');
-                      }}
+                      key={genre.name}
+                      className={`library-genre-chip ${genreFilter === genre.name ? 'active' : ''}`}
+                      onClick={() => setGenreFilter(genre.name)}
                     >
-                      Clear Extra Filters
+                      {genre.name} ({genre.count})
                     </button>
-                  )}
+                  ))}
+                </div>
+              )}
+
+              {hasActiveExtraFilters && (
+                <button
+                  className="btn btn-secondary library-manual-add-btn"
+                  onClick={() => {
+                    setSearchScope('all');
+                    setGenreFilter('all');
+                    setSortMode('relevance');
+                  }}
+                >
+                  Clear Extra Filters
+                </button>
+              )}
+            </div>
+
+            <p className="library-results-meta student-portal-results-meta" aria-live="polite">
+              Showing {filteredBooks.length} of {books.length} books
+              {genreFilter !== 'all' ? ` • Genre: ${genreFilter}` : ''}
+              {searchScope !== 'all' ? ` • Scope: ${searchScope}` : ''}
+              {filter === 'available' ? ' • Available only' : ''}
+              {filter === 'out' ? ' • Checked out only' : ''}
+            </p>
+
+            {filteredBooks.length === 0 ? (
+              <div className="empty-state student-portal-empty-state">
+                <span className="empty-icon">🔎</span>
+                <h3>No matching books</h3>
+                <p>Try a different search or filter.</p>
+              </div>
+            ) : (
+              <div className="book-list student-book-list">
+                {filteredBooks.map((status) => {
+                  const key = status.book.isbn13 || status.book.isbn;
+                  return (
+                    <div key={key} className="student-book-card-shell">
+                      <BookCard
+                        book={status.book}
+                        activeCheckouts={status.activeCheckouts}
+                        availableCopies={status.availableCopies}
+                        hideBorrowerDetails
+                        onClick={() => handleSelectBook(status.book)}
+                      />
+                      <div className="student-book-card-actions">
+                        <div className="student-book-card-meta">
+                          <span className="student-book-card-queue">
+                            {status.availableCopies > 0
+                              ? `${status.availableCopies} available now`
+                              : `Waitlist length ${status.queue.length}`}
+                          </span>
+                          {status.isQueuedByActiveStudent && (
+                            <span className="student-book-card-reserved">
+                              You are already in line
+                              {status.activeStudentQueuePosition
+                                ? ` • Position #${status.activeStudentQueuePosition}`
+                                : ''}
+                            </span>
+                          )}
+                        </div>
+                        <button
+                          className="btn btn-primary"
+                          onClick={() => {
+                            if (!activeStudent) {
+                              setShowSignInForm(true);
+                              return;
+                            }
+                            if (status.isQueuedByActiveStudent) {
+                              handleCancelReservation(status.book);
+                              return;
+                            }
+                            void handleReserve(status.book);
+                          }}
+                          disabled={
+                            !!activeStudent &&
+                            ((studentActiveHoldCount >= MAX_STUDENT_RESERVATIONS && !status.isQueuedByActiveStudent) ||
+                              registeringNotification)
+                          }
+                        >
+                          {!activeStudent
+                            ? 'Sign In to Reserve'
+                            : status.isQueuedByActiveStudent
+                              ? 'Cancel Reservation'
+                              : studentActiveHoldCount >= MAX_STUDENT_RESERVATIONS
+                                ? `${MAX_STUDENT_RESERVATIONS} Book Limit Reached`
+                                : registeringNotification
+                                  ? 'Saving Notification…'
+                                  : status.availableCopies > 0
+                                    ? 'Reserve This Copy'
+                                    : 'Join Waitlist'}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <aside className="student-portal-details" role="region" aria-label="Selected book details">
+            {selectedBook && selectedBookStatus ? (
+              <div className="student-book-details-card">
+                <div className="modal-book-header student-book-details-header">
+                  <div className="modal-cover">
+                    {selectedBook.coverImage ? (
+                      <img src={selectedBook.coverImage} alt={`Cover of ${selectedBook.title}`} />
+                    ) : (
+                      <div className="modal-cover-placeholder">📖</div>
+                    )}
+                  </div>
+                  <div className="modal-book-meta">
+                    <h3 className="modal-book-title">{selectedBook.title}</h3>
+                    <p className="modal-book-author">
+                      {selectedBook.authors.length > 0 ? selectedBook.authors.join(', ') : 'Unknown author'}
+                    </p>
+                    {selectedBook.publisher && <p className="modal-book-publisher">{selectedBook.publisher}</p>}
+                    <p className="modal-book-isbn">ISBN: {selectedBook.isbn13 || selectedBook.isbn}</p>
+                    {selectedBook.genre && <p className="modal-book-isbn">Genre: {selectedBook.genre}</p>}
+                    {selectedBook.category && <p className="modal-book-isbn">Category: {selectedBook.category}</p>}
+                  </div>
                 </div>
 
-                <p className="library-results-meta student-portal-results-meta" aria-live="polite">
-                  Showing {filteredBooks.length} of {books.length} books
-                  {genreFilter !== 'all' ? ` • Genre: ${genreFilter}` : ''}
-                  {searchScope !== 'all' ? ` • Scope: ${searchScope}` : ''}
-                  {filter === 'available' ? ' • Available only' : ''}
-                  {filter === 'out' ? ' • Checked out only' : ''}
-                </p>
+                <div
+                  className={`modal-status-bar ${selectedBookStatus.availableCopies > 0 ? 'status-available' : 'status-out'}`}
+                >
+                  {selectedBookStatus.availableCopies > 0
+                    ? `${selectedBookStatus.availableCopies} of ${selectedBook.copies} copies available`
+                    : `Checked out • ${selectedBookStatus.queue.length} in waitlist`}
+                </div>
 
-                {filteredBooks.length === 0 ? (
-                  <div className="empty-state student-portal-empty-state">
-                    <span className="empty-icon">🔎</span>
-                    <h3>No matching books</h3>
-                    <p>Try a different search or filter.</p>
-                  </div>
-                ) : (
-                  <div className="book-list student-book-list">
-                    {filteredBooks.map((status) => {
-                      const key = status.book.isbn13 || status.book.isbn;
-                      return (
-                        <div key={key} className="student-book-card-shell">
-                          <BookCard
-                            book={status.book}
-                            activeCheckouts={status.activeCheckouts}
-                            availableCopies={status.availableCopies}
-                            hideBorrowerDetails
-                            onClick={() => handleSelectBook(status.book)}
-                          />
-                          <div className="student-book-card-actions">
-                            <div className="student-book-card-meta">
-                              <span className="student-book-card-queue">
-                                {status.availableCopies > 0
-                                  ? `${status.availableCopies} available now`
-                                  : `Waitlist length ${status.queue.length}`}
-                              </span>
-                              {status.isQueuedByActiveStudent && (
-                                <span className="student-book-card-reserved">
-                                  You are already in line
-                                  {status.activeStudentQueuePosition
-                                    ? ` • Position #${status.activeStudentQueuePosition}`
-                                    : ''}
-                                </span>
-                              )}
-                            </div>
-                            <button
-                              className="btn btn-primary"
-                              onClick={() => {
-                                if (!activeStudent) {
-                                  setShowSignInForm(true);
-                                  return;
-                                }
-                                if (status.isQueuedByActiveStudent) {
-                                  handleCancelReservation(status.book);
-                                  return;
-                                }
-                                void handleReserve(status.book);
-                              }}
-                              disabled={
-                                !!activeStudent &&
-                                ((studentActiveHoldCount >= MAX_STUDENT_RESERVATIONS &&
-                                  !status.isQueuedByActiveStudent) ||
-                                  registeringNotification)
-                              }
-                            >
-                              {!activeStudent
-                                ? 'Sign In to Reserve'
-                                : status.isQueuedByActiveStudent
-                                  ? 'Cancel Reservation'
-                                  : studentActiveHoldCount >= MAX_STUDENT_RESERVATIONS
-                                    ? `${MAX_STUDENT_RESERVATIONS} Book Limit Reached`
-                                    : registeringNotification
-                                      ? 'Saving Notification…'
-                                      : status.availableCopies > 0
-                                        ? 'Reserve This Copy'
-                                        : 'Join Waitlist'}
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
+                <div className="student-book-details-copy">
+                  <p>{selectedBook.synopsis || 'No synopsis available for this title.'}</p>
+                </div>
+
+                {selectedBookStatus.queue.length > 0 && (
+                  <div className="student-book-waitlist">
+                    <h4 className="modal-section-title">Waitlist Snapshot</h4>
+                    <p className="student-book-waitlist-text">
+                      {selectedBookStatus.isQueuedByActiveStudent
+                        ? `You are already in the queue for this book${selectedBookStatus.activeStudentQueuePosition ? ` at position #${selectedBookStatus.activeStudentQueuePosition}` : ''}.`
+                        : `There ${selectedBookStatus.queue.length === 1 ? 'is' : 'are'} ${selectedBookStatus.queue.length} student${selectedBookStatus.queue.length === 1 ? '' : 's'} waiting for this title.`}
+                    </p>
                   </div>
                 )}
               </div>
-
-              <aside className="student-portal-details" role="region" aria-label="Selected book details">
-                {selectedBook && selectedBookStatus ? (
-                  <div className="student-book-details-card">
-                    <div className="modal-book-header student-book-details-header">
-                      <div className="modal-cover">
-                        {selectedBook.coverImage ? (
-                          <img src={selectedBook.coverImage} alt={`Cover of ${selectedBook.title}`} />
-                        ) : (
-                          <div className="modal-cover-placeholder">📖</div>
-                        )}
-                      </div>
-                      <div className="modal-book-meta">
-                        <h3 className="modal-book-title">{selectedBook.title}</h3>
-                        <p className="modal-book-author">
-                          {selectedBook.authors.length > 0 ? selectedBook.authors.join(', ') : 'Unknown author'}
-                        </p>
-                        {selectedBook.publisher && <p className="modal-book-publisher">{selectedBook.publisher}</p>}
-                        <p className="modal-book-isbn">ISBN: {selectedBook.isbn13 || selectedBook.isbn}</p>
-                        {selectedBook.genre && <p className="modal-book-isbn">Genre: {selectedBook.genre}</p>}
-                        {selectedBook.category && <p className="modal-book-isbn">Category: {selectedBook.category}</p>}
-                      </div>
-                    </div>
-
-                    <div
-                      className={`modal-status-bar ${selectedBookStatus.availableCopies > 0 ? 'status-available' : 'status-out'}`}
-                    >
-                      {selectedBookStatus.availableCopies > 0
-                        ? `${selectedBookStatus.availableCopies} of ${selectedBook.copies} copies available`
-                        : `Checked out • ${selectedBookStatus.queue.length} in waitlist`}
-                    </div>
-
-                    <div className="student-book-details-copy">
-                      <p>{selectedBook.synopsis || 'No synopsis available for this title.'}</p>
-                    </div>
-
-                    {selectedBookStatus.queue.length > 0 && (
-                      <div className="student-book-waitlist">
-                        <h4 className="modal-section-title">Waitlist Snapshot</h4>
-                        <p className="student-book-waitlist-text">
-                          {selectedBookStatus.isQueuedByActiveStudent
-                            ? `You are already in the queue for this book${selectedBookStatus.activeStudentQueuePosition ? ` at position #${selectedBookStatus.activeStudentQueuePosition}` : ''}.`
-                            : `There ${selectedBookStatus.queue.length === 1 ? 'is' : 'are'} ${selectedBookStatus.queue.length} student${selectedBookStatus.queue.length === 1 ? '' : 's'} waiting for this title.`}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="empty-state student-portal-empty-state student-portal-detail-empty">
-                    <span className="empty-icon">📘</span>
-                    <h3>Select a book</h3>
-                    <p>Tap any catalog card to preview the book and its reservation status.</p>
-                  </div>
-                )}
-              </aside>
-            </div>
+            ) : (
+              <div className="empty-state student-portal-empty-state student-portal-detail-empty">
+                <span className="empty-icon">📘</span>
+                <h3>Select a book</h3>
+                <p>Tap any catalog card to preview the book and its reservation status.</p>
+              </div>
+            )}
+          </aside>
+        </div>
 
         {message && (
           <p className="settings-success" role="status">
