@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import type { Book, CheckoutRecord, HoldRequest, ReservationActivity, StudentCard } from '../types';
 import {
   getBooks,
@@ -14,7 +14,7 @@ import {
 import { loadCloudLibraryState, saveCloudLibraryState } from '../services/cloudStorage';
 import { lookupCatalogBook } from '../services/catalog';
 import { fetchGoogleBooksMetadata } from '../services/api';
-import { sendBookAvailableNotice } from '../services/notifications';
+import { sendBookAvailableNotice, sendCheckoutNotice } from '../services/notifications';
 
 const MAX_STUDENT_RESERVATIONS = 2;
 const MAX_STUDENT_CHECKOUTS = 1;
@@ -110,6 +110,59 @@ function countActiveCheckoutsByBorrower(checkouts: CheckoutRecord[], borrowerNam
   }).length;
 }
 
+function resolveBookKey(book: Book): string {
+  const primary = normalizeIsbn(book.isbn13 || book.isbn);
+  if (primary) return primary;
+  return `${book.title.trim().toLowerCase()}::${(book.authors ?? []).join(',').trim().toLowerCase()}`;
+}
+
+function mergeBooks(localBooks: Book[], cloudBooks: Book[]): Book[] {
+  const merged = new Map<string, Book>();
+
+  for (const book of localBooks) {
+    merged.set(resolveBookKey(book), {
+      ...book,
+      holds: Array.isArray(book.holds) ? book.holds : [],
+    });
+  }
+
+  for (const cloudBook of cloudBooks) {
+    const key = resolveBookKey(cloudBook);
+    const existing = merged.get(key);
+    if (!existing) {
+      merged.set(key, {
+        ...cloudBook,
+        holds: Array.isArray(cloudBook.holds) ? cloudBook.holds : [],
+      });
+      continue;
+    }
+
+    const holdMap = new Map<string, HoldRequest>();
+    for (const hold of existing.holds ?? []) {
+      holdMap.set(hold.id, hold);
+    }
+    for (const hold of cloudBook.holds ?? []) {
+      holdMap.set(hold.id, hold);
+    }
+
+    merged.set(key, {
+      ...existing,
+      ...cloudBook,
+      holds: [...holdMap.values()],
+      copies: Math.max(existing.copies ?? 1, cloudBook.copies ?? 1),
+    });
+  }
+
+  return [...merged.values()];
+}
+
+function mergeById<T extends { id: string }>(localItems: T[], cloudItems: T[]): T[] {
+  const merged = new Map<string, T>();
+  for (const item of localItems) merged.set(item.id, item);
+  for (const item of cloudItems) merged.set(item.id, item);
+  return [...merged.values()];
+}
+
 export function useLibrary() {
   const [books, setBooks] = useState<Book[]>(getBooks);
   const [checkouts, setCheckouts] = useState<CheckoutRecord[]>(getCheckouts);
@@ -118,24 +171,40 @@ export function useLibrary() {
   const [cloudHydrated, setCloudHydrated] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const stateSnapshotRef = useRef({ books, checkouts, studentCards, reservationActivities });
 
   useEffect(() => {
     let cancelled = false;
 
     const hydrateFromCloud = async () => {
+      const localSnapshot = {
+        books: getBooks(),
+        checkouts: getCheckouts(),
+        studentCards: getStudentCards(),
+        reservationActivity: getReservationActivity(),
+      };
+
       const cloud = await loadCloudLibraryState();
       if (cancelled) return;
 
       if (cloud) {
-        setBooks(cloud.books);
-        setCheckouts(cloud.checkouts);
-        setStudentCards(cloud.studentCards);
-        setReservationActivities(cloud.reservationActivity);
-        saveBooks(cloud.books);
-        saveCheckouts(cloud.checkouts);
-        saveStudentCards(cloud.studentCards);
-        saveReservationActivity(cloud.reservationActivity);
+        const merged = {
+          books: mergeBooks(localSnapshot.books, cloud.books),
+          checkouts: mergeById(localSnapshot.checkouts, cloud.checkouts),
+          studentCards: mergeById(localSnapshot.studentCards, cloud.studentCards),
+          reservationActivity: mergeById(localSnapshot.reservationActivity, cloud.reservationActivity),
+        };
+
+        setBooks(merged.books);
+        setCheckouts(merged.checkouts);
+        setStudentCards(merged.studentCards);
+        setReservationActivities(merged.reservationActivity);
+        saveBooks(merged.books);
+        saveCheckouts(merged.checkouts);
+        saveStudentCards(merged.studentCards);
+        saveReservationActivity(merged.reservationActivity);
+
+        // Backfill cloud with merged state so both devices converge.
+        await saveCloudLibraryState(merged);
       }
 
       setCloudHydrated(true);
@@ -169,56 +238,6 @@ export function useLibrary() {
       window.clearTimeout(timer);
     };
   }, [books, checkouts, studentCards, reservationActivities, cloudHydrated]);
-
-  useEffect(() => {
-    stateSnapshotRef.current = { books, checkouts, studentCards, reservationActivities };
-  }, [books, checkouts, studentCards, reservationActivities]);
-
-  useEffect(() => {
-    if (!cloudHydrated) return;
-
-    let cancelled = false;
-
-    const syncFromCloudIfChanged = async () => {
-      const cloud = await loadCloudLibraryState();
-      if (cancelled || !cloud) return;
-
-      const local = stateSnapshotRef.current;
-      const localSnapshot = JSON.stringify({
-        books: local.books,
-        checkouts: local.checkouts,
-        studentCards: local.studentCards,
-        reservationActivity: local.reservationActivities,
-      });
-
-      const cloudSnapshot = JSON.stringify({
-        books: cloud.books,
-        checkouts: cloud.checkouts,
-        studentCards: cloud.studentCards,
-        reservationActivity: cloud.reservationActivity,
-      });
-
-      if (localSnapshot === cloudSnapshot) return;
-
-      setBooks(cloud.books);
-      setCheckouts(cloud.checkouts);
-      setStudentCards(cloud.studentCards);
-      setReservationActivities(cloud.reservationActivity);
-      saveBooks(cloud.books);
-      saveCheckouts(cloud.checkouts);
-      saveStudentCards(cloud.studentCards);
-      saveReservationActivity(cloud.reservationActivity);
-    };
-
-    const timer = window.setInterval(() => {
-      void syncFromCloudIfChanged();
-    }, 5000);
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(timer);
-    };
-  }, [cloudHydrated]);
 
   const appendReservationActivity = useCallback(
     (input: Omit<ReservationActivity, 'id' | 'at'> & { at?: string }): ReservationActivity => {
@@ -695,23 +714,81 @@ export function useLibrary() {
             normalizeIsbn(book.isbn13) === normalizeIsbn(target.isbn)
         );
 
-        const nextHold = (matchedBook?.holds ?? [])[0] ?? null;
+        const holdQueue = matchedBook?.holds ?? [];
+        const nextEligibleHold = holdQueue.find((hold) => {
+          if (!hold.studentCardId) return true;
 
-        if (matchedBook && nextHold?.notificationContactId) {
-          // Notify the next student that a copy is now available,
-          // but require staff to perform the actual checkout manually.
-          void sendBookAvailableNotice({
-            contactId: nextHold.notificationContactId,
-            studentName: nextHold.borrowerName,
+          const matchedCard = studentCards.find((card) => card.id === hold.studentCardId);
+          const borrowerLabel = matchedCard?.studentName ?? hold.borrowerName;
+          const activeCount = countActiveCheckoutsByBorrower(updated, borrowerLabel);
+          return activeCount < MAX_STUDENT_CHECKOUTS;
+        });
+
+        if (matchedBook && nextEligibleHold) {
+          const due = new Date();
+          due.setDate(due.getDate() + 14);
+
+          const matchedCard = nextEligibleHold.studentCardId
+            ? studentCards.find((card) => card.id === nextEligibleHold.studentCardId)
+            : null;
+          const borrowerForCheckout = matchedCard?.studentName ?? nextEligibleHold.borrowerName;
+
+          updated.push({
+            id: crypto.randomUUID(),
+            isbn: normalizeIsbn(target.isbn),
             bookTitle: matchedBook.title,
+            borrowerName: borrowerForCheckout,
+            checkedOutAt: returnedAt,
+            dueDate: due.toISOString(),
           });
+
+          setBooks((bookPrev) => {
+            const booksUpdated = bookPrev.map((book) => {
+              const isMatch =
+                normalizeIsbn(book.isbn) === normalizeIsbn(target.isbn) ||
+                normalizeIsbn(book.isbn13) === normalizeIsbn(target.isbn);
+              if (!isMatch) return book;
+              return {
+                ...book,
+                holds: (book.holds ?? []).filter((hold) => hold.id !== nextEligibleHold.id),
+              };
+            });
+            saveBooks(booksUpdated);
+            return booksUpdated;
+          });
+
+          if (nextEligibleHold.studentCardId && nextEligibleHold.studentCardNumber) {
+            appendReservationActivity({
+              type: 'auto-assigned',
+              studentCardId: nextEligibleHold.studentCardId,
+              studentCardNumber: nextEligibleHold.studentCardNumber,
+              studentName: borrowerForCheckout,
+              bookIsbn: matchedBook.isbn13 || matchedBook.isbn,
+              bookTitle: matchedBook.title,
+            });
+
+            if (nextEligibleHold.notificationContactId) {
+              void sendBookAvailableNotice({
+                contactId: nextEligibleHold.notificationContactId,
+                studentName: borrowerForCheckout,
+                bookTitle: matchedBook.title,
+              });
+
+              // Also send checkout notice immediately since we're auto-assigning
+              void sendCheckoutNotice({
+                contactId: nextEligibleHold.notificationContactId,
+                studentName: borrowerForCheckout,
+                bookTitle: matchedBook.title,
+              });
+            }
+          }
         }
 
         saveCheckouts(updated);
         return updated;
       });
     },
-    [books]
+    [appendReservationActivity, books, studentCards]
   );
 
   /** Get availability info for a given ISBN. Returns null if not in library. */

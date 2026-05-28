@@ -6,19 +6,7 @@ interface RegisterReservationContactInput {
   studentName: string;
   studentCardNumber: string;
   bookTitle: string;
-  email?: string;
-}
-
-interface SaveStudentEmailInput {
-  studentCardId: string;
-  studentCardNumber: string;
-  studentName: string;
-  email: string;
-}
-
-interface GetStudentEmailResult {
-  email: string | null;
-  error: string | null;
+  phoneNumber: string;
 }
 
 interface RegisterReservationContactResult {
@@ -75,28 +63,6 @@ export async function sendBookAvailableNotice(input: SendBookAvailableNoticeInpu
     },
   });
 
-  // Backward compatibility for older deployed edge function versions.
-  if (error?.message?.toLowerCase().includes('unknown action')) {
-    const { error: legacyError } = await supabase.functions.invoke('library-notifications', {
-      body: {
-        action: 'send_ready_notice',
-        payload: input,
-      },
-    });
-
-    if (legacyError) {
-      return {
-        ok: false,
-        error: legacyError.message,
-      };
-    }
-
-    return {
-      ok: true,
-      error: null,
-    };
-  }
-
   if (error) {
     return {
       ok: false,
@@ -148,48 +114,6 @@ export async function checkAndSendDueReminders(): Promise<SendNoticeResult> {
 
   return {
     ok: true,
-    error: null,
-  };
-}
-
-export async function saveStudentEmail(input: SaveStudentEmailInput): Promise<SendNoticeResult> {
-  const { error } = await supabase.functions.invoke('library-notifications', {
-    body: {
-      action: 'save_student_email',
-      payload: input,
-    },
-  });
-
-  if (error) {
-    return {
-      ok: false,
-      error: error.message,
-    };
-  }
-
-  return {
-    ok: true,
-    error: null,
-  };
-}
-
-export async function getStudentEmail(studentCardId: string): Promise<GetStudentEmailResult> {
-  const { data, error } = await supabase.functions.invoke('library-notifications', {
-    body: {
-      action: 'get_student_email',
-      payload: { studentCardId },
-    },
-  });
-
-  if (error) {
-    return {
-      email: null,
-      error: error.message,
-    };
-  }
-
-  return {
-    email: typeof data?.email === 'string' ? data.email : null,
     error: null,
   };
 }

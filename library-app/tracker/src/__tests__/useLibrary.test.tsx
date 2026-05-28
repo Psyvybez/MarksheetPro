@@ -1,4 +1,4 @@
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { useLibrary } from '../hooks/useLibrary';
 import type { Book, CheckoutRecord, StudentCard } from '../types';

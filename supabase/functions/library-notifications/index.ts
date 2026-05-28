@@ -13,18 +13,7 @@ interface RegisterReservationContactPayload {
   studentName: string;
   studentCardNumber: string;
   bookTitle: string;
-  email?: string;
-}
-
-interface SaveStudentEmailPayload {
-  studentCardId: string;
-  studentCardNumber: string;
-  studentName: string;
-  email: string;
-}
-
-interface GetStudentEmailPayload {
-  studentCardId: string;
+  phoneNumber: string;
 }
 
 interface SendBookAvailableNoticePayload {
@@ -45,11 +34,11 @@ interface CheckAndSendDueRemindersPayload {
 
 interface ContactRow {
   id: string;
-  email_hash: string;
-  encrypted_email: string;
+  phone_hash: string;
+  encrypted_phone: string;
+  expires_at: string;
   student_name: string;
   book_title: string;
-  expires_at: string;
   checkout_date: string | null;
   due_date: string | null;
   available_notice_sent_at: string | null;
@@ -68,8 +57,8 @@ function json(status: number, body: unknown): Response {
   });
 }
 
-async function hashEmail(email: string): Promise<string> {
-  const bytes = new TextEncoder().encode(email.toLowerCase().trim());
+async function hashPhone(phoneNumber: string): Promise<string> {
+  const bytes = new TextEncoder().encode(phoneNumber);
   const digest = await crypto.subtle.digest('SHA-256', bytes);
   return Array.from(new Uint8Array(digest))
     .map((value) => value.toString(16).padStart(2, '0'))
@@ -98,39 +87,41 @@ function xorDecrypt(value: string, key: string): string {
   return new TextDecoder().decode(decrypted);
 }
 
-function normalizeEmail(email: string): string {
-  return email.toLowerCase().trim();
+function normalizePhone(phoneNumber: string): string {
+  return phoneNumber.replace(/[^\d+]/g, '');
 }
 
-async function sendResendEmail(to: string, subject: string, html: string): Promise<void> {
-  const apiKey = Deno.env.get('RESEND_API_KEY');
-  const fromEmail = Deno.env.get('NOTIFICATION_FROM_EMAIL') ?? 'noreply@thebooknook.app';
+async function sendTwilioSms(to: string, message: string): Promise<void> {
+  const sid = Deno.env.get('TWILIO_ACCOUNT_SID');
+  const token = Deno.env.get('TWILIO_AUTH_TOKEN');
+  const from = Deno.env.get('TWILIO_FROM_NUMBER');
 
-  if (!apiKey) {
-    throw new Error('Missing RESEND_API_KEY in environment variables.');
+  if (!sid || !token || !from) {
+    throw new Error('Missing Twilio configuration in environment variables.');
   }
 
-  const response = await fetch('https://api.resend.com/emails', {
+  const body = new URLSearchParams({
+    To: to,
+    From: from,
+    Body: message,
+  });
+
+  const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
+      Authorization: `Basic ${btoa(`${sid}:${token}`)}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
     },
-    body: JSON.stringify({
-      from: `The Book Nook <${fromEmail}>`,
-      to: [to],
-      subject,
-      html,
-    }),
+    body,
   });
 
   if (!response.ok) {
     const details = await response.text();
-    throw new Error(`Resend send failed: ${response.status} ${details}`);
+    throw new Error(`Twilio send failed: ${response.status} ${details}`);
   }
 }
 
-serve(async (request: Request) => {
+serve(async (request) => {
   if (request.method === 'OPTIONS') {
     return new Response(null, {
       status: 204,
@@ -159,76 +150,6 @@ serve(async (request: Request) => {
     const body = await request.json();
     const action = typeof body?.action === 'string' ? body.action : '';
 
-    if (action === 'save_student_email') {
-      const payload = body?.payload as SaveStudentEmailPayload | undefined;
-      if (!payload) {
-        return json(400, {
-          error: 'Missing payload',
-        });
-      }
-
-      const normalizedEmail = normalizeEmail(payload.email);
-      if (!normalizedEmail || !normalizedEmail.includes('@')) {
-        return json(400, {
-          error: 'A valid email address is required',
-        });
-      }
-
-      const emailHash = await hashEmail(normalizedEmail);
-      const encryptedEmail = xorEncrypt(normalizedEmail, encryptionKey);
-
-      const { error } = await supabase.from('student_notification_emails').upsert({
-        student_card_id: payload.studentCardId,
-        student_card_number: payload.studentCardNumber,
-        student_name: payload.studentName,
-        email_hash: emailHash,
-        encrypted_email: encryptedEmail,
-        updated_at: new Date().toISOString(),
-      });
-
-      if (error) {
-        return json(500, {
-          error: error.message,
-        });
-      }
-
-      return json(200, {
-        ok: true,
-      });
-    }
-
-    if (action === 'get_student_email') {
-      const payload = body?.payload as GetStudentEmailPayload | undefined;
-      if (!payload) {
-        return json(400, {
-          error: 'Missing payload',
-        });
-      }
-
-      const { data, error } = await supabase
-        .from('student_notification_emails')
-        .select('encrypted_email')
-        .eq('student_card_id', payload.studentCardId)
-        .single();
-
-      if (error && error.code !== 'PGRST116') {
-        return json(500, {
-          error: error.message,
-        });
-      }
-
-      if (!data) {
-        return json(200, {
-          email: null,
-        });
-      }
-
-      const email = xorDecrypt(data.encrypted_email, encryptionKey);
-      return json(200, {
-        email,
-      });
-    }
-
     if (action === 'register_reservation_contact') {
       const payload = body?.payload as RegisterReservationContactPayload | undefined;
       if (!payload) {
@@ -237,43 +158,15 @@ serve(async (request: Request) => {
         });
       }
 
-      let emailToUse = payload.email ? normalizeEmail(payload.email) : null;
-
-      // If no email provided, try to get the student's saved email
-      if (!emailToUse) {
-        const { data: studentEmailData, error: studentEmailError } = await supabase
-          .from('student_notification_emails')
-          .select('encrypted_email')
-          .eq('student_card_id', payload.studentCardId)
-          .single();
-
-        if (!studentEmailError && studentEmailData) {
-          emailToUse = xorDecrypt(studentEmailData.encrypted_email, encryptionKey);
-        }
-      }
-
-      if (!emailToUse || !emailToUse.includes('@')) {
+      const normalizedPhone = normalizePhone(payload.phoneNumber);
+      if (!normalizedPhone) {
         return json(400, {
-          error: 'A valid email address is required. Please provide or save your email first.',
+          error: 'Phone number is required',
         });
       }
 
-      // If email was provided, save it to student's profile for future use
-      if (payload.email) {
-        const emailHash = await hashEmail(emailToUse);
-        const encryptedEmail = xorEncrypt(emailToUse, encryptionKey);
-        await supabase.from('student_notification_emails').upsert({
-          student_card_id: payload.studentCardId,
-          student_card_number: payload.studentCardNumber,
-          student_name: payload.studentName,
-          email_hash: emailHash,
-          encrypted_email: encryptedEmail,
-          updated_at: new Date().toISOString(),
-        });
-      }
-
-      const emailHash = await hashEmail(emailToUse);
-      const encryptedEmail = xorEncrypt(emailToUse, encryptionKey);
+      const phoneHash = await hashPhone(normalizedPhone);
+      const encryptedPhone = xorEncrypt(normalizedPhone, encryptionKey);
       const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30).toISOString();
 
       const { data, error } = await supabase
@@ -284,8 +177,8 @@ serve(async (request: Request) => {
           student_name: payload.studentName,
           student_card_number: payload.studentCardNumber,
           book_title: payload.bookTitle,
-          email_hash: emailHash,
-          encrypted_email: encryptedEmail,
+          phone_hash: phoneHash,
+          encrypted_phone: encryptedPhone,
           expires_at: expiresAt,
         })
         .select('id')
@@ -310,36 +203,37 @@ serve(async (request: Request) => {
         });
       }
 
-      const { data, error } = (await supabase
+      const { data, error } = await supabase
         .from('reservation_notification_contacts')
-        .select('id, email_hash, encrypted_email, student_name, book_title, expires_at, available_notice_sent_at')
+        .select('id, phone_hash, encrypted_phone, expires_at, available_notice_sent_at')
         .eq('id', payload.contactId)
-        .single()) as { data: ContactRow | null; error: unknown };
+        .single();
 
-      if (error || !data) {
+      const contact = data as ContactRow | null;
+
+      if (error || !contact) {
         return json(404, {
           error: 'Contact registration not found',
         });
       }
 
-      if (data.available_notice_sent_at) {
+      if (contact.available_notice_sent_at) {
         return json(200, {
           ok: true,
           skipped: 'already_sent',
         });
       }
 
-      if (new Date(data.expires_at).getTime() <= Date.now()) {
+      if (new Date(contact.expires_at).getTime() <= Date.now()) {
         return json(200, {
           ok: true,
           skipped: 'expired',
         });
       }
 
-      const email = xorDecrypt(data.encrypted_email, encryptionKey);
-      const subject = 'Your Reserved Book Is Available — The Book Nook';
-      const html = `<p>Hi ${payload.studentName},</p><p>Great news! Your reserved book <strong>&quot;${payload.bookTitle}&quot;</strong> is now available for pickup.</p><p>Please visit the library at your earliest convenience to check it out.</p><p>— The Book Nook</p>`;
-      await sendResendEmail(email, subject, html);
+      const phone = xorDecrypt(contact.encrypted_phone, encryptionKey);
+      const message = `THE BOOK NOOK: ${payload.studentName}, your reserved book "${payload.bookTitle}" is now available for pickup!`;
+      await sendTwilioSms(phone, message);
 
       const { error: updateError } = await supabase
         .from('reservation_notification_contacts')
@@ -368,19 +262,21 @@ serve(async (request: Request) => {
         });
       }
 
-      const { data, error } = (await supabase
+      const { data, error } = await supabase
         .from('reservation_notification_contacts')
-        .select('id, email_hash, encrypted_email, student_name, book_title, expires_at')
+        .select('id, phone_hash, encrypted_phone, expires_at')
         .eq('id', payload.contactId)
-        .single()) as { data: ContactRow | null; error: unknown };
+        .single();
 
-      if (error || !data) {
+      const contact = data as ContactRow | null;
+
+      if (error || !contact) {
         return json(404, {
           error: 'Contact registration not found',
         });
       }
 
-      if (new Date(data.expires_at).getTime() <= Date.now()) {
+      if (new Date(contact.expires_at).getTime() <= Date.now()) {
         return json(200, {
           ok: true,
           skipped: 'expired',
@@ -390,11 +286,10 @@ serve(async (request: Request) => {
       const checkoutDate = new Date();
       const dueDate = new Date(checkoutDate.getTime() + 14 * 24 * 60 * 60 * 1000);
 
-      const emailCo = xorDecrypt(data.encrypted_email, encryptionKey);
+      const phone = xorDecrypt(contact.encrypted_phone, encryptionKey);
       const dueDateStr = dueDate.toLocaleDateString();
-      const subjectCo = 'Checkout Confirmation — The Book Nook';
-      const htmlCo = `<p>Hi ${payload.studentName},</p><p>You have successfully checked out <strong>&quot;${payload.bookTitle}&quot;</strong>.</p><p><strong>Due date:</strong> ${dueDateStr} by 9:00 AM.</p><p>Please return it on time to avoid late fees.</p><p>— The Book Nook</p>`;
-      await sendResendEmail(emailCo, subjectCo, htmlCo);
+      const message = `THE BOOK NOOK: ${payload.studentName}, you checked out "${payload.bookTitle}". Due date: ${dueDateStr}. Return by 9am.`;
+      await sendTwilioSms(phone, message);
 
       const { error: updateError } = await supabase
         .from('reservation_notification_contacts')
@@ -424,7 +319,7 @@ serve(async (request: Request) => {
       const { data: records, error: selectError } = await supabase
         .from('reservation_notification_contacts')
         .select(
-          'id, email_hash, encrypted_email, student_name, book_title, due_date, due_reminder_2days_sent_at, due_reminder_1day_sent_at, due_reminder_dayof_sent_at'
+          'id, phone_hash, encrypted_phone, student_name, book_title, due_date, due_reminder_2days_sent_at, due_reminder_1day_sent_at, due_reminder_dayof_sent_at'
         )
         .not('due_date', 'is', null)
         .order('due_date', { ascending: true });
@@ -437,38 +332,37 @@ serve(async (request: Request) => {
 
       const sentReminders = [];
 
-      for (const record of records as ContactRow[]) {
-        if (!record.due_date) continue;
+      for (const record of (records ?? []) as ContactRow[]) {
+        if (!record.due_date) {
+          continue;
+        }
 
         const dueDate = new Date(record.due_date);
         const daysUntilDue = Math.floor((dueDate.getTime() - todayMidnight.getTime()) / (24 * 60 * 60 * 1000));
 
-        const emailDr = xorDecrypt(record.encrypted_email, encryptionKey);
+        const phone = xorDecrypt(record.encrypted_phone, encryptionKey);
         const updates: Record<string, string> = {};
 
         // 2 days before due date
         if (daysUntilDue === 2 && !record.due_reminder_2days_sent_at) {
-          const sub = `Reminder: "${record.book_title}" Due in 2 Days — The Book Nook`;
-          const htm = `<p>Hi ${record.student_name},</p><p>This is a reminder that <strong>&quot;${record.book_title}&quot;</strong> is due back in <strong>2 days</strong>.</p><p>Please return it by 9:00 AM on the due date.</p><p>— The Book Nook</p>`;
-          await sendResendEmail(emailDr, sub, htm);
+          const message = `THE BOOK NOOK: ${record.student_name}, reminder: "${record.book_title}" is due in 2 days.`;
+          await sendTwilioSms(phone, message);
           updates.due_reminder_2days_sent_at = now.toISOString();
           sentReminders.push({ contactId: record.id, type: 'due_reminder_2days' });
         }
 
         // 1 day before due date
         if (daysUntilDue === 1 && !record.due_reminder_1day_sent_at) {
-          const sub = `Reminder: "${record.book_title}" Due Tomorrow — The Book Nook`;
-          const htm = `<p>Hi ${record.student_name},</p><p>This is a reminder that <strong>&quot;${record.book_title}&quot;</strong> is due back <strong>tomorrow</strong> by 9:00 AM.</p><p>— The Book Nook</p>`;
-          await sendResendEmail(emailDr, sub, htm);
+          const message = `THE BOOK NOOK: ${record.student_name}, reminder: "${record.book_title}" is due tomorrow.`;
+          await sendTwilioSms(phone, message);
           updates.due_reminder_1day_sent_at = now.toISOString();
           sentReminders.push({ contactId: record.id, type: 'due_reminder_1day' });
         }
 
         // On the due date
         if (daysUntilDue === 0 && !record.due_reminder_dayof_sent_at) {
-          const sub = `"${record.book_title}" Is Due Today — The Book Nook`;
-          const htm = `<p>Hi ${record.student_name},</p><p><strong>&quot;${record.book_title}&quot;</strong> is due back <strong>today by 9:00 AM</strong>.</p><p>Please return it as soon as possible to avoid late fees.</p><p>— The Book Nook</p>`;
-          await sendResendEmail(emailDr, sub, htm);
+          const message = `THE BOOK NOOK: ${record.student_name}, "${record.book_title}" is due today by 9am.`;
+          await sendTwilioSms(phone, message);
           updates.due_reminder_dayof_sent_at = now.toISOString();
           sentReminders.push({ contactId: record.id, type: 'due_reminder_dayof' });
         }

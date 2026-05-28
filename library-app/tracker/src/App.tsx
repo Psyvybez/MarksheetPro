@@ -249,7 +249,7 @@ export default function App() {
       hold: HoldRequest;
       book: Book;
       studentCard: StudentCard;
-      email: string;
+      phoneNumber: string;
       isBookImmediatelyAvailable: boolean;
     }): Promise<boolean> => {
       const result = await registerReservationContact({
@@ -258,7 +258,7 @@ export default function App() {
         studentName: input.studentCard.studentName,
         studentCardNumber: input.studentCard.cardNumber,
         bookTitle: input.book.title,
-        email: input.email,
+        phoneNumber: input.phoneNumber,
       });
 
       if (!result.contactId) {
@@ -267,17 +267,14 @@ export default function App() {
 
       library.attachHoldNotificationContact(input.book.isbn13 || input.book.isbn, input.hold.id, result.contactId);
 
-      // Book was available with no queue when the student placed the reservation.
+      // Book was available with no queue when the student placed the reservation —
+      // send the "available" SMS immediately rather than waiting for a return.
       if (input.isBookImmediatelyAvailable) {
-        const noticeResult = await sendBookAvailableNotice({
+        void sendBookAvailableNotice({
           contactId: result.contactId,
           studentName: input.studentCard.studentName,
           bookTitle: input.book.title,
         });
-
-        if (!noticeResult.ok) {
-          return false;
-        }
       }
 
       return true;
