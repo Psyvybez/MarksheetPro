@@ -9,6 +9,7 @@ interface SettingsModalProps {
   onLoadDemoData: () => void;
   onClearAllData: () => void;
   onClearCheckoutsOnly: () => void;
+  onRestoreLocalToCloud: () => Promise<boolean>;
   summary: {
     totalTitles: number;
     totalCopies: number;
@@ -23,6 +24,7 @@ export function SettingsModal({
   onLoadDemoData,
   onClearAllData,
   onClearCheckoutsOnly,
+  onRestoreLocalToCloud,
   summary,
   onClose,
 }: SettingsModalProps) {
@@ -33,6 +35,9 @@ export function SettingsModal({
   const [sendingDueReminders, setSendingDueReminders] = useState(false);
   const [dueRemindersMessage, setDueRemindersMessage] = useState<string | null>(null);
   const [dueRemindersError, setDueRemindersError] = useState<string | null>(null);
+  const [syncingLocalToCloud, setSyncingLocalToCloud] = useState(false);
+  const [localToCloudMessage, setLocalToCloudMessage] = useState<string | null>(null);
+  const [localToCloudError, setLocalToCloudError] = useState<string | null>(null);
   const [teacherUserId, setTeacherUserId] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null;
     return getLocalTeacherId();
@@ -198,6 +203,26 @@ export function SettingsModal({
     }
   };
 
+  const handleRestoreLocalToCloud = async () => {
+    setLocalToCloudMessage(null);
+    setLocalToCloudError(null);
+    setSyncingLocalToCloud(true);
+
+    try {
+      const ok = await onRestoreLocalToCloud();
+      if (!ok) {
+        setLocalToCloudError('Could not push this device library to cloud. Confirm you are signed in first.');
+        return;
+      }
+
+      setLocalToCloudMessage('This device library was pushed to cloud successfully. Refresh other devices to sync.');
+    } catch (err) {
+      setLocalToCloudError(err instanceof Error ? err.message : 'Failed to sync local library to cloud.');
+    } finally {
+      setSyncingLocalToCloud(false);
+    }
+  };
+
   const handleCopyStudentPortalLink = async () => {
     if (!studentPortalUrl) return;
 
@@ -296,6 +321,29 @@ export function SettingsModal({
           {backupError && (
             <p className="settings-error" role="alert">
               {backupError}
+            </p>
+          )}
+
+          <h3 className="settings-label">Cloud Recovery Sync</h3>
+          <p className="settings-hint">
+            If another device is missing books, push this device local library state to your cloud account.
+          </p>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={handleRestoreLocalToCloud}
+            disabled={syncingLocalToCloud}
+          >
+            {syncingLocalToCloud ? 'Syncing...' : 'Push This Device Library To Cloud'}
+          </button>
+          {localToCloudMessage && (
+            <p className="settings-success" role="status">
+              {localToCloudMessage}
+            </p>
+          )}
+          {localToCloudError && (
+            <p className="settings-error" role="alert">
+              {localToCloudError}
             </p>
           )}
         </div>

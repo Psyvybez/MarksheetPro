@@ -889,6 +889,24 @@ export function useLibrary() {
     setError(null);
   }, []);
 
+  const pushLocalStateToCloud = useCallback(async (): Promise<boolean> => {
+    const snapshot = {
+      books: getBooks(),
+      checkouts: getCheckouts(),
+      studentCards: getStudentCards(),
+      reservationActivity: getReservationActivity(),
+    };
+
+    const saved = await saveCloudLibraryState(snapshot);
+    if (!saved) {
+      setError('Cloud sync failed. Make sure you are signed in to the same account on this device.');
+      return false;
+    }
+
+    setError(null);
+    return true;
+  }, []);
+
   /** Seed realistic demo data for testing dashboards, checkouts, and overdue workflows. */
   const seedDemoDataset = useCallback(() => {
     const demoBooks = [
@@ -983,6 +1001,7 @@ export function useLibrary() {
     syncFromStorage,
     clearAllData,
     clearCheckoutsOnly,
+    pushLocalStateToCloud,
     addStudentCard,
     updateStudentCard,
     removeStudentCard,
