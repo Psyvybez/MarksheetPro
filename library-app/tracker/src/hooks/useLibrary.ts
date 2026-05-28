@@ -891,10 +891,10 @@ export function useLibrary() {
 
   const pushLocalStateToCloud = useCallback(async (): Promise<boolean> => {
     const snapshot = {
-      books: getBooks(),
-      checkouts: getCheckouts(),
-      studentCards: getStudentCards(),
-      reservationActivity: getReservationActivity(),
+      books,
+      checkouts,
+      studentCards,
+      reservationActivity: reservationActivities,
     };
 
     const saved = await saveCloudLibraryState(snapshot);
@@ -905,7 +905,7 @@ export function useLibrary() {
 
     setError(null);
     return true;
-  }, []);
+  }, [books, checkouts, studentCards, reservationActivities]);
 
   /** Seed realistic demo data for testing dashboards, checkouts, and overdue workflows. */
   const seedDemoDataset = useCallback(() => {

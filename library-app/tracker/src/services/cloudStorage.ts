@@ -23,6 +23,11 @@ function getTeacherIdFromUrl(): string | null {
   }
 }
 
+function isStudentPortalContext(): boolean {
+  if (typeof window === 'undefined') return false;
+  return window.location.pathname.endsWith('/student.html');
+}
+
 function ensureBookArray(value: unknown): Book[] {
   if (!Array.isArray(value)) return [];
   return (value as Book[]).map((book) => ({
@@ -85,7 +90,7 @@ export async function loadCloudLibraryState(): Promise<CloudLibraryState | null>
   if (!userId) return null;
 
   const requestedTeacherId = getTeacherIdFromUrl();
-  if (requestedTeacherId && requestedTeacherId !== userId) {
+  if (isStudentPortalContext() && requestedTeacherId && requestedTeacherId !== userId) {
     console.warn('Teacher scope mismatch. Ignoring cloud load for this URL context.');
     return null;
   }
@@ -116,7 +121,7 @@ export async function saveCloudLibraryState(input: CloudLibraryState): Promise<b
   if (!userId) return false;
 
   const requestedTeacherId = getTeacherIdFromUrl();
-  if (requestedTeacherId && requestedTeacherId !== userId) {
+  if (isStudentPortalContext() && requestedTeacherId && requestedTeacherId !== userId) {
     console.warn('Teacher scope mismatch. Ignoring cloud save for this URL context.');
     return false;
   }
