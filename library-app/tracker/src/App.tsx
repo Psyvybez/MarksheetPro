@@ -500,10 +500,6 @@ export default function App() {
             library.clearCheckoutsOnly();
             setActiveBook(null);
           }}
-          onRestoreLocalToCloud={async () => {
-            const synced = await library.pushLocalStateToCloud();
-            return synced;
-          }}
           onClose={() => {
             setShowSettings(false);
           }}

@@ -355,12 +355,12 @@ export function StudentReservationModal({
     // Capture availability BEFORE onReserve mutates state — used to fire
     // an immediate "book available" SMS if the student is first in line.
     const statusBeforeReserve = bookStatuses.find(
-      (s) => normalizeIsbn(s.book.isbn) === normalizeIsbn(book.isbn) || normalizeIsbn(s.book.isbn13) === normalizeIsbn(book.isbn13)
+      (s) =>
+        normalizeIsbn(s.book.isbn) === normalizeIsbn(book.isbn) ||
+        normalizeIsbn(s.book.isbn13) === normalizeIsbn(book.isbn13)
     );
     const isBookImmediatelyAvailable =
-      !!statusBeforeReserve &&
-      statusBeforeReserve.availableCopies > 0 &&
-      statusBeforeReserve.queue.length === 0;
+      !!statusBeforeReserve && statusBeforeReserve.availableCopies > 0 && statusBeforeReserve.queue.length === 0;
 
     const reserved = onReserve(book, activeStudent);
     if (!reserved) {

@@ -110,59 +110,6 @@ function countActiveCheckoutsByBorrower(checkouts: CheckoutRecord[], borrowerNam
   }).length;
 }
 
-function resolveBookKey(book: Book): string {
-  const primary = normalizeIsbn(book.isbn13 || book.isbn);
-  if (primary) return primary;
-  return `${book.title.trim().toLowerCase()}::${(book.authors ?? []).join(',').trim().toLowerCase()}`;
-}
-
-function mergeBooks(localBooks: Book[], cloudBooks: Book[]): Book[] {
-  const merged = new Map<string, Book>();
-
-  for (const book of localBooks) {
-    merged.set(resolveBookKey(book), {
-      ...book,
-      holds: Array.isArray(book.holds) ? book.holds : [],
-    });
-  }
-
-  for (const cloudBook of cloudBooks) {
-    const key = resolveBookKey(cloudBook);
-    const existing = merged.get(key);
-    if (!existing) {
-      merged.set(key, {
-        ...cloudBook,
-        holds: Array.isArray(cloudBook.holds) ? cloudBook.holds : [],
-      });
-      continue;
-    }
-
-    const holdMap = new Map<string, HoldRequest>();
-    for (const hold of existing.holds ?? []) {
-      holdMap.set(hold.id, hold);
-    }
-    for (const hold of cloudBook.holds ?? []) {
-      holdMap.set(hold.id, hold);
-    }
-
-    merged.set(key, {
-      ...existing,
-      ...cloudBook,
-      holds: [...holdMap.values()],
-      copies: Math.max(existing.copies ?? 1, cloudBook.copies ?? 1),
-    });
-  }
-
-  return [...merged.values()];
-}
-
-function mergeById<T extends { id: string }>(localItems: T[], cloudItems: T[]): T[] {
-  const merged = new Map<string, T>();
-  for (const item of localItems) merged.set(item.id, item);
-  for (const item of cloudItems) merged.set(item.id, item);
-  return [...merged.values()];
-}
-
 export function useLibrary() {
   const [books, setBooks] = useState<Book[]>(getBooks);
   const [checkouts, setCheckouts] = useState<CheckoutRecord[]>(getCheckouts);
@@ -176,35 +123,19 @@ export function useLibrary() {
     let cancelled = false;
 
     const hydrateFromCloud = async () => {
-      const localSnapshot = {
-        books: getBooks(),
-        checkouts: getCheckouts(),
-        studentCards: getStudentCards(),
-        reservationActivity: getReservationActivity(),
-      };
-
       const cloud = await loadCloudLibraryState();
       if (cancelled) return;
 
       if (cloud) {
-        const merged = {
-          books: mergeBooks(localSnapshot.books, cloud.books),
-          checkouts: mergeById(localSnapshot.checkouts, cloud.checkouts),
-          studentCards: mergeById(localSnapshot.studentCards, cloud.studentCards),
-          reservationActivity: mergeById(localSnapshot.reservationActivity, cloud.reservationActivity),
-        };
-
-        setBooks(merged.books);
-        setCheckouts(merged.checkouts);
-        setStudentCards(merged.studentCards);
-        setReservationActivities(merged.reservationActivity);
-        saveBooks(merged.books);
-        saveCheckouts(merged.checkouts);
-        saveStudentCards(merged.studentCards);
-        saveReservationActivity(merged.reservationActivity);
-
-        // Backfill cloud with merged state so both devices converge.
-        await saveCloudLibraryState(merged);
+        // Signed-in cloud data is source of truth.
+        setBooks(cloud.books);
+        setCheckouts(cloud.checkouts);
+        setStudentCards(cloud.studentCards);
+        setReservationActivities(cloud.reservationActivity);
+        saveBooks(cloud.books);
+        saveCheckouts(cloud.checkouts);
+        saveStudentCards(cloud.studentCards);
+        saveReservationActivity(cloud.reservationActivity);
       }
 
       setCloudHydrated(true);
