@@ -56,6 +56,19 @@ function ensureReservationActivityArray(value: unknown): ReservationActivity[] {
   return Array.isArray(value) ? (value as ReservationActivity[]) : [];
 }
 
+function isMissingReservationActivityColumn(error: unknown): boolean {
+  const message = String((error as { message?: string })?.message ?? '').toLowerCase();
+  const details = String((error as { details?: string })?.details ?? '').toLowerCase();
+  const code = String((error as { code?: string })?.code ?? '').toUpperCase();
+
+  return (
+    code === 'PGRST204' ||
+    message.includes('reservation_activity') ||
+    details.includes('reservation_activity') ||
+    message.includes('column')
+  );
+}
+
 export async function getCloudAuthStatus(): Promise<CloudAuthStatus> {
   const {
     data: { session },
@@ -142,6 +155,29 @@ export async function loadCloudLibraryState(): Promise<CloudLibraryState | null>
     .eq('user_id', userId)
     .maybeSingle();
 
+  if (error && isMissingReservationActivityColumn(error)) {
+    // Backward compatibility for older table schema without reservation_activity column.
+    const { data: legacyData, error: legacyError } = await supabase
+      .from(CLOUD_TABLE)
+      .select('books, checkouts, student_cards')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (legacyError) {
+      console.warn('Failed to load cloud library state (legacy fallback):', legacyError.message);
+      return null;
+    }
+
+    if (!legacyData) return null;
+
+    return {
+      books: ensureBookArray(legacyData.books),
+      checkouts: ensureCheckoutArray(legacyData.checkouts),
+      studentCards: ensureStudentCardArray(legacyData.student_cards),
+      reservationActivity: [],
+    };
+  }
+
   if (error) {
     console.warn('Failed to load cloud library state:', error.message);
     return null;
@@ -178,6 +214,27 @@ export async function saveCloudLibraryState(input: CloudLibraryState): Promise<b
     },
     { onConflict: 'user_id' }
   );
+
+  if (error && isMissingReservationActivityColumn(error)) {
+    // Backward compatibility for older table schema without reservation_activity column.
+    const { error: legacyError } = await supabase.from(CLOUD_TABLE).upsert(
+      {
+        user_id: userId,
+        books: input.books,
+        checkouts: input.checkouts,
+        student_cards: input.studentCards,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'user_id' }
+    );
+
+    if (legacyError) {
+      console.warn('Failed to save cloud library state (legacy fallback):', legacyError.message);
+      return false;
+    }
+
+    return true;
+  }
 
   if (error) {
     console.warn('Failed to save cloud library state:', error.message);
