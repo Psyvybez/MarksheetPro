@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 import { exportLibraryBackup, importLibraryBackup } from '../services/storage';
-import { getLocalTeacherId, getTeacherIdForLinks } from '../services/cloudStorage';
+import { getCloudAuthStatus, getLocalTeacherId, getTeacherIdForLinks } from '../services/cloudStorage';
 import { checkAndSendDueReminders } from '../services/notifications';
 
 interface SettingsModalProps {
@@ -38,6 +38,7 @@ export function SettingsModal({
   const [syncingLocalToCloud, setSyncingLocalToCloud] = useState(false);
   const [localToCloudMessage, setLocalToCloudMessage] = useState<string | null>(null);
   const [localToCloudError, setLocalToCloudError] = useState<string | null>(null);
+  const [cloudAuthLabel, setCloudAuthLabel] = useState('Checking sign-in status...');
   const [teacherUserId, setTeacherUserId] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null;
     return getLocalTeacherId();
@@ -98,6 +99,29 @@ export function SettingsModal({
       cancelled = true;
     };
   }, [studentPortalUrl]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const refreshCloudAuthStatus = async () => {
+      const status = await getCloudAuthStatus();
+      if (cancelled) return;
+
+      if (status.isSignedIn && status.userId) {
+        const emailPart = status.email ? ` (${status.email})` : '';
+        setCloudAuthLabel(`Signed in to cloud as ${status.userId}${emailPart}`);
+        return;
+      }
+
+      setCloudAuthLabel('Not signed in to cloud. Open Marksheet and sign in with the same account on this device.');
+    };
+
+    void refreshCloudAuthStatus();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleExportBackup = () => {
     setBackupError(null);
@@ -209,6 +233,15 @@ export function SettingsModal({
     setSyncingLocalToCloud(true);
 
     try {
+      const status = await getCloudAuthStatus();
+      if (!status.isSignedIn) {
+        setLocalToCloudError(
+          'No cloud session found. Open / and sign in first, then return here and retry. If already signed in, hard refresh this page.'
+        );
+        setSyncingLocalToCloud(false);
+        return;
+      }
+
       const ok = await onRestoreLocalToCloud();
       if (!ok) {
         setLocalToCloudError('Could not push this device library to cloud. Confirm you are signed in first.');
@@ -328,6 +361,7 @@ export function SettingsModal({
           <p className="settings-hint">
             If another device is missing books, push this device local library state to your cloud account.
           </p>
+          <p className="settings-hint">{cloudAuthLabel}</p>
           <button
             type="button"
             className="btn btn-secondary"

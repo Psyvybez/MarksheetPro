@@ -11,6 +11,14 @@ export interface CloudLibraryState {
   reservationActivity: ReservationActivity[];
 }
 
+export interface CloudAuthStatus {
+  userId: string | null;
+  email: string | null;
+  isSignedIn: boolean;
+  source: 'session' | 'user' | 'none';
+  error: string | null;
+}
+
 function getTeacherIdFromUrl(): string | null {
   if (typeof window === 'undefined') return null;
 
@@ -48,18 +56,51 @@ function ensureReservationActivityArray(value: unknown): ReservationActivity[] {
   return Array.isArray(value) ? (value as ReservationActivity[]) : [];
 }
 
-export async function getCurrentUserId(): Promise<string | null> {
+export async function getCloudAuthStatus(): Promise<CloudAuthStatus> {
   const {
     data: { session },
     error,
   } = await supabase.auth.getSession();
 
-  if (error) {
-    console.warn('Supabase session lookup failed:', error.message);
-    return null;
+  if (session?.user?.id) {
+    return {
+      userId: session.user.id,
+      email: session.user.email ?? null,
+      isSignedIn: true,
+      source: 'session',
+      error: null,
+    };
   }
 
-  return session?.user?.id ?? null;
+  if (error) {
+    console.warn('Supabase session lookup failed:', error.message);
+  }
+
+  // Fallback: some browsers/contexts can report an empty session while
+  // getUser still resolves an active auth state.
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userData?.user?.id) {
+    return {
+      userId: userData.user.id,
+      email: userData.user.email ?? null,
+      isSignedIn: true,
+      source: 'user',
+      error: error?.message ?? null,
+    };
+  }
+
+  return {
+    userId: null,
+    email: null,
+    isSignedIn: false,
+    source: 'none',
+    error: userError?.message ?? error?.message ?? null,
+  };
+}
+
+export async function getCurrentUserId(): Promise<string | null> {
+  const authStatus = await getCloudAuthStatus();
+  return authStatus.userId;
 }
 
 export function getLocalTeacherId(): string {
