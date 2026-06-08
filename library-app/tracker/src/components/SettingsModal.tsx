@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 import { exportLibraryBackup, importLibraryBackup } from '../services/storage';
-import { getCloudAuthStatus, getLocalTeacherId, getTeacherIdForLinks } from '../services/cloudStorage';
+import { getLocalTeacherId, getTeacherIdForLinks } from '../services/cloudStorage';
 import { checkAndSendDueReminders } from '../services/notifications';
 
 interface SettingsModalProps {
@@ -9,7 +9,6 @@ interface SettingsModalProps {
   onLoadDemoData: () => void;
   onClearAllData: () => void;
   onClearCheckoutsOnly: () => void;
-  onRestoreLocalToCloud: () => Promise<boolean>;
   summary: {
     totalTitles: number;
     totalCopies: number;
@@ -24,7 +23,6 @@ export function SettingsModal({
   onLoadDemoData,
   onClearAllData,
   onClearCheckoutsOnly,
-  onRestoreLocalToCloud,
   summary,
   onClose,
 }: SettingsModalProps) {
@@ -35,10 +33,6 @@ export function SettingsModal({
   const [sendingDueReminders, setSendingDueReminders] = useState(false);
   const [dueRemindersMessage, setDueRemindersMessage] = useState<string | null>(null);
   const [dueRemindersError, setDueRemindersError] = useState<string | null>(null);
-  const [syncingLocalToCloud, setSyncingLocalToCloud] = useState(false);
-  const [localToCloudMessage, setLocalToCloudMessage] = useState<string | null>(null);
-  const [localToCloudError, setLocalToCloudError] = useState<string | null>(null);
-  const [cloudAuthLabel, setCloudAuthLabel] = useState('Checking sign-in status...');
   const [teacherUserId, setTeacherUserId] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null;
     return getLocalTeacherId();
@@ -100,29 +94,6 @@ export function SettingsModal({
     };
   }, [studentPortalUrl]);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    const refreshCloudAuthStatus = async () => {
-      const status = await getCloudAuthStatus();
-      if (cancelled) return;
-
-      if (status.isSignedIn && status.userId) {
-        const emailPart = status.email ? ` (${status.email})` : '';
-        setCloudAuthLabel(`Signed in to cloud as ${status.userId}${emailPart}`);
-        return;
-      }
-
-      setCloudAuthLabel('Not signed in to cloud. Open Marksheet and sign in with the same account on this device.');
-    };
-
-    void refreshCloudAuthStatus();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   const handleExportBackup = () => {
     setBackupError(null);
     setBackupMessage(null);
@@ -183,16 +154,6 @@ export function SettingsModal({
     }
   };
 
-  const handleOpenVaultPage = () => {
-    const vaultUrl = '/library-app/Library-vault.html';
-    if (window.top && window.top !== window) {
-      window.top.location.href = vaultUrl;
-      return;
-    }
-
-    window.location.href = vaultUrl;
-  };
-
   const handleOpenStudentPortal = () => {
     if (!studentPortalUrl) return;
     window.open(studentPortalUrl, '_blank', 'noopener,noreferrer');
@@ -224,35 +185,6 @@ export function SettingsModal({
     } catch (err) {
       setSendingDueReminders(false);
       setDueRemindersError(err instanceof Error ? err.message : 'Failed to send due reminders.');
-    }
-  };
-
-  const handleRestoreLocalToCloud = async () => {
-    setLocalToCloudMessage(null);
-    setLocalToCloudError(null);
-    setSyncingLocalToCloud(true);
-
-    try {
-      const status = await getCloudAuthStatus();
-      if (!status.isSignedIn) {
-        setLocalToCloudError(
-          'No cloud session found. Open / and sign in first, then return here and retry. If already signed in, hard refresh this page.'
-        );
-        setSyncingLocalToCloud(false);
-        return;
-      }
-
-      const ok = await onRestoreLocalToCloud();
-      if (!ok) {
-        setLocalToCloudError('Could not push this device library to cloud. Confirm you are signed in first.');
-        return;
-      }
-
-      setLocalToCloudMessage('This device library was pushed to cloud successfully. Refresh other devices to sync.');
-    } catch (err) {
-      setLocalToCloudError(err instanceof Error ? err.message : 'Failed to sync local library to cloud.');
-    } finally {
-      setSyncingLocalToCloud(false);
     }
   };
 
@@ -296,8 +228,8 @@ export function SettingsModal({
   };
 
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Settings">
-      <div className="modal-sheet">
+    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Settings" onClick={onClose}>
+      <div className="modal-sheet" onClick={(event) => event.stopPropagation()}>
         <button className="modal-close-btn" onClick={onClose} aria-label="Close settings">
           ✕
         </button>
@@ -356,38 +288,6 @@ export function SettingsModal({
               {backupError}
             </p>
           )}
-
-          <h3 className="settings-label">Cloud Recovery Sync</h3>
-          <p className="settings-hint">
-            If another device is missing books, push this device local library state to your cloud account.
-          </p>
-          <p className="settings-hint">{cloudAuthLabel}</p>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={handleRestoreLocalToCloud}
-            disabled={syncingLocalToCloud}
-          >
-            {syncingLocalToCloud ? 'Syncing...' : 'Push This Device Library To Cloud'}
-          </button>
-          {localToCloudMessage && (
-            <p className="settings-success" role="status">
-              {localToCloudMessage}
-            </p>
-          )}
-          {localToCloudError && (
-            <p className="settings-error" role="alert">
-              {localToCloudError}
-            </p>
-          )}
-        </div>
-
-        <div className="settings-vault-box">
-          <h3 className="settings-label">Vault Access</h3>
-          <p className="settings-hint">Need the passphrase-protected page? Open the dedicated vault route.</p>
-          <button type="button" className="btn btn-secondary" onClick={handleOpenVaultPage}>
-            Open Vault Page
-          </button>
         </div>
 
         <div className="settings-vault-box">

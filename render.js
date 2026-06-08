@@ -638,6 +638,21 @@ export function renderGradebook() {
     });
   thead.innerHTML = headerHtml1 + '</tr>' + headerHtml2 + '</tr>' + headerHtml3 + '</tr>';
 
+  // Keep sticky header rows aligned to their real rendered heights so
+  // category totals remain visible while scrolling.
+  const syncStickyHeaderOffsets = () => {
+    const headerRows = thead.querySelectorAll('tr');
+    if (headerRows.length < 3) return;
+    const firstRowHeight = headerRows[0].getBoundingClientRect().height;
+    const secondRowHeight = headerRows[1].getBoundingClientRect().height;
+
+    table.style.setProperty('--header-row-1-height', `${Math.round(firstRowHeight)}px`);
+    table.style.setProperty('--header-row-2-height', `${Math.round(firstRowHeight + secondRowHeight)}px`);
+  };
+
+  syncStickyHeaderOffsets();
+  requestAnimationFrame(syncStickyHeaderOffsets);
+
   const tbody = table.querySelector('tbody');
   const searchTerm = document.getElementById('student-search-input')?.value.toLowerCase() || '';
   const studentIds = Object.keys(students).filter((id) => {

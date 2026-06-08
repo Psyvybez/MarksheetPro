@@ -8,7 +8,8 @@
       (function redirectToLandingByDefault() {
         const params = new URLSearchParams(window.location.search);
         const isAppMode = params.get('app') === '1';
-        if (!isAppMode) {
+        const isLocalHost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+        if (!isAppMode && !isLocalHost) {
           window.location.replace('./landing-page/');
         }
       })();
