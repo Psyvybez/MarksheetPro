@@ -1375,6 +1375,7 @@ export function exportStudentPDF(studentId) {
   exportClassPDF({
     studentIds: [studentId],
     includeMissingAssignments: true,
+    reportMode: 'final',
   });
 }
 
@@ -1786,7 +1787,7 @@ export function showPdfExportOptionsModal() {
     .map(
       (student) => `
         <label class="flex items-center">
-            <input type="checkbox" class="student-export-checkbox h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" value="${student.id}" checked>
+            <input type="checkbox" class="student-export-checkbox h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" value="${student.id}">
             <span class="ml-2 text-sm text-gray-700">${student.lastName}, ${student.firstName}</span>
         </label>
     `
@@ -1804,13 +1805,21 @@ export function showPdfExportOptionsModal() {
               <span class="ml-2 text-sm text-gray-700">Gradebook Overview (table)</span>
             </label>
             <label class="flex items-center">
-              <input type="radio" name="pdf-export-type" value="student-reports" class="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-500">
-              <span class="ml-2 text-sm text-gray-700">Student Progress Reports (one page per student)</span>
+              <input type="radio" name="pdf-export-type" value="student-reports-midterm" class="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-500">
+              <span class="ml-2 text-sm text-gray-700">Student Progress Reports - Midterm</span>
+            </label>
+            <label class="flex items-center">
+              <input type="radio" name="pdf-export-type" value="student-reports-final" class="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-500">
+              <span class="ml-2 text-sm text-gray-700">Student Progress Reports - Final</span>
             </label>
           </div>
         </div>
             <div>
                 <h4 class="text-md font-semibold mb-2">Select Students</h4>
+                <div class="flex items-center gap-2 mb-2">
+                  <button type="button" id="select-all-students-btn" class="text-xs font-semibold px-2.5 py-1.5 rounded bg-indigo-100 text-indigo-700 hover:bg-indigo-200">Select All Students</button>
+                  <button type="button" id="deselect-all-students-btn" class="text-xs font-semibold px-2.5 py-1.5 rounded bg-gray-100 text-gray-700 hover:bg-gray-200">Deselect All Students</button>
+                </div>
                 <div class="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto p-2 border rounded-md bg-gray-50">
                     ${studentCheckboxes}
                 </div>
@@ -1839,10 +1848,11 @@ export function showPdfExportOptionsModal() {
       const selectedType = document.querySelector('input[name="pdf-export-type"]:checked')?.value || 'gradebook';
       const includeMissingAssignments = document.getElementById('include-missing-assignments').checked;
 
-      if (selectedType === 'student-reports') {
+      if (selectedType === 'student-reports-midterm' || selectedType === 'student-reports-final') {
         exportClassPDF({
           studentIds: selectedStudentIds,
           includeMissingAssignments,
+          reportMode: selectedType === 'student-reports-midterm' ? 'midterm' : 'final',
         });
         return;
       }
@@ -1869,10 +1879,16 @@ export function showPdfExportOptionsModal() {
       const includeMissingAssignments = document.getElementById('include-missing-assignments')?.checked;
       const baseColumns =
         selectedType === 'gradebook'
-          ? ['Last Name', 'First Name', 'Overall', 'Term', 'Final', 'K', 'T', 'C', 'A']
+          ? ['Last Name', 'First Name', 'Final Overall Mark', 'Term', 'Final', 'K', 'T', 'C', 'A']
           : ['Assignment', 'Scores', 'Summary'];
       const columns =
         attendanceEnabled && selectedType === 'gradebook' ? [...baseColumns, 'Abs', 'Late', 'Att%'] : baseColumns;
+      const selectedTypeLabel =
+        selectedType === 'gradebook'
+          ? 'Gradebook Overview'
+          : selectedType === 'student-reports-midterm'
+            ? 'Student Reports (Midterm)'
+            : 'Student Reports (Final)';
 
       const swatches = (intensityBadges[gradeColorIntensity] || intensityBadges.standard)
         .map((cls) => `<span class="inline-block w-4 h-4 rounded border border-gray-300 ${cls}"></span>`)
@@ -1880,7 +1896,7 @@ export function showPdfExportOptionsModal() {
 
       previewEl.innerHTML = `
         <div class="space-y-2">
-          <div><span class="font-medium">Type:</span> ${selectedType === 'gradebook' ? 'Gradebook Overview' : 'Student Reports'}</div>
+          <div><span class="font-medium">Type:</span> ${selectedTypeLabel}</div>
           <div><span class="font-medium">Students Selected:</span> ${selectedCount}</div>
           <div><span class="font-medium">Missing Assignments:</span> ${includeMissingAssignments ? 'Included' : 'Hidden unless graded'}</div>
           <div><span class="font-medium">Attendance Fields:</span> ${attendanceEnabled && selectedType === 'gradebook' ? 'Included' : 'Not included'}</div>
@@ -1900,6 +1916,18 @@ export function showPdfExportOptionsModal() {
     });
     document.querySelectorAll('.student-export-checkbox').forEach((checkbox) => {
       checkbox.addEventListener('change', renderPreview);
+    });
+    document.getElementById('select-all-students-btn')?.addEventListener('click', () => {
+      document.querySelectorAll('.student-export-checkbox').forEach((checkbox) => {
+        checkbox.checked = true;
+      });
+      renderPreview();
+    });
+    document.getElementById('deselect-all-students-btn')?.addEventListener('click', () => {
+      document.querySelectorAll('.student-export-checkbox').forEach((checkbox) => {
+        checkbox.checked = false;
+      });
+      renderPreview();
     });
     document.getElementById('include-missing-assignments')?.addEventListener('change', renderPreview);
 
@@ -1957,7 +1985,19 @@ function exportGradebookPDF({ studentIds = [] }) {
 
   const units = Object.values(classData.units || {}).sort((a, b) => a.order - b.order);
 
-  const summaryHeaders = ['#', 'Last Name', 'First Name', 'IEP', 'Overall', 'Term', 'Final', 'K', 'T', 'C', 'A'];
+  const summaryHeaders = [
+    '#',
+    'Last Name',
+    'First Name',
+    'IEP',
+    'Final Overall Mark',
+    'Term',
+    'Final',
+    'K',
+    'T',
+    'C',
+    'A',
+  ];
   if (attendanceEnabled) {
     summaryHeaders.push('Abs', 'Late', 'Att%');
   }
@@ -2240,7 +2280,7 @@ function exportGradebookPDF({ studentIds = [] }) {
   doc.save(`${className}_Gradebook_Overview.pdf`);
 }
 
-function exportClassPDF({ studentIds = [], includeMissingAssignments = false }) {
+function exportClassPDF({ studentIds = [], includeMissingAssignments = false, reportMode = 'final' }) {
   const classData = getActiveClassData();
   const appState = getAppState();
   const { attendanceEnabled, gradeColorIntensity } = getAppSettingsForExports();
@@ -2366,6 +2406,8 @@ function exportClassPDF({ studentIds = [], includeMissingAssignments = false }) 
 
     selectedStudents.forEach((student, index) => {
       const avgs = calculateStudentAverages(student, classData);
+      const isMidtermReport = reportMode === 'midterm';
+      const pageWidth = doc.internal.pageSize.getWidth();
       if (index > 0) doc.addPage();
 
       drawStandardHeader(
@@ -2380,9 +2422,31 @@ function exportClassPDF({ studentIds = [], includeMissingAssignments = false }) 
       doc.setTextColor(15, 23, 42);
       doc.text(`Student: ${studentName || 'Unnamed Student'}`, 12, 42);
 
+      const formatSummaryPercent = (value) => {
+        if (value === null || value === undefined || Number.isNaN(value)) return '';
+        return `${value.toFixed(1)}%`;
+      };
+      const midtermMarkText = formatSummaryPercent(student.midtermGrade);
+      const finalOverallMarkText = isMidtermReport ? '' : formatSummaryPercent(avgs.overallGrade);
+
+      doc.setFillColor(...theme.headerBg);
+      doc.setDrawColor(...theme.border);
+      doc.roundedRect(12, 45.5, pageWidth - 24, 8, 1.5, 1.5, 'FD');
+      doc.setFontSize(9);
+      doc.setFont(undefined, 'bold');
+      doc.setTextColor(51, 65, 85);
+      doc.text('Midterm Mark', 16, 50.8);
+      doc.text(midtermMarkText || '--', 56, 50.8);
+      doc.text('Final Overall Mark', 100, 50.8);
+      doc.text(finalOverallMarkText || '', 152, 50.8);
+
       // --- Performance Summary Bar Chart ---
       const chartMetrics = [
-        { label: 'Overall', studentVal: avgs.overallGrade, classVal: classAvgData.overall },
+        {
+          label: 'Final Overall Mark',
+          studentVal: isMidtermReport ? null : avgs.overallGrade,
+          classVal: isMidtermReport ? null : classAvgData.overall,
+        },
         { label: 'Term', studentVal: avgs.termMark, classVal: classAvgData.term },
         {
           label: 'Final',
@@ -2395,14 +2459,13 @@ function exportClassPDF({ studentIds = [], includeMissingAssignments = false }) 
         { label: 'A', studentVal: avgs.categories.a, classVal: classAvgData.a },
       ];
 
-      const pageWidth = doc.internal.pageSize.getWidth();
       const studentBarColor = [30, 64, 175];
       const classBarColor = [148, 163, 184];
 
       // --- Vertical grouped bar chart ---
       const chartX = 12; // left margin
       const chartW = pageWidth - 24; // full usable width
-      const chartTopY = 56;
+      const chartTopY = 64;
       const chartH = 52; // height of the plot area (bars grow upward from baseline)
       const baselineY = chartTopY + chartH;
 

@@ -538,7 +538,7 @@ export function renderGradebook() {
   const headerBg = 'bg-gray-100';
   const bodyBg = 'bg-white';
   const stickyName =
-    'sticky left-0 z-20 border-r border-gray-300 w-[10rem] min-w-[10rem] max-w-[10rem] md:w-[15rem] md:min-w-[15rem] md:max-w-[15rem] shadow-[4px_0_5px_-2px_rgba(0,0,0,0.1)] md:shadow-none';
+    'z-20 border-r border-gray-300 w-[10rem] min-w-[10rem] max-w-[10rem] md:w-[15rem] md:min-w-[15rem] md:max-w-[15rem] md:sticky md:left-0 shadow-[4px_0_5px_-2px_rgba(0,0,0,0.1)] md:shadow-none';
   const stickyIep =
     'z-10 md:z-20 border-r border-gray-300 w-[3rem] min-w-[3rem] max-w-[3rem] md:w-[4rem] md:min-w-[4rem] md:max-w-[4rem] md:sticky md:left-[15rem]';
   const stickyOverall =
@@ -547,7 +547,7 @@ export function renderGradebook() {
   const studentInfoHeaders = `
         <th class="${stickyName} ${headerBg} p-3 text-left z-30">Student Name</th>
         <th class="${stickyIep} ${headerBg} p-3 text-center z-30">IEP</th>
-        <th class="${stickyOverall} ${headerBg} p-3 text-center z-30">Overall</th>
+        <th class="${stickyOverall} ${headerBg} p-3 text-center z-30">Final Overall Mark</th>
         <th class="student-info-header p-3 text-center">Term</th>
         <th class="student-info-header p-3 text-center">Midterm</th>
         ${classData.hasFinal ? `<th class="student-info-header p-3 text-center">Final</th>` : ''}
